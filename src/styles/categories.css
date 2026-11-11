@@ -1,0 +1,41 @@
+/* channel categories + drag to reorder (channels, categories, server rail) */
+.cat-group { position: relative; display: flex; flex-direction: column; gap: 2px; margin-top: 10px; border-radius: 10px; }
+.cat-head { display: flex; align-items: center; gap: 2px; padding-right: 4px; border-radius: 8px; position: relative; }
+.cat-toggle {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; padding: 4px 4px; color: var(--muted);
+  font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; text-align: left;
+}
+.cat-toggle:hover { color: var(--text); }
+.cat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-chev { display: inline-block; font-size: 11px; transition: transform .25s var(--spring); }
+.cat-chev.shut { transform: rotate(-90deg); }
+.cat-act { color: var(--muted); width: 22px; height: 22px; border-radius: 6px; font-size: 13px; display: grid; place-items: center; opacity: 0; transition: opacity .15s, background .15s; }
+.cat-act:hover { color: var(--text); background: var(--bg-3); }
+.cat-head:hover .cat-act, .cat-act:focus-visible { opacity: 1; }
+@media (hover: none) { .cat-act { opacity: .8; } }
+
+.cat-drop-top { padding: 8px; border: 2px dashed var(--line); border-radius: 10px; color: var(--muted); font-size: 12px; font-weight: 800; text-align: center; position: relative; }
+
+.ch-drag { position: relative; }
+
+/* draggable bits: no text selection / iOS callout so long-press can pick them up */
+[draggable="true"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.ch-drag.dragging, .cat-group.dragging, .rail-btn.dragging { opacity: .45; transform: scale(.97); }
+.cat-head.dragging { opacity: .45; }
+
+/* drop indicator line */
+.drop-before::after, .drop-after::after {
+  content: ''; position: absolute; left: 4px; right: 4px; height: 3px; border-radius: 3px; background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg-2); pointer-events: none; z-index: 2; animation: drop-line .25s var(--spring);
+}
+.drop-before::after { top: -3px; }
+.drop-after::after { bottom: -3px; }
+.cat-head.drop-before::after, .cat-head.drop-after::after, .cat-drop-top.drop-before::after, .cat-drop-top.drop-after::after { top: auto; bottom: -3px; }
+.cat-head.drop-before, .cat-head.drop-after, .cat-drop-top.drop-before, .cat-drop-top.drop-after { background: var(--bg-3); }
+.rail-btn.drop-before::after, .rail-btn.drop-after::after { left: 6px; right: 6px; box-shadow: 0 0 0 2px var(--bg); }
+.rail-btn.drop-before::after { top: -6px; }
+.rail-btn.drop-after::after { bottom: -6px; }
+@keyframes drop-line { from { transform: scaleX(.2); opacity: 0; } }
+
+.just-moved { animation: settle .45s var(--spring); }
+@keyframes settle { 0% { transform: scale(1.04); } 40% { transform: scale(.98); } }

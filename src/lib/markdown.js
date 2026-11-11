@@ -9,14 +9,16 @@ const RX = new RegExp([
   /(?<!\w)_([^_\n]+)_(?!\w)/.source,                  // 7 italic, not inside snake_case
   /(https?:\/\/[^\s<>]*[^\s<>().,!?:;'"])/.source,    // 8 url
   /(?<![\w@])@([a-z0-9_.]{2,32})/.source,             // 9 mention, not inside emails
+  /<(a?):([a-z0-9_]{2,32}):([0-9a-f-]{36})>/.source,  // 10-12 custom emoji <:name:id> / <a:name:id>
 ].join('|'), 'gi')
+export const CUSTOM_RX = /<(a?):([a-z0-9_]{2,32}):([0-9a-f-]{36})>/gi
 
 export function tokenize(text) {
   const out = []
   let last = 0
   for (const m of text.matchAll(RX)) {
     if (m.index > last) out.push({ t: 'text', v: text.slice(last, m.index) })
-    const [, block, code, bold, spoiler, strike, it1, it2, url, mention] = m
+    const [, block, code, bold, spoiler, strike, it1, it2, url, mention, anim, ename, eid] = m
     if (block != null) out.push({ t: 'codeblock', v: block.replace(/\n$/, '') })
     else if (code != null) out.push({ t: 'code', v: code })
     else if (bold != null) out.push({ t: 'b', c: tokenize(bold) })
@@ -24,7 +26,8 @@ export function tokenize(text) {
     else if (strike != null) out.push({ t: 's', c: tokenize(strike) })
     else if ((it1 ?? it2) != null) out.push({ t: 'i', c: tokenize(it1 ?? it2) })
     else if (url != null) out.push({ t: 'url', v: url })
-    else out.push({ t: 'mention', v: mention.toLowerCase() })
+    else if (mention != null) out.push({ t: 'mention', v: mention.toLowerCase() })
+    else out.push({ t: 'cemoji', name: ename.toLowerCase(), id: eid.toLowerCase(), animated: !!anim })
     last = m.index + m[0].length
   }
   if (last < text.length) out.push({ t: 'text', v: text.slice(last) })
@@ -33,9 +36,11 @@ export function tokenize(text) {
 
 // A message that is only a few emoji renders big.
 export function isJumbo(text) {
-  const t = text.trim()
-  if (!t || !/^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|‍|️|\s)+$/u.test(t)) return false
-  return [...t.matchAll(/\p{Extended_Pictographic}/gu)].length <= 6
+  const custom = text.match(CUSTOM_RX)?.length || 0
+  const t = text.replace(CUSTOM_RX, ' ').trim()
+  if (!t) return custom > 0 && custom <= 6
+  if (!/^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|‍|️|\s)+$/u.test(t)) return false
+  return [...t.matchAll(/\p{Extended_Pictographic}/gu)].length + custom <= 6
 }
 
 // ── Noto emoji ──

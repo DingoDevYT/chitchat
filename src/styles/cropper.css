@@ -1,0 +1,21 @@
+/* ImageCropper popup */
+.cropper { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; justify-content: center; }
+.crop-frame {
+  position: relative; width: min(260px, 100%); aspect-ratio: 1; overflow: hidden; touch-action: none; cursor: grab;
+  border-radius: var(--r-lg); background: repeating-conic-gradient(var(--bg-3) 0 25%, var(--bg-4) 0 50%) 0 0 / 20px 20px;
+  box-shadow: var(--shadow); outline: none; transition: box-shadow .2s var(--ease);
+}
+.crop-frame:active { cursor: grabbing; }
+.crop-frame:focus-visible { box-shadow: 0 0 0 3px var(--accent); }
+.crop-frame img { position: absolute; max-width: none; user-select: none; pointer-events: none; transition: transform .25s var(--spring); }
+.crop-mask { position: absolute; inset: 0; pointer-events: none; border: 2px solid #fff8; }
+.crop-frame.circle .crop-mask { border-radius: 50%; box-shadow: 0 0 0 200px #0008; }
+.crop-frame.square .crop-mask { border-radius: var(--r-lg); }
+.crop-side { flex: 1 1 180px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.crop-previews { display: flex; gap: 16px; align-items: flex-end; justify-content: center; min-height: 140px; }
+.crop-previews figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.crop-prev { display: block; flex: none; overflow: hidden; background: var(--bg-3); box-shadow: 0 6px 14px #0004; }
+.crop-zoom { display: flex; align-items: center; gap: 8px; }
+.crop-zoom input { flex: 1; min-width: 0; }
+.cropper + .modal-foot { justify-content: flex-end; gap: 8px; }
+@media (prefers-reduced-motion: reduce) { .crop-frame img { transition: none; } }

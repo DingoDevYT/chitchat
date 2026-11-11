@@ -1,0 +1,52 @@
+/* Status dot: colour plus a shape per state, so it reads without colour too. */
+.avatar .dot.st-idle { background: #f4b942; }
+.avatar .dot.st-dnd { background: var(--danger); }
+.avatar .dot.st-offline { background: var(--muted); }
+.avatar .dot.st-idle::after, .avatar .dot.st-dnd::after, .avatar .dot.st-offline::after {
+  content: ''; position: absolute; background: var(--bg-2);
+}
+.avatar .dot.st-idle::after { width: 70%; height: 70%; top: -12%; left: -12%; border-radius: 50%; } /* moon */
+.avatar .dot.st-dnd::after { width: 64%; height: 26%; top: 37%; left: 18%; border-radius: 3px; } /* no-entry bar */
+.avatar .dot.st-offline::after { width: 44%; height: 44%; top: 28%; left: 28%; border-radius: 50%; } /* hollow ring */
+
+.custom-status { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.custom-status > span { overflow: hidden; text-overflow: ellipsis; }
+.custom-status.profile-cs, .custom-status.profile-cs > span { white-space: normal; overflow-wrap: anywhere; margin-top: 4px; }
+.custom-status .emoji { width: 16px; height: 16px; margin: 0; flex: none; }
+.member .who, .ch-item.dm .who { flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: left; }
+.member .who .name { flex: none; }
+.friend-who .who { display: flex; flex-direction: column; min-width: 0; }
+.friend-who .who > span:first-child { overflow: hidden; text-overflow: ellipsis; }
+.ch-item.dm .who .ch-name { flex: none; }
+
+/* Me-panel status picker */
+.me-panel { position: relative; }
+.me-av { border-radius: 50%; padding: 0; transition: transform .25s var(--spring); }
+.me-av:hover { transform: scale(1.06); }
+.me-text { min-width: 0; }
+.status-pop {
+  position: absolute; z-index: 30; left: 8px; bottom: calc(100% + 6px); width: 290px; max-width: calc(100vw - 16px);
+  background: var(--bg); border-radius: var(--r-lg); box-shadow: var(--shadow); padding: 8px; display: flex; flex-direction: column; gap: 2px;
+}
+.status-pop .st-opt { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; text-align: left; width: 100%; }
+.status-pop .st-opt:hover, .status-pop .st-opt:focus-visible { background: var(--bg-3); }
+.status-pop .st-opt.on { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.status-pop .st-opt b { display: block; font-size: 14px; }
+.status-pop .st-opt .avatar { flex: none; }
+.status-pop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+.status-pop .cs-edit { display: flex; flex-direction: column; gap: 8px; padding: 4px; position: relative; }
+.status-pop .cs-edit .row { gap: 8px; flex-wrap: nowrap; }
+.status-pop .cs-edit input { flex: 1; min-width: 0; }
+.status-pop .cs-emoji { width: 40px; height: 40px; flex: none; border-radius: 12px; background: var(--bg-3); display: grid; place-items: center; font-size: 20px; }
+.status-pop .cs-emoji .emoji { width: 22px; height: 22px; margin: 0; }
+.status-pop .emoji-picker { left: 0; right: auto; bottom: calc(100% + 6px); }
+@media (max-width: 480px) { .status-pop .emoji-picker { right: 0; width: auto; height: 360px; } }
+/* A status dot shown big in the picker, no avatar behind it. */
+.status-swatch { position: relative; width: 14px; height: 14px; flex: none; }
+.avatar.status-swatch .dot { right: 0; bottom: 0; width: 14px; height: 14px; max-width: none; max-height: none; border-width: 0; overflow: hidden; }
+.status-swatch .dot::after { background: var(--bg) !important; }
+.status-pop .st-opt:hover .status-swatch .dot::after { background: var(--bg-3) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .me-av, .me-av:hover { transition: none; transform: none; }
+}

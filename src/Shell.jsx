@@ -1,18 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { ensureProfiles, prefs, toast, toasts, useProfile } from './lib/store'
+import { ensureProfiles, prefs, startProfileSync, toast, toasts, useProfile } from './lib/store'
 import { startPresence } from './lib/presence'
+import { byPosition, moveId, step } from './lib/reorder'
+import { useDrag } from './lib/useDrag'
 import FriendsHome, { friendships, startFriends, useIncomingCount } from './Friends'
 import { Splash } from './App'
-import Avatar from './Avatar'
+import Avatar, { CropImg } from './Avatar'
 import Sidebar from './Sidebar'
 import Chat from './Chat'
 import Members, { useMembers } from './Members'
 import ProfileCardHost from './ProfileCard'
+import { useMemberRoles } from './Roles'
+import { hasPerm } from './lib/roles'
 import { VoiceConnection, VoiceStage } from './Voice'
+import StadiumChat from './StadiumChat'
 import QuickSwitch from './QuickSwitch'
 import { CreateJoinModal, ServerSettingsModal, ChannelModal, NewDMModal } from './Modals'
 import Settings from './Settings'
+import { ThreadPanel } from './Thread'
+import ContextMenuHost, { openMenu } from './ContextMenu'
+import { app, dmHidden, serverItems } from './menus'
+import { channelMuted, nextExpiry } from './lib/mute'
 
 function parseHash() {
   const [, kind, a, b] = location.hash.split('/')
@@ -35,6 +44,16 @@ export default function Shell({ userId }) {
   const [visible, setVisible] = useState(!document.hidden)
   const showMembers = prefs.use(s => s.showMembers)
   const toastList = toasts.use()
+  const mutes = prefs.use(s => s.mutes)
+  const closedDMs = prefs.use(s => s.closedDMs)
+  const [hold, setHold] = useState(null) // channel marked unread by hand: don't auto-read it while it stays open
+  const [tick, setTick] = useState(0) // re-renders when a timed mute runs out
+  useEffect(() => {
+    const at = nextExpiry(mutes)
+    if (!at) return
+    const t = setTimeout(() => setTick(x => x + 1), Math.min(at - Date.now() + 50, 2 ** 31 - 1))
+    return () => clearTimeout(t)
+  }, [mutes, tick])
 
   const go = useCallback((serverId, channelId, replace) => {
     const path = serverId ? `#/s/${serverId}${channelId ? '/' + channelId : ''}` : `#/dm${channelId ? '/' + channelId : ''}`
@@ -45,13 +64,16 @@ export default function Shell({ userId }) {
   }, [])
 
   const load = useCallback(async () => {
-    const [s, c, r] = await Promise.all([
+    const [s, c, r, m] = await Promise.all([
       supabase.from('servers').select('*').order('created_at'),
       supabase.from('channels').select('*, channel_members(user_id)').order('position').order('created_at'),
       supabase.from('read_states').select('channel_id, last_read_id'),
+      supabase.from('members').select('server_id, position').eq('user_id', userId),
     ])
     if (s.error || c.error) return toast('Could not load your stuff. Check your connection.')
-    setServers(s.data)
+    // your own rail order (members.position), unordered servers last by creation
+    const order = Object.fromEntries((m.data || []).map(x => [x.server_id, x.position]))
+    setServers(byPosition(s.data.map(x => ({ ...x, position: order[x.id] }))))
     setChannels(c.data)
     setReads(Object.fromEntries((r.data || []).map(x => [x.channel_id, x.last_read_id])))
     ensureProfiles(c.data.filter(x => x.kind === 'dm').flatMap(x => x.channel_members.map(m => m.user_id)))
@@ -67,6 +89,7 @@ export default function Shell({ userId }) {
 
   useEffect(() => { load() }, [load])
   useEffect(() => startPresence(userId), [userId])
+  useEffect(startProfileSync, [])
   useEffect(() => startFriends(userId), [userId])
   const incoming = useIncomingCount()
   const hasFriends = friendships.use(r => r.length > 0)
@@ -118,13 +141,29 @@ export default function Shell({ userId }) {
   }, [userId, load])
 
   const server = servers?.find(s => s.id === route.serverId) || null
-  const serverChannels = useMemo(() => channels.filter(c => c.server_id === route.serverId && c.server_id)
+  const serverChannels = useMemo(() => channels.filter(c => c.server_id === route.serverId && c.server_id && c.kind !== 'thread')
     .sort((a, b) => (a.kind === 'voice') - (b.kind === 'voice') || a.position - b.position), [channels, route.serverId])
-  const dms = useMemo(() => channels.filter(c => c.kind === 'dm')
-    .sort((a, b) => (b.last_message_id || 0) - (a.last_message_id || 0)), [channels])
+  const dms = useMemo(() => channels.filter(c => c.kind === 'dm' && (!dmHidden(c, closedDMs) || c.id === route.channelId))
+    .sort((a, b) => (b.last_message_id || 0) - (a.last_message_id || 0)), [channels, closedDMs, route.channelId])
   const channel = channels.find(c => c.id === route.channelId && (c.server_id || null) === route.serverId) || null
   const members = useMembers(route.serverId)
   const role = members.find(m => m.user_id === userId)?.role
+  const roleData = useMemberRoles(route.serverId)
+
+  // Threads: kind 'thread' channels, shown in a side panel next to their parent channel.
+  const [threadId, setThreadId] = useState(null)
+  useEffect(() => setThreadId(null), [channel?.id])
+  const threads = useMemo(() => channels.filter(c => c.kind === 'thread' && c.server_id === route.serverId), [channels, route.serverId])
+  const threadsByMsg = useMemo(() => new Map(threads.filter(t => t.parent_message_id).map(t => [t.parent_message_id, t])), [threads])
+  const thread = threads.find(t => t.id === threadId && t.parent_channel_id === channel?.id) || null
+  const closeThread = useCallback(() => setThreadId(null), [])
+  const startThread = useCallback(async m => {
+    const { data: id, error } = await supabase.rpc('start_thread', { message_id: m.id })
+    if (error) return toast(error.message)
+    const { data } = await supabase.from('channels').select('*, channel_members(user_id)').eq('id', id).maybeSingle()
+    if (data) setChannels(cs => cs.some(c => c.id === id) ? cs : [...cs, data]) // don't wait for realtime
+    setThreadId(id)
+  }, [])
 
   // Fill in a sensible channel when the route doesn't name one.
   useEffect(() => {
@@ -144,7 +183,7 @@ export default function Shell({ userId }) {
 
   // Mark the open channel read.
   useEffect(() => {
-    if (!channel?.last_message_id || !visible) return
+    if (!channel?.last_message_id || !visible || hold === channel.id) return
     if ((reads[channel.id] ?? 0) >= channel.last_message_id) return
     const id = channel.id, last = channel.last_message_id
     const t = setTimeout(() => {
@@ -152,17 +191,56 @@ export default function Shell({ userId }) {
       supabase.from('read_states').upsert({ user_id: userId, channel_id: id, last_read_id: last }).then()
     }, 600)
     return () => clearTimeout(t)
-  }, [channel?.id, channel?.last_message_id, reads, visible, userId])
+  }, [channel?.id, channel?.last_message_id, reads, visible, userId, hold])
+  useEffect(() => setHold(h => h === channel?.id ? h : null), [channel?.id])
 
+  const markRead = useCallback(list => {
+    const rows = list.filter(c => (c.last_message_id || 0) > (reads[c.id] ?? 0))
+      .map(c => ({ user_id: userId, channel_id: c.id, last_read_id: c.last_message_id }))
+    if (!rows.length) return
+    setReads(r => ({ ...r, ...Object.fromEntries(rows.map(x => [x.channel_id, x.last_read_id])) }))
+    setHold(null)
+    supabase.from('read_states').upsert(rows).then(({ error }) => error && toast(error.message))
+  }, [reads, userId])
+  const markUnread = useCallback((id, last) => {
+    setHold(id)
+    setReads(r => ({ ...r, [id]: last }))
+    supabase.from('read_states').upsert({ user_id: userId, channel_id: id, last_read_id: last }).then(({ error }) => error && toast(error.message))
+  }, [userId])
+
+  // Muted channels/servers/DMs never count as unread (no dot, badge or tab-title count).
   const isUnread = useCallback(c => c.kind !== 'voice' && (c.last_message_id || 0) > (reads[c.id] ?? 0) &&
-    !(c.id === channel?.id && visible), [reads, channel?.id, visible])
-  const unreadServers = useMemo(() => new Set(channels.filter(c => c.server_id && isUnread(c)).map(c => c.server_id)), [channels, isUnread])
+    !(c.id === channel?.id && visible && hold !== c.id) && !channelMuted(mutes, c),
+  [reads, channel?.id, visible, hold, mutes, tick]) // eslint-disable-line react-hooks/exhaustive-deps
+  const unreadServers = useMemo(() => new Set(channels.filter(c => c.server_id && c.kind !== 'thread' && isUnread(c)).map(c => c.server_id)), [channels, isUnread])
   const unreadDMs = dms.filter(isUnread).length
 
   useEffect(() => {
     const n = unreadDMs + unreadServers.size
     document.title = n ? `(${n}) Chitchat` : 'Chitchat'
   }, [unreadDMs, unreadServers.size])
+
+  // Server rail: everyone drags their own order; Ctrl+Alt+↑/↓ switches servers.
+  const railDrag = useDrag({
+    accepts: (t, z) => t === 'server' && z === 'server',
+    onDrop: d => {
+      const ids = servers.map(s => s.id)
+      const next = moveId(ids, d.id, ids.indexOf(d.over) + (d.after ? 1 : 0))
+      const prev = servers
+      setServers(next.map((id, i) => ({ ...servers.find(s => s.id === id), position: i + 1 })))
+      supabase.rpc('reorder_servers', { ids: next }).then(({ error }) => { if (error) { setServers(prev); toast(error.message) } })
+    },
+  })
+  useEffect(() => {
+    const onKey = e => {
+      if (!e.ctrlKey || !e.altKey || e.metaKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || !servers?.length) return
+      e.preventDefault()
+      const id = step(servers.map(s => s.id), route.serverId, e.key === 'ArrowUp' ? -1 : 1)
+      if (id) go(id)
+    }
+    addEventListener('keydown', onKey)
+    return () => removeEventListener('keydown', onKey)
+  }, [servers, route.serverId, go])
 
   async function openDM(userIds) {
     const { data, error } = await supabase.rpc('open_dm', { user_ids: userIds })
@@ -173,7 +251,9 @@ export default function Shell({ userId }) {
 
   if (!me || !servers) return <Splash />
 
-  const ctx = { me, userId, server, role, go, openDM, setModal, load }
+  const ctx = { me, userId, server, role, can: perm => !!server && hasPerm(roleData, role, userId, perm), go, openDM, setModal, load, setChannels, markRead, markUnread, joinVoice,
+    threads, threadsByMsg, startThread, openThread: setThreadId, channels }
+  Object.assign(app, { ctx, members, channels })
 
   return (
     <div className={`app${navOpen ? ' nav-open' : ''}${server && showMembers ? ' with-members' : ''}`}>
@@ -183,9 +263,10 @@ export default function Shell({ userId }) {
         </button>
         <hr />
         {servers.map(s => (
-          <button key={s.id} className={`rail-btn${s.id === route.serverId ? ' active' : ''}${unreadServers.has(s.id) ? ' unread' : ''}`}
-            onClick={() => go(s.id)} title={s.name}>
-            {s.icon_url ? <img src={s.icon_url} alt="" /> : <span>{s.name.split(/\s+/).map(w => w[0]).join('').slice(0, 3)}</span>}
+          <button key={s.id} className={`rail-btn${s.id === route.serverId ? ' active' : ''}${unreadServers.has(s.id) ? ' unread' : ''}${railDrag.cls('server', s.id)}`}
+            {...railDrag.item('server', s.id)} {...railDrag.zone('server', s.id)}
+            onClick={() => go(s.id)} onContextMenu={e => openMenu(e, () => serverItems(s))} title={s.name}>
+            {s.icon_url ? <CropImg src={s.icon_url} crop={s.icon_crop} /> :<span>{s.name.split(/\s+/).map(w => w[0]).join('').slice(0, 3)}</span>}
           </button>
         ))}
         <button className="rail-btn add" onClick={() => setModal({ type: 'createJoin' })} title="Create or join a server">＋</button>
@@ -194,16 +275,19 @@ export default function Shell({ userId }) {
       <Sidebar ctx={ctx} channels={server ? serverChannels : dms} current={channel} isUnread={isUnread}
         voice={voice} vstate={vstate} setVstate={setVstate} onLeaveVoice={() => joinVoice(null)} />
 
-      <main className="main">
+      <main className={`main${thread && channel?.kind !== 'voice' ? ' with-thread' : ''}`}>
         {channel?.kind === 'voice'
-          ? <VoiceStage channel={channel} meId={userId} joined={voice?.id === channel.id} onJoin={() => joinVoice(channel)}
-            live={vstate.live} onLive={() => setVstate(v => ({ ...v, live: !v.live }))}
-            cam={vstate.cam} onCam={() => setVstate(v => ({ ...v, cam: !v.cam }))} onMenu={() => setNavOpen(true)} />
+          ? <StadiumChat key={channel.id} channel={channel} ctx={ctx}>
+            <VoiceStage channel={channel} meId={userId} joined={voice?.id === channel.id} onJoin={() => joinVoice(channel)}
+              live={vstate.live} onLive={() => setVstate(v => ({ ...v, live: !v.live }))}
+              cam={vstate.cam} onCam={() => setVstate(v => ({ ...v, cam: !v.cam }))} onMenu={() => setNavOpen(true)} />
+          </StadiumChat>
           : channel
             ? <Chat key={channel.id} channel={channel} ctx={ctx} members={members} onMenu={() => setNavOpen(true)} />
             : !server && (servers.length > 0 || hasFriends)
               ? <FriendsHome ctx={ctx} onMenu={() => setNavOpen(true)} />
               : <Welcome ctx={ctx} onMenu={() => setNavOpen(true)} hasServers={servers.length > 0} />}
+        {thread && channel?.kind !== 'voice' && <ThreadPanel key={thread.id} thread={thread} ctx={ctx} onClose={closeThread} />}
       </main>
 
       {server && showMembers && <Members members={members} ctx={ctx} />}
@@ -211,12 +295,13 @@ export default function Shell({ userId }) {
       {voice && <VoiceConnection key={voice.id} channel={voice} me={me} vstate={vstate} setVstate={setVstate}
         onError={msg => { toast(msg); joinVoice(null) }} />}
 
-      <QuickSwitch servers={servers} channels={channels} go={go} />
+      <QuickSwitch servers={servers} channels={channels.filter(c => c.kind !== 'thread')} go={go} />
       <ProfileCardHost ctx={ctx} members={members} />
+      <ContextMenuHost />
 
       {modal?.type === 'createJoin' && <CreateJoinModal ctx={ctx} onClose={() => setModal(null)} joinInvite={joinInvite} />}
       {modal?.type === 'serverSettings' && server && <ServerSettingsModal ctx={ctx} onClose={() => setModal(null)} />}
-      {modal?.type === 'channel' && server && <ChannelModal ctx={ctx} members={members} channel={modal.channel} onClose={() => setModal(null)} />}
+      {modal?.type === 'channel' && server && <ChannelModal ctx={ctx} members={members} channel={modal.channel} categoryId={modal.categoryId} onClose={() => setModal(null)} />}
       {modal?.type === 'newDM' && <NewDMModal ctx={ctx} onClose={() => setModal(null)} />}
       {modal?.type === 'settings' && <Settings me={me} tab={modal.tab} onClose={() => setModal(null)} />}
 

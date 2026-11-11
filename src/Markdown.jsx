@@ -1,10 +1,23 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { tokenize, isJumbo, splitEmoji, emojiUrl } from './lib/markdown'
+import { parseCustom } from './lib/customEmoji'
+import { emojiById, ensureEmoji } from './lib/emojiStore'
 import { openProfileByUsername } from './ProfileCard'
+import './styles/custom-emoji.css'
 
-// Noto emoji image; falls back to the native character if the image is missing.
+// Server emoji by id; unknown or deleted ones fall back to :name: text.
+export function CustomEmoji({ name, id, lazy }) {
+  const e = emojiById.use(s => s[id])
+  useEffect(() => { if (e === undefined) ensureEmoji(id) }, [id, e])
+  if (!e) return `:${name}:`
+  return <img className="emoji custom-emoji" src={e.url} alt={`:${e.name}:`} title={`:${e.name}:`} draggable="false" loading={lazy ? 'lazy' : undefined} />
+}
+
+// Noto emoji image; falls back to the native character if the image is missing. Also takes <:name:id>.
 export function Emoji({ e, url = emojiUrl(e), lazy }) {
   const [bad, setBad] = useState(false)
+  const custom = parseCustom(e)
+  if (custom) return <CustomEmoji {...custom} lazy={lazy} />
   if (!url || bad) return e
   return <img className="emoji" src={url} alt={e} draggable="false" loading={lazy ? 'lazy' : undefined} onError={() => setBad(true)} />
 }
@@ -31,12 +44,13 @@ function render(tokens, me) {
       case 'url': return <a key={i} href={tk.v} target="_blank" rel="noopener noreferrer">{tk.v}</a>
       case 'mention': return <button key={i} data-profile className={`mention${tk.v === me ? ' me' : ''}`}
         onClick={e => openProfileByUsername(tk.v, e.currentTarget)}>@{tk.v}</button>
+      case 'cemoji': return <CustomEmoji key={i} name={tk.name} id={tk.id} />
       default: return null
     }
   })
 }
 
 export default function Markdown({ text, me }) {
-  if (isJumbo(text)) return <span className="jumbo">{emojify(text)}</span>
+  if (isJumbo(text)) return <span className="jumbo">{render(tokenize(text), me)}</span>
   return <>{render(tokenize(text), me)}</>
 }

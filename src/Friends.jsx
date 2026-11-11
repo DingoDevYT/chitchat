@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabase'
 import { createStore, ensureProfiles, online, toast, profiles } from './lib/store'
-import Avatar, { Name } from './Avatar'
+import Avatar, { Name, CustomStatus } from './Avatar'
+import { statusOf } from './lib/status'
 import { openProfile } from './ProfileCard'
+import { personMenu } from './menus'
 
 // rows: { user_a (asker), user_b (asked), status }
 export const friendships = createStore([])
@@ -67,9 +69,9 @@ export async function removeFriend(id, ask) {
 function Row({ id, children }) {
   return (
     <div className="friend-row pop">
-      <button className="friend-who" data-profile onClick={e => openProfile(id, e.currentTarget)}>
+      <button className="friend-who" data-profile {...personMenu(id)} onClick={e => openProfile(id, e.currentTarget)}>
         <Avatar id={id} size={36} status />
-        <span><Name id={id} /><span className="muted small"> @{profiles.get()[id]?.username}</span></span>
+        <span className="who"><span><Name id={id} /><span className="muted small"> @{profiles.get()[id]?.username}</span></span><CustomStatus id={id} /></span>
       </button>
       <div className="row">{children}</div>
     </div>
@@ -86,7 +88,7 @@ export default function FriendsHome({ ctx, onMenu }) {
 
   const friends = rows.filter(r => r.status === 'accepted').map(other)
   const outgoing = rows.filter(r => r.status === 'pending' && r.user_a === meId)
-  const shown = tab === 'online' ? friends.filter(id => onlineMap[id]) : friends
+  const shown = tab === 'online' ? friends.filter(id => statusOf(onlineMap[id]) !== 'offline') : friends
 
   async function submit(e) {
     e.preventDefault()

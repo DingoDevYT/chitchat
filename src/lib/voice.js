@@ -14,6 +14,15 @@ export const autoThreshold = floor => Math.min(floor + 15, 75)
 // Level at which an avatar counts as talking (matches watchLevel's byte RMS > 6).
 export const TALK = 73
 
+// "Normalise voices": slow make-up gain for one remote speaker, fed their compressed level (before this gain) every tick.
+// Only moves while they're clearly talking, so silence and hiss never get pumped up; boosts slowly, cuts a bit faster.
+export const NORM = { target: 76, gate: 60, min: 0.5, max: 4, up: 0.03, down: 0.08 }
+export function normGain(gain, lvl, o = NORM) {
+  if (lvl < o.gate) return gain
+  const want = Math.min(o.max, Math.max(o.min, 10 ** ((o.target - lvl) / 20)))
+  return gain + (want - gain) * (want > gain ? o.up : o.down)
+}
+
 const KEYS = { Backquote: '`', Space: 'Space', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Backslash: '\\', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/' }
 // KeyboardEvent.code → something a human recognises.
 export const keyLabel = code => KEYS[code] || code.replace(/^(Key|Digit)/, '').replace(/^(Shift|Control|Alt|Meta)(Left|Right)$/, '$2 $1').replace(/^Numpad/, 'Num ')

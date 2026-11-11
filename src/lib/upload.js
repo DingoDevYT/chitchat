@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { isAnimatedWebp } from './crop'
 
 // Shrinks big images to webp before upload, keeping the free 1GB storage tier going a long way.
 async function compress(file) {
@@ -6,7 +7,8 @@ async function compress(file) {
   try {
     const bmp = await createImageBitmap(file)
     const dims = { w: bmp.width, h: bmp.height }
-    if (file.type === 'image/gif') return { blob: file, ...dims } // keep animation
+    if (file.type === 'image/gif' || (file.type === 'image/webp' && isAnimatedWebp(new Uint8Array(await file.slice(0, 32).arrayBuffer()))))
+      return { blob: file, ...dims } // keep animation
     const scale = Math.min(1, 2048 / Math.max(bmp.width, bmp.height))
     const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale)
     const canvas = new OffscreenCanvas(w, h)

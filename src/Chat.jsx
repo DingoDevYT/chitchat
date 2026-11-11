@@ -3,16 +3,21 @@ import { supabase } from './lib/supabase'
 import { ensureProfiles, prefs, profiles, setPref, toast } from './lib/store'
 import { applyReaction, mergeIncoming, startsGroup } from './lib/chat'
 import { uploadFile } from './lib/upload'
-import Message from './Message'
+import Message, { flashTo } from './Message'
+import { PinsPanel, SearchPanel } from './PinsSearch'
 import { dmTitle } from './Sidebar'
 import { Emoji } from './Markdown'
 import EmojiPicker from './EmojiPicker'
+import { useEmojiAutocomplete } from './EmojiAutocomplete'
 import GifPicker from './GifPicker'
+import { ThreadsButton } from './Thread'
 
 const PAGE = 50
 const msgCache = new Map() // channelId -> recent messages, so switching back is instant
+let pendingJump = null // { cid, id }: a search result in another channel, jumped to once that Chat loads
 
-export default function Chat({ channel, ctx, onMenu }) {
+// `stadium` ({ onType, onArrive, onClose }) turns this into a stadium's side chat: own realtime topic, TTS toggle, no nav.
+export default function Chat({ channel, ctx, onMenu, stadium }) {
   const { userId, me, role, server } = ctx
   const [msgs, setMsgs] = useState(() => msgCache.get(channel.id) || null)
   const [hasMore, setHasMore] = useState(true)
@@ -20,6 +25,8 @@ export default function Chat({ channel, ctx, onMenu }) {
   const [editing, setEditing] = useState(null)
   const [typers, setTypers] = useState({})
   const [atBottom, setAtBottom] = useState(true)
+  const [panel, setPanel] = useState(null) // 'pins' | 'search' | null
+  const [loaded, setLoaded] = useState(false)
   const chRef = useRef(null)
   const topRef = useRef(null)
   const scrollRef = useRef(null)
@@ -27,6 +34,8 @@ export default function Chat({ channel, ctx, onMenu }) {
   const profileMap = profiles.use()
   const showMembers = prefs.use(s => s.showMembers)
   const isAdmin = role === 'owner' || role === 'admin'
+  const canModerate = ctx.can('manage_messages')
+  const canPinPerm = ctx.can('pin_messages')
 
   useEffect(() => { if (msgs) msgCache.set(channel.id, msgs.filter(m => !m.pending).slice(-150)) }, [msgs, channel.id])
 
@@ -42,24 +51,27 @@ export default function Chat({ channel, ctx, onMenu }) {
         const lastId = rows.at(-1)?.id ?? 0
         setMsgs(cur => [...rows, ...(cur || []).filter(m => m.pending || m.id > lastId)])
         setHasMore(data.length === PAGE)
+        setLoaded(true)
       })
 
     const filter = `channel_id=eq.${channel.id}`
-    const ch = supabase.channel(`chan:${channel.id}`, { config: { private: true, broadcast: { self: false } } })
+    // A stadium's 'chan:' topic carries voice presence (VoiceConnection), and supabase-js shares one channel per topic.
+    const ch = supabase.channel(`${stadium ? 'chat' : 'chan'}:${channel.id}`, { config: { private: true, broadcast: { self: false } } })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter }, ({ new: row }) => {
         ensureProfiles([row.author_id])
+        stadium?.onArrive(row)
         setMsgs(l => mergeIncoming(l, row, { live: !document.hidden }))
         setTypers(t => { if (!t[row.author_id]) return t; const n = { ...t }; delete n[row.author_id]; return n })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter }, ({ new: row }) =>
-        setMsgs(l => l && l.map(m => m.id === row.id ? { ...m, content: row.content, edited_at: row.edited_at } : m)))
+        setMsgs(l => l && l.map(m => m.id === row.id ? { ...m, content: row.content, edited_at: row.edited_at, pinned_at: row.pinned_at, pinned_by: row.pinned_by, suppress_embeds: row.suppress_embeds } : m)))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, ({ old }) =>
         setMsgs(l => l && l.filter(m => m.id !== old.id)))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reactions', filter }, ({ new: r }) =>
         setMsgs(l => applyReaction(l, r, true)))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'reactions' }, ({ old }) =>
         setMsgs(l => applyReaction(l, old, false)))
-      .on('broadcast', { event: 'typing' }, ({ payload }) => setTypers(t => ({ ...t, [payload.id]: Date.now() })))
+      .on('broadcast', { event: 'typing' }, ({ payload }) => { stadium?.onType(payload.id); setTypers(t => ({ ...t, [payload.id]: Date.now() })) })
       .subscribe()
     chRef.current = ch
     return () => { alive = false; supabase.removeChannel(ch) }
@@ -95,13 +107,13 @@ export default function Chat({ channel, ctx, onMenu }) {
     return () => io.disconnect()
   }, [loadOlder])
 
-  const send = useCallback(async (text, files, ready = []) => {
+  const send = useCallback(async (text, files, ready = [], tts = false) => {
     const content = text.trim()
     if (!content && !files.length && !ready.length) return
     const tmp = 'tmp-' + crypto.randomUUID()
     const reply = replyTo?.id ?? null
     setMsgs(l => [...(l || []), {
-      id: tmp, key: tmp, pending: true, _live: true, channel_id: channel.id, author_id: userId, content, reply_to: reply,
+      id: tmp, key: tmp, pending: true, _live: true, channel_id: channel.id, author_id: userId, content, reply_to: reply, tts: !!(tts && content),
       attachments: [...ready, ...files.map(f => ({ name: f.name, type: f.type, url: URL.createObjectURL(f), uploading: true }))],
       reactions: [], created_at: new Date().toISOString(),
     }])
@@ -109,7 +121,7 @@ export default function Chat({ channel, ctx, onMenu }) {
     try {
       const attachments = [...ready, ...await Promise.all(files.map(f => uploadFile(f, userId)))]
       const { data, error } = await supabase.from('messages')
-        .insert({ channel_id: channel.id, author_id: userId, content, reply_to: reply, attachments }).select().single()
+        .insert({ channel_id: channel.id, author_id: userId, content, reply_to: reply, attachments, ...(tts && content && { tts: true }) }).select().single()
       if (error) throw error
       setMsgs(l => mergeIncoming(l, data))
     } catch (e) {
@@ -158,34 +170,110 @@ export default function Chat({ channel, ctx, onMenu }) {
   const onTyping = useCallback(() => {
     if (Date.now() - lastTyping.current < 2500) return
     lastTyping.current = Date.now()
+    stadium?.onType(userId)
     chRef.current?.send({ type: 'broadcast', event: 'typing', payload: { id: userId } })
   }, [userId])
 
+  const canPin = canPinPerm || channel.kind === 'dm' // mirrors public.can_pin() in the DB
+  const togglePin = useCallback(async m => {
+    const flip = l => l.map(x => x.id === m.id ? { ...x, pinned_at: m.pinned_at ? null : new Date().toISOString() } : x)
+    setMsgs(l => l && flip(l))
+    const { error } = await supabase.rpc('toggle_pin', { message_id: m.id })
+    if (error) { setMsgs(l => l && l.map(x => x.id === m.id ? { ...x, pinned_at: m.pinned_at } : x)); toast(error.message) }
+  }, [])
+
+  // Scroll to a message in this channel, first loading everything between it and what's loaded (up to 500 rows).
+  const jumpTo = useCallback(async id => {
+    if (flashTo(id)) return
+    const first = msgs?.find(m => !m.pending)?.id
+    if (first && id < first) {
+      const { data } = await supabase.from('messages').select('*, reactions(emoji,user_id)').eq('channel_id', channel.id)
+        .gte('id', id).lt('id', first).order('id').limit(500)
+      if (data?.[0]?.id === id && data.length < 500) {
+        ensureProfiles(data.map(r => r.author_id))
+        setMsgs(l => [...data.map(r => ({ ...r, key: r.id })), ...l])
+        return setTimeout(() => flashTo(id), 60)
+      }
+    }
+    toast("That message is too far back to jump to, or it's gone.")
+  }, [msgs, channel.id])
+
+  const openResult = useCallback(m => {
+    if (m.channel_id === channel.id) return jumpTo(m.id)
+    const c = ctx.channels?.find(x => x.id === m.channel_id)
+    if (!c) return toast("Can't open that channel.")
+    pendingJump = { cid: c.id, id: m.id }
+    ctx.go(c.server_id || null, c.id)
+  }, [channel.id, jumpTo, ctx])
+
+  useEffect(() => {
+    if (!loaded || pendingJump?.cid !== channel.id) return
+    const id = pendingJump.id
+    pendingJump = null
+    setTimeout(() => jumpTo(id), 60)
+  }, [loaded]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Message links (#/s/<server>/<channel>/<message>, #/dm/<channel>/<message>) jump to the message, then drop the id.
+  useEffect(() => {
+    if (!loaded) return
+    const check = () => {
+      const h = location.hash, parts = h.split('/'), id = +parts[parts[1] === 's' ? 4 : 3]
+      if (!id || !parts.includes(channel.id)) return
+      history.replaceState(null, '', h.slice(0, h.lastIndexOf('/')))
+      setTimeout(() => jumpTo(id), 60)
+    }
+    check()
+    addEventListener('hashchange', check)
+    return () => removeEventListener('hashchange', check)
+  }, [loaded, jumpTo, channel.id])
+
+  // Ctrl/Cmd+F opens search while the chat (or nothing in particular) has focus.
+  const rootRef = useRef(null)
+  useEffect(() => {
+    const onKey = e => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'f' || e.shiftKey || e.altKey) return
+      const a = document.activeElement
+      if (a && a !== document.body && !rootRef.current?.contains(a)) return
+      e.preventDefault()
+      setPanel('search')
+      setTimeout(() => rootRef.current?.querySelector('.ps-search input')?.focus())
+    }
+    addEventListener('keydown', onKey)
+    return () => removeEventListener('keydown', onKey)
+  }, [])
+
+  const pinKey = useMemo(() => (msgs || []).filter(m => m.pinned_at).map(m => m.id).join(), [msgs])
   const byId = useMemo(() => new Map((msgs || []).map(m => [m.id, m])), [msgs])
   const title = channel.kind === 'dm' ? dmTitle(channel, userId, profileMap) : channel.name
   const typingNames = Object.keys(typers).filter(id => id !== userId)
     .map(id => profileMap[id]?.display_name || profileMap[id]?.username || 'Someone')
 
   return (
-    <div className="chat">
-      <header className="chat-head">
-        <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu">☰</button>
-        <span className="ch-icon">{channel.kind === 'dm' ? '@' : '#'}</span>
+    <div className="chat" ref={rootRef}>
+      {channel.kind !== 'thread' && <header className="chat-head">
+        {!stadium && <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu">☰</button>}
+        <span className="ch-icon">{stadium ? '💬' : channel.kind === 'dm' ? '@' : '#'}</span>
         <h2>{title}</h2>
         {channel.private && <span className="lock">🔒</span>}
         <span className="spacer" />
-        {server && (
+        {server && channel.kind === 'text' && <ThreadsButton channel={channel} ctx={ctx} />}
+        <button className={`icon-btn${panel === 'pins' ? ' on' : ''}`} onClick={() => setPanel(p => p === 'pins' ? null : 'pins')}
+          title="Pinned messages" aria-label="Pinned messages">📌</button>
+        <button className={`icon-btn${panel === 'search' ? ' on' : ''}`} onClick={() => setPanel(p => p === 'search' ? null : 'search')}
+          title="Search (Ctrl+F)" aria-label="Search messages">🔍</button>
+        {server && !stadium && (
           <button className={`icon-btn${showMembers ? ' on' : ''}`} onClick={() => setPref('showMembers', !showMembers)}
             title="Toggle member list">👥</button>
         )}
-      </header>
+        {stadium && <button className="icon-btn" onClick={stadium.onClose} title="Hide chat" aria-label="Hide chat">✕</button>}
+      </header>}
 
       <div className="scroller" ref={scrollRef} onScroll={e => setAtBottom(e.currentTarget.scrollTop > -200)}>
         <div className="msgs">
           <div ref={topRef} />
           {msgs && !hasMore && (
             <div className="chat-start">
-              <h1>{channel.kind === 'dm' ? `This is the start of your chat with ${title}` : `Welcome to #${channel.name}!`}</h1>
+              <h1>{channel.kind === 'dm' ? `This is the start of your chat with ${title}` : channel.kind === 'thread' ? 'The thread starts here 🧵' : `Welcome to #${channel.name}!`}</h1>
               <p className="muted">Say something nice. Everyone hears it in your voice 🎶</p>
             </div>
           )}
@@ -196,14 +284,19 @@ export default function Chat({ channel, ctx, onMenu }) {
             return (
               <div key={m.key}>
                 {newDay && <div className="day-sep"><span>{new Date(m.created_at).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</span></div>}
-                <Message m={m} head={newDay || startsGroup(prev, m)} me={userId} myName={me.username} canDelete={isAdmin}
+                <Message m={m} head={newDay || startsGroup(prev, m)} me={userId} myName={me.username} serverId={server?.id} canDelete={canModerate} canPin={canPin}
                   replied={m.reply_to ? byId.get(m.reply_to) : null} editing={editing === m.id}
-                  onReply={setReplyTo} onEdit={startEdit} onDelete={remove} onReact={react} onSaveEdit={saveEdit} onCancelEdit={cancelEdit} />
+                  onReply={setReplyTo} onEdit={startEdit} onDelete={remove} onReact={react} onPin={togglePin} onSaveEdit={saveEdit} onCancelEdit={cancelEdit}
+                  thread={ctx.threadsByMsg?.get(m.id)} onThread={server && channel.kind === 'text' ? ctx.startThread : null} />
               </div>
             )
           })}
         </div>
       </div>
+
+      {panel === 'pins' && <PinsPanel channel={channel} canPin={canPin} pinKey={pinKey} onJump={m => jumpTo(m.id)}
+        onTogglePin={togglePin} onClose={() => setPanel(null)} />}
+      {panel === 'search' && <SearchPanel ctx={ctx} channel={channel} onJump={openResult} onClose={() => setPanel(null)} />}
 
       {!atBottom && (
         <button className="jump pop" onClick={() => scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })}>Jump to latest ↓</button>
@@ -216,17 +309,19 @@ export default function Chat({ channel, ctx, onMenu }) {
 
       <Composer key={channel.id} placeholder={`Message ${channel.kind === 'dm' ? title : '#' + channel.name}`}
         onSend={send} onTyping={onTyping} onEditLast={editLast}
-        replyTo={replyTo} onCancelReply={() => setReplyTo(null)} profileMap={profileMap} />
+        replyTo={replyTo} onCancelReply={() => setReplyTo(null)} profileMap={profileMap} serverId={server?.id} canTTS={!!stadium} />
     </div>
   )
 }
 
 const DRAFTS = new Map() // channel drafts survive switching channels
 
-function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancelReply, profileMap }) {
+function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancelReply, profileMap, serverId, canTTS }) {
   const ref = useRef(null)
+  const [tts, setTTS] = useState(false)
   const key = placeholder
   const [text, setText] = useState(() => DRAFTS.get(key) || '')
+  const ac = useEmojiAutocomplete(ref, text, setText, serverId)
   const [files, setFiles] = useState([])
   const [drag, setDrag] = useState(false)
   const [picker, setPicker] = useState(null) // 'emoji' | 'gif' | null
@@ -253,12 +348,13 @@ function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancel
 
   function submit() {
     if (!text.trim() && !files.length) return
-    onSend(text, files)
+    onSend(ac.encode(text), files, [], canTTS && tts)
     setText('')
     setFiles([])
   }
 
   function insert(e) {
+    e = ac.fromPicker(e)
     const el = ref.current, s = el.selectionStart, end = el.selectionEnd
     setText(t => t.slice(0, s) + e + t.slice(end))
     setPicker(null)
@@ -294,13 +390,15 @@ function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancel
           ))}
         </div>
       )}
+      {ac.popup}
       <div className="composer-row">
         <button className="icon-btn attach" onMouseDown={e => e.preventDefault()} onClick={() => fileInput.current.click()} title="Attach files" aria-label="Attach files">＋</button>
         <input ref={fileInput} type="file" multiple hidden onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
         <textarea ref={ref} rows={1} value={text} placeholder={placeholder} aria-label={placeholder}
-          onChange={e => { setText(e.target.value); onTyping() }}
+          onChange={e => { setText(e.target.value); onTyping(); ac.track(e) }} onSelect={ac.track}
           onPaste={e => { if (e.clipboardData.files.length) { e.preventDefault(); addFiles(e.clipboardData.files) } }}
           onKeyDown={e => {
+            if (e.nativeEvent.isComposing || ac.onKeyDown(e)) return
             if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit() }
             else if (e.key === 'ArrowUp' && !text) { e.preventDefault(); onEditLast() }
             else if (e.key === 'Escape' && replyTo) onCancelReply()
@@ -311,6 +409,12 @@ function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancel
         {picker === 'gif' && <GifPicker className="up" onPick={sendGif} onClose={() => setPicker(null)} />}
         <button className="send-btn" onClick={submit} disabled={!text.trim() && !files.length} aria-label="Send">➤</button>
       </div>
+      {canTTS && (
+        <div className="composer-sub">
+          <button className={`tts-toggle${tts ? ' on' : ''}`} aria-pressed={tts} onMouseDown={e => e.preventDefault()} onClick={() => setTTS(t => !t)}
+            title="Read your messages aloud to everyone in the stadium">🔊 TTS</button>
+        </div>
+      )}
     </div>
   )
 }

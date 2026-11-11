@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { ensureProfiles, online } from './lib/store'
 import { openProfile, ROLE_BADGE } from './ProfileCard'
-import Avatar, { Name } from './Avatar'
+import Avatar, { Name, CustomStatus } from './Avatar'
+import { statusOf } from './lib/status'
+import { personMenu } from './menus'
+import { useMemberRoles } from './Roles'
+import { groupMembers } from './lib/roles'
 
 export function useMembers(serverId) {
   const [list, setList] = useState([])
@@ -29,20 +33,18 @@ export default function Members({ members, ctx }) {
   const onlineMap = online.use()
   const rank = { owner: 0, admin: 1, member: 2 }
   const sorted = [...members].sort((a, b) => rank[a.role] - rank[b.role])
-  const groups = [
-    ['Online', sorted.filter(m => onlineMap[m.user_id])],
-    ['Offline', sorted.filter(m => !onlineMap[m.user_id])],
-  ]
+  const sid = ctx.server?.id
+  const groups = groupMembers(sorted, useMemberRoles(sid), id => statusOf(onlineMap[id]) !== 'offline')
   return (
     <aside className="members" aria-label="Members">
-      {groups.map(([label, list]) => list.length > 0 && (
-        <section key={label}>
-          <h4>{label} — {list.length}</h4>
+      {groups.map(({ key, label, color, list }) => (
+        <section key={key}>
+          <h4 style={color ? { color } : undefined}>{label} — {list.length}</h4>
           {list.map(m => (
-            <button key={m.user_id} data-profile className={`member${label === 'Offline' ? ' offline' : ''}`}
+            <button key={m.user_id} data-profile {...personMenu(m.user_id)} className={`member${key === 'offline' ? ' offline' : ''}`}
               onClick={e => openProfile(m.user_id, e.currentTarget)}>
               <Avatar id={m.user_id} size={32} status />
-              <Name id={m.user_id} />
+              <span className="who"><Name id={m.user_id} serverId={sid} /><CustomStatus id={m.user_id} /></span>
               <span className="role-badge">{ROLE_BADGE[m.role]}</span>
             </button>
           ))}

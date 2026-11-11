@@ -7,6 +7,11 @@ import Markdown, { Emoji, emojify } from './Markdown'
 import { openProfile } from './ProfileCard'
 import EmojiPicker from './EmojiPicker'
 import Attachments from './Media'
+import { openMenu } from './ContextMenu'
+import { app, chanMuted, messageItems, personMenu } from './menus'
+import { ThreadPill } from './Thread'
+import { isBlocked, useBlocked } from './lib/blocks'
+import LinkPreviews from './LinkPreview'
 
 export const QUICK_EMOJI = ['👍', '❤️', '😂']
 
@@ -21,13 +26,14 @@ function fmtStamp(iso) {
 
 // Types new messages out letter by letter while the author's avatar talks in their voice.
 function useTypewriter(m) {
-  const live = useRef(!!m._live && !!m.content && !matchMedia('(prefers-reduced-motion: reduce)').matches)
+  const live = useRef(!!m._live && !!m.content && !isBlocked(m.author_id) && !matchMedia('(prefers-reduced-motion: reduce)').matches)
   const [n, setN] = useState(live.current ? 0 : Infinity)
   useEffect(() => {
     if (!live.current) return
     m._live = false // shortcut: mutate the row so a re-mount (channel switch) doesn't replay it
     const text = m.content, id = m.author_id
-    const muted = !!prefs.get().muted[id]
+    // TTS messages are read out by the stadium (lib/stadium.js), so the typewriter stays quiet for them.
+    const muted = !!prefs.get().muted[id] || m.tts || chanMuted(app.channels.find(c => c.id === m.channel_id))
     const voice = () => profiles.get()[id]?.voice || {}
     const speed = voice().speed || 1
     const step = Math.max(1, Math.ceil(text.length / (80 * speed))) // long messages finish in ~2.5s
@@ -59,24 +65,31 @@ function EditBox({ initial, onSave, onCancel }) {
   )
 }
 
+// Scrolls a loaded message into view and flashes it. Returns false if it isn't rendered.
+export function flashTo(id) {
+  const el = document.getElementById('msg-' + id)
+  if (!el) return false
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  el.classList.add('flash')
+  setTimeout(() => el.classList.remove('flash'), 1200)
+  return true
+}
+
 function ReplyPreview({ m }) {
   const author = useProfile(m?.author_id)
   if (!m) return <div className="reply-ref muted small">↪ Original message unavailable</div>
   return (
-    <button className="reply-ref small" onClick={() => {
-      const el = document.getElementById('msg-' + m.id)
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      el?.classList.add('flash')
-      setTimeout(() => el?.classList.remove('flash'), 1200)
-    }}>
+    <button className="reply-ref small" onClick={() => flashTo(m.id)}>
       ↪ <Avatar id={m.author_id} size={16} /> <b style={{ color: author?.color }}>{author?.display_name || author?.username}</b>
       <span className="muted">{m.content.slice(0, 80) || '📎 attachment'}</span>
     </button>
   )
 }
 
-function Message({ m, head, me, myName, canDelete, replied, editing, onReply, onEdit, onDelete, onReact, onSaveEdit, onCancelEdit }) {
+function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, editing, onReply, onEdit, onDelete, onReact, onPin, onSaveEdit, onCancelEdit, thread, onThread }) {
   const n = useTypewriter(m)
+  const blocked = useBlocked(m.author_id)
+  const [reveal, setReveal] = useState(false)
   const [picker, setPicker] = useState(false)
   const typing = n < m.content.length
   const mine = m.author_id === me
@@ -84,16 +97,27 @@ function Message({ m, head, me, myName, canDelete, replied, editing, onReply, on
   const allProfiles = profiles.get()
   const media = useMemo(() => [...(m.attachments || []), ...(typing ? [] : mediaLinks(m.content))], [m.attachments, m.content, typing])
   const mentionsMe = myName && new RegExp(`(^|[^\\w@])@${myName.replace(/\./g, '\\.')}\\b`, 'i').test(m.content)
+  const menu = e => !m.pending && !m.failed && !editing && openMenu(e, () => messageItems(m, {
+    mine, canDelete, canPin, onReply, onEdit, onDelete, onReact, onPin, onThread, thread,
+    quick: [...new Set([...(prefs.get().recentEmoji || []), ...QUICK_EMOJI, '😮', '😢', '🎉'])].slice(0, 6),
+    openPicker: () => setPicker(document.getElementById('msg-' + m.id)?.getBoundingClientRect().top > innerHeight / 2 ? 'up' : 'down'),
+  }))
+
+  if (blocked && !reveal) return (
+    <div id={`msg-${m.id}`} className={`msg${head ? ' head' : ''} blocked-msg`}>
+      <button className="muted small" onClick={() => setReveal(true)}>🚫 Blocked message · <u>show</u></button>
+    </div>
+  )
 
   return (
-    <div id={`msg-${m.id}`} className={`msg${head ? ' head' : ''}${m.pending ? ' pending' : ''}${m.failed ? ' failed' : ''}${mentionsMe ? ' mentioned' : ''}${typing ? ' typing' : ''}`}>
+    <div id={`msg-${m.id}`} onContextMenu={menu} className={`msg${head ? ' head' : ''}${m.pending ? ' pending' : ''}${m.failed ? ' failed' : ''}${mentionsMe ? ' mentioned' : ''}${typing ? ' typing' : ''}`}>
       {m.reply_to && <ReplyPreview m={replied} />}
       <div className="msg-row">
         <div className="msg-gutter">
-          {head ? <button className="av-btn" data-profile onClick={e => openProfile(m.author_id, e.currentTarget)} aria-label="View profile"><Avatar id={m.author_id} size={42} /></button> : <time className="hover-time">{fmtTime(new Date(m.created_at))}</time>}
+          {head ? <button className="av-btn" data-profile {...personMenu(m.author_id)} onClick={e => openProfile(m.author_id, e.currentTarget)} aria-label="View profile"><Avatar id={m.author_id} size={42} /></button> : <time className="hover-time">{fmtTime(new Date(m.created_at))}</time>}
         </div>
         <div className="msg-body">
-          {head && <div className="msg-meta"><button className="name-btn" data-profile onClick={e => openProfile(m.author_id, e.currentTarget)}><Name id={m.author_id} /></button><time className="muted small">{fmtStamp(m.created_at)}</time></div>}
+          {head && <div className="msg-meta"><button className="name-btn" data-profile {...personMenu(m.author_id)} onClick={e => openProfile(m.author_id, e.currentTarget)}><Name id={m.author_id} serverId={serverId} /></button><time className="muted small">{fmtStamp(m.created_at)}</time></div>}
           {editing
             ? <EditBox initial={m.content} onSave={onSaveEdit} onCancel={onCancelEdit} />
             : m.content && (
@@ -104,7 +128,9 @@ function Message({ m, head, me, myName, canDelete, replied, editing, onReply, on
               </div>
             )}
           {m.failed && <div className="note err small">Didn't send. Check your connection and try again.</div>}
+          {m.pinned_at && <div className="pin-mark">📌 pinned</div>}
           <Attachments list={media} />
+          {!typing && !m.suppress_embeds && <LinkPreviews m={m} mine={mine} />}
           {reactions.length > 0 && (
             <div className="reactions">
               {reactions.map(r => (
@@ -115,6 +141,7 @@ function Message({ m, head, me, myName, canDelete, replied, editing, onReply, on
               ))}
             </div>
           )}
+          {thread && <ThreadPill thread={thread} onOpen={() => onThread?.(m)} />}
         </div>
       </div>
 
@@ -123,6 +150,8 @@ function Message({ m, head, me, myName, canDelete, replied, editing, onReply, on
           {QUICK_EMOJI.map(e => <button key={e} onClick={() => onReact(m, e)} title={`React ${e}`}><Emoji e={e} /></button>)}
           <button onMouseDown={e => e.stopPropagation()} onClick={e => setPicker(p => !p && (e.currentTarget.getBoundingClientRect().top > innerHeight / 2 ? 'up' : 'down'))} title="More reactions"><Emoji e="😊" /></button>
           <button onClick={() => onReply(m)} title="Reply">↩️</button>
+          {onThread && <button onClick={() => onThread(m)} title={thread ? 'Open thread' : 'Start thread'} aria-label={thread ? 'Open thread' : 'Start thread'}>🧵</button>}
+          {canPin && <button onClick={() => onPin(m)} title={m.pinned_at ? 'Unpin' : 'Pin'} aria-label={m.pinned_at ? 'Unpin' : 'Pin'}>📌</button>}
           {mine && <button onClick={() => onEdit(m)} title="Edit">✏️</button>}
           {(mine || canDelete) && <button onClick={e => onDelete(m, e.shiftKey)} title="Delete (Shift = no confirm)">🗑️</button>}
           {picker && <EmojiPicker className={picker} onPick={e => { onReact(m, e); setPicker(false) }} onClose={() => setPicker(false)} />}

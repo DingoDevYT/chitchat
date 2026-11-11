@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { primeProfiles, toast, useProfile } from './lib/store'
 import { uploadFile } from './lib/upload'
+import { categories } from './lib/categories'
+import { byPosition } from './lib/reorder'
+import { IMAGE_TYPES, checkImage } from './lib/crop'
 import Modal from './Modal'
-import Avatar from './Avatar'
+import Avatar, { CropImg } from './Avatar'
+import ImageCropper from './ImageCropper'
+import EmojiSettings from './EmojiSettings'
+import { RolesTab } from './Roles'
 
 export function CreateJoinModal({ ctx, onClose, joinInvite }) {
   const [tab, setTab] = useState('create')
@@ -59,6 +65,9 @@ export function ServerSettingsModal({ ctx, onClose }) {
   const { server } = ctx
   const [name, setName] = useState(server.name)
   const [busy, setBusy] = useState(false)
+  const [tab, setTab] = useState(ctx.can('manage_server') ? 'general' : 'roles')
+  const [cropFile, setCropFile] = useState(null)
+  const closeCropper = useCallback(() => setCropFile(null), [])
 
   async function save(e) {
     e.preventDefault()
@@ -67,14 +76,22 @@ export function ServerSettingsModal({ ctx, onClose }) {
     await ctx.load()
     onClose()
   }
-  async function setIcon(file) {
+  function pickIcon(input) {
+    const file = input.files[0]
+    input.value = ''
     if (!file) return
+    const err = checkImage(file)
+    if (err) return toast(err)
+    setCropFile(file)
+  }
+  async function setIcon({ file, crop }) {
     setBusy(true)
     try {
       const { url } = await uploadFile(file, ctx.userId)
-      const { error } = await supabase.from('servers').update({ icon_url: url }).eq('id', server.id)
+      const { error } = await supabase.from('servers').update({ icon_url: url, icon_crop: crop }).eq('id', server.id)
       if (error) throw error
       await ctx.load()
+      setCropFile(null)
     } catch (e) { toast(e.message) }
     setBusy(false)
   }
@@ -89,23 +106,33 @@ export function ServerSettingsModal({ ctx, onClose }) {
 
   return (
     <Modal title="Server settings" onClose={onClose}>
-      <form onSubmit={save} className="col">
+      <div className="tabs">
+        <button className={tab === 'general' ? 'on' : ''} onClick={() => setTab('general')}>General</button>
+        <button className={tab === 'emoji' ? 'on' : ''} onClick={() => setTab('emoji')}>Emoji</button>
+        <button className={tab === 'roles' ? 'on' : ''} onClick={() => setTab('roles')}>Roles</button>
+      </div>
+      {tab === 'emoji' && <EmojiSettings ctx={ctx} />}
+      {tab === 'roles' && <RolesTab ctx={ctx} />}
+      <form onSubmit={save} className="col" style={tab !== 'general' ? { display: 'none' } : undefined}>
         <div className="row">
-          <div className="server-icon-preview">{server.icon_url ? <img src={server.icon_url} alt="" /> : server.name[0]}</div>
+          <div className="server-icon-preview">{server.icon_url ? <CropImg src={server.icon_url} crop={server.icon_crop} /> : server.name[0]}</div>
           <label className="btn ghost">{busy ? 'Uploading…' : 'Change icon'}
-            <input type="file" accept="image/*" hidden onChange={e => setIcon(e.target.files[0])} />
+            <input type="file" accept={IMAGE_TYPES} hidden onChange={e => pickIcon(e.target)} />
           </label>
         </div>
         <label>Name<input value={name} onChange={e => setName(e.target.value)} maxLength={64} required /></label>
         <button className="btn primary">Save</button>
         {ctx.role === 'owner' && <button type="button" className="btn danger" onClick={destroy}>Delete server</button>}
       </form>
+      {cropFile && <ImageCropper file={cropFile} shape="square" title="Crop server icon" onCancel={closeCropper} onApply={setIcon} />}
     </Modal>
   )
 }
 
-export function ChannelModal({ ctx, members, channel, onClose }) {
+export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
   const editing = !!channel
+  const cats = byPosition(categories.use(s => s[ctx.server.id]) || []) // loaded + kept live by the Sidebar
+  const [cat, setCat] = useState(channel ? channel.category_id || '' : categoryId || '')
   const [name, setName] = useState(channel?.name || '')
   const [kind, setKind] = useState(channel?.kind || 'text')
   const [priv, setPriv] = useState(channel?.private || false)
@@ -119,11 +146,11 @@ export function ChannelModal({ ctx, members, channel, onClose }) {
     if (!n) return
     let id = channel?.id
     if (editing) {
-      const { error } = await supabase.from('channels').update({ name: n, private: priv }).eq('id', id)
+      const { error } = await supabase.from('channels').update({ name: n, private: priv, category_id: cat || null }).eq('id', id)
       if (error) return toast(error.message)
     } else {
       const { data, error } = await supabase.from('channels')
-        .insert({ server_id: ctx.server.id, name: n, kind, private: priv, position: Date.now() % 1e9 }).select().single()
+        .insert({ server_id: ctx.server.id, name: n, kind, private: priv, position: Date.now() % 1e9, category_id: cat || null }).select().single()
       if (error) return toast(error.message)
       id = data.id
     }
@@ -158,6 +185,12 @@ export function ChannelModal({ ctx, members, channel, onClose }) {
         )}
         <label>Name<input value={name} onChange={e => setName(e.target.value)} maxLength={64} required autoFocus
           placeholder={kind === 'text' ? 'memes' : 'Gaming'} /></label>
+        {cats.length > 0 && (
+          <label>Category<select value={cat} onChange={e => setCat(e.target.value)}>
+            <option value="">No category</option>
+            {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select></label>
+        )}
         <label className="toggle"><input type="checkbox" checked={priv} onChange={e => setPriv(e.target.checked)} />
           <span>🔒 Private: only admins and the people you pick can see it</span></label>
         {priv && (

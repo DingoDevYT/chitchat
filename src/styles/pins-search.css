@@ -1,0 +1,31 @@
+/* Pinned messages + search drawers (src/PinsSearch.jsx) */
+.ps-panel {
+  position: absolute; z-index: 6; top: 64px; right: 12px; bottom: 12px; width: min(400px, calc(100% - 24px));
+  display: flex; flex-direction: column; background: var(--bg-2); border-radius: var(--r-lg); box-shadow: var(--shadow); overflow: hidden;
+}
+.ps-head { display: flex; align-items: center; gap: 8px; padding: 10px 10px 8px 14px; }
+.ps-search { flex: 1; min-width: 0; }
+.ps-search input { width: 100%; }
+.tabs.ps-scope { margin: 0 10px 6px; }
+.ps-scope button { padding: 6px 4px; font-size: 12.5px; white-space: nowrap; min-width: 0; }
+@media (max-width: 480px) { .ps-scope button { font-size: 11.5px; } }
+.ps-list { flex: 1; overflow-y: auto; padding: 4px 8px 10px; display: flex; flex-direction: column; gap: 6px; overscroll-behavior: contain; }
+.ps-empty { padding: 8px 6px; margin: 0; }
+.ps-empty code { background: var(--bg-3); border-radius: 6px; padding: 1px 5px; }
+.ps-hit { position: relative; display: flex; align-items: flex-start; background: var(--bg); border-radius: var(--r); transition: transform .2s var(--spring); }
+.ps-hit:hover { transform: translateY(-1px); }
+.ps-hit-main { flex: 1; min-width: 0; display: flex; gap: 10px; padding: 10px; text-align: left; }
+.ps-hit-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ps-hit-meta { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-weight: 800; font-size: 14px; }
+.ps-hit-text { font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ps-hit-text .emoji { width: 18px; height: 18px; vertical-align: middle; }
+.ps-hit mark { background: color-mix(in srgb, var(--accent) 35%, transparent); color: inherit; border-radius: 4px; padding: 0 1px; }
+.ps-unpin { flex: none; margin: 6px 6px 0 0; }
+.ps-more { align-self: center; margin-top: 4px; }
+
+.pin-mark { margin: 1px 0 2px; font-size: 11.5px; font-weight: 800; color: var(--accent-2); }
+.chat-head .icon-btn.on { color: var(--accent-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ps-hit, .ps-hit:hover { transition: none; transform: none; }
+}

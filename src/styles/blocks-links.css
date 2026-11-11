@@ -1,0 +1,29 @@
+/* Link preview cards + collapsed blocked messages */
+.link-cards { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; max-width: 520px; }
+.link-card {
+  position: relative; display: flex; gap: 12px; align-items: flex-start;
+  background: var(--bg-2); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+  border-radius: var(--r); padding: 10px 12px; min-width: 0;
+}
+.link-card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.link-card-site { display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.link-card-site img { border-radius: 3px; flex: none; }
+.link-card-title { font-weight: 700; color: var(--accent-2, var(--accent)); text-decoration: none; overflow-wrap: anywhere; padding-right: 18px; }
+.link-card-title:hover { text-decoration: underline; }
+.link-card-desc {
+  color: var(--muted); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.link-card-thumb { width: 80px; height: 80px; object-fit: cover; border-radius: calc(var(--r) - 4px); flex: none; background: var(--bg-3); }
+.link-card-x { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; font-size: 16px; line-height: 1; opacity: 0; transition: opacity .15s var(--ease); }
+.link-card:hover .link-card-x, .link-card-x:focus-visible { opacity: 1; }
+@media (hover: none) { .link-card-x { opacity: .7; } }
+@media (max-width: 480px) { .link-card-thumb { width: 56px; height: 56px; } }
+
+.blocked-msg { padding-top: 4px; padding-bottom: 4px; }
+.blocked-msg > button { background: none; border: 0; padding: 2px 0 2px 58px; cursor: pointer; font: inherit; }
+.blocked-msg > button:hover u { color: var(--text); }
+
+.blocked-list { display: flex; flex-direction: column; gap: 6px; }
+.blocked-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: var(--r); background: var(--bg-2); }
+.blocked-row > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

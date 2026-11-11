@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { prefs, setPref } from './lib/store'
 import { GROUPS, loadEmoji, searchEmoji, withSkin } from './lib/emoji'
+import { myEmoji, loadMyEmoji } from './lib/emojiStore'
+import { toToken } from './lib/customEmoji'
 import { Emoji } from './Markdown'
 
 const TONES = ['✋', '✋🏻', '✋🏼', '✋🏽', '✋🏾', '✋🏿']
 
 // Renders its cells only once scrolled near view; until then a same-height spacer (9 cols, ~37px rows).
-function Section({ name, children, count }) {
+function Section({ name, id = name, children, count }) {
   const ref = useRef(null)
   const [seen, setSeen] = useState(false)
   useEffect(() => {
@@ -15,7 +17,7 @@ function Section({ name, children, count }) {
     return () => io.disconnect()
   }, [])
   return (
-    <section ref={ref} data-g={name}>
+    <section ref={ref} data-g={id}>
       <h4>{name}</h4>
       {seen ? <div className="ep-cells">{children}</div> : <div style={{ height: Math.ceil(count / 9) * 37 }} />}
     </section>
@@ -37,7 +39,22 @@ export default function EmojiPicker({ onPick, onClose, className = '' }) {
     return () => document.removeEventListener('mousedown', down)
   }, [onClose])
 
-  const results = useMemo(() => list && q.trim() ? searchEmoji(list, q).map(e => withSkin(e, skinTone)) : null, [list, q, skinTone])
+  const mine = myEmoji.use()
+  useEffect(() => { loadMyEmoji() }, [])
+  // one section per server you're in, in server-emoji creation order
+  const servers = useMemo(() => {
+    const m = new Map()
+    for (const e of mine || []) {
+      if (!m.has(e.server_id)) m.set(e.server_id, { id: 'srv-' + e.server_id, name: e.servers?.name || 'Server', icon: e.servers?.icon_url, list: [] })
+      m.get(e.server_id).list.push(toToken(e))
+    }
+    return [...m.values()]
+  }, [mine])
+  const results = useMemo(() => {
+    if (!list || !q.trim()) return null
+    const cq = q.trim().toLowerCase().replace(/\s+/g, '_').replace(/:/g, '')
+    return [...(mine || []).filter(e => e.name.includes(cq)).map(toToken), ...searchEmoji(list, q).map(e => withSkin(e, skinTone))]
+  }, [list, q, skinTone, mine])
   const groups = useMemo(() => list && GROUPS.map(([id, name, icon]) =>
     [name, icon, list.filter(e => e.group === id).map(e => withSkin(e, skinTone))]), [list, skinTone])
 
@@ -45,7 +62,7 @@ export default function EmojiPicker({ onPick, onClose, className = '' }) {
     setPref('recentEmoji', [e, ...recentEmoji.filter(x => x !== e)].slice(0, 24))
     onPick(e)
   }
-  const cells = arr => arr.map(e => <button key={e} onClick={() => pick(e)} title={e}><Emoji e={e} lazy /></button>)
+  const cells = arr => arr.map(e => <button key={e} onClick={() => pick(e)} title={e[0] === '<' ? `:${e.split(':')[1]}:` : e}><Emoji e={e} lazy /></button>)
 
   return (
     <div ref={root} className={`emoji-picker pop ${className}`} onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }}>
@@ -61,6 +78,11 @@ export default function EmojiPicker({ onPick, onClose, className = '' }) {
       </div>
       {!results && list && (
         <div className="ep-tabs">
+          {servers.map(s => (
+            <button key={s.id} className="ep-srv-tab" title={s.name} onClick={() => grid.current.querySelector(`[data-g="${s.id}"]`)?.scrollIntoView()}>
+              {s.icon ? <img src={s.icon} alt="" /> : <span>{s.name[0]}</span>}
+            </button>
+          ))}
           {groups.map(([name, icon]) => (
             <button key={name} title={name} onClick={() => grid.current.querySelector(`[data-g="${name}"]`)?.scrollIntoView()}><Emoji e={icon} /></button>
           ))}
@@ -72,6 +94,7 @@ export default function EmojiPicker({ onPick, onClose, className = '' }) {
           : results ? (results.length ? <div className="ep-cells">{cells(results)}</div> : <p className="muted small">No emoji match “{q}”.</p>)
           : <>
             {recentEmoji.length > 0 && <section><h4>Recently used</h4><div className="ep-cells">{cells(recentEmoji)}</div></section>}
+            {servers.map(s => <Section key={s.id} id={s.id} name={s.name} count={s.list.length}>{cells(s.list)}</Section>)}
             {groups.map(([name, , arr]) => <Section key={name} name={name} count={arr.length}>{cells(arr)}</Section>)}
           </>}
       </div>

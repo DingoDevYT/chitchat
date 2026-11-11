@@ -1,22 +1,60 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { prefs, primeProfiles, setPref, setTalking, toast } from './lib/store'
+import { prefs, primeProfiles, profiles, setPref, setTalking, toast } from './lib/store'
 import { sayPreview } from './lib/animalese'
 import { uploadFile } from './lib/upload'
+import { IMAGE_TYPES, checkImage } from './lib/crop'
 import Modal from './Modal'
-import Avatar, { Critter } from './Avatar'
+import Avatar, { Critter, CropImg } from './Avatar'
+import ImageCropper from './ImageCropper'
 import VoiceSettings from './VoiceSettings'
+import Privacy from './Privacy'
 
 const WAVES = [['square', 'Chirpy'], ['triangle', 'Soft'], ['sawtooth', 'Buzzy'], ['sine', 'Gentle']]
 const COLORS = ['#ff9f6b', '#f4a261', '#e76f51', '#ff6b8b', '#c77dff', '#7b9cff', '#4cc9f0', '#7ed6b1', '#b5e48c', '#ffd166']
+
+// Browser (Web Speech) voice for TTS. Listeners hear it on their own device; without this exact voice they get one in the same language.
+function RealVoicePick({ voice, setVoice }) {
+  const ss = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null
+  const [voices, setVoices] = useState(() => ss?.getVoices() || [])
+  useEffect(() => {
+    if (!ss) return
+    const load = () => setVoices(ss.getVoices())
+    ss.addEventListener('voiceschanged', load)
+    return () => ss.removeEventListener('voiceschanged', load)
+  }, [ss])
+  if (!ss) return <p className="muted small">This browser can't speak, but others will still hear you in a voice from their own device.</p>
+  const pick = name => { const v = voices.find(x => x.name === name); setVoice('voiceName', v?.name || null); setVoice('voiceLang', v?.lang || null) }
+  function test() {
+    ss.cancel()
+    const u = new SpeechSynthesisUtterance('Hiya! This is how I sound!')
+    u.voice = voices.find(x => x.name === voice.voiceName) || null
+    u.pitch = voice.pitch ?? 1; u.rate = voice.speed ?? 1
+    ss.speak(u)
+  }
+  return (
+    <div className="row">
+      <label style={{ flex: 1 }}>Real voice
+        <select value={voice.voiceName || ''} onChange={e => pick(e.target.value)}>
+          <option value="">Browser default</option>
+          {voices.map(v => <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>)}
+        </select>
+      </label>
+      <button className="btn ghost small" onClick={test}>▶ Test</button>
+    </div>
+  )
+}
 
 export default function Settings({ me, onClose, tab: firstTab }) {
   const [tab, setTab] = useState(firstTab || 'profile')
   const [form, setForm] = useState({
     username: me.username, display_name: me.display_name || '', bio: me.bio || '', color: me.color,
-    avatar_idle: me.avatar_idle, avatar_talk: me.avatar_talk, voice: { pitch: 1, speed: 1, wave: 'square', ...me.voice },
+    avatar_idle: me.avatar_idle, avatar_talk: me.avatar_talk, avatar_crop: me.avatar_crop || null, avatar_talk_crop: me.avatar_talk_crop || null,
+    voice: { pitch: 1, speed: 1, wave: 'square', ...me.voice },
   })
   const [busy, setBusy] = useState(null)
+  const [cropping, setCropping] = useState(null) // { key, file }
+  const closeCropper = useCallback(() => setCropping(null), [])
   const p = prefs.use()
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const setVoice = (k, v) => setForm(f => ({ ...f, voice: { ...f.voice, [k]: v } }))
@@ -31,10 +69,29 @@ export default function Settings({ me, onClose, tab: firstTab }) {
     onClose()
   }
 
-  async function upload(key, file) {
+  function pick(key, input) {
+    const file = input.files[0]
+    input.value = '' // allow re-picking the same file
     if (!file) return
+    const err = checkImage(file)
+    if (err) return toast(err)
+    setCropping({ key, file })
+  }
+
+  // Avatar images save straight away: shown everywhere for you at once, then for others via realtime.
+  async function applyCrop({ file, crop, preview }) {
+    const key = cropping.key, cropKey = key === 'avatar_idle' ? 'avatar_crop' : 'avatar_talk_crop'
+    const prev = profiles.get()[me.id]
+    primeProfiles([{ ...prev, [key]: preview, [cropKey]: crop }])
     setBusy(key)
-    try { set(key, (await uploadFile(file, me.id)).url) } catch (e) { toast(e.message) }
+    try {
+      const { url } = await uploadFile(file, me.id)
+      const { data, error } = await supabase.from('profiles').update({ [key]: url, [cropKey]: crop }).eq('id', me.id).select().single()
+      if (error) throw error
+      primeProfiles([data])
+      setForm(f => ({ ...f, [key]: url, [cropKey]: crop }))
+      setCropping(null)
+    } catch (e) { primeProfiles([prev]); toast(e.message) }
     setBusy(null)
   }
 
@@ -48,7 +105,7 @@ export default function Settings({ me, onClose, tab: firstTab }) {
   return (
     <Modal title="Settings" onClose={onClose} wide>
       <div className="tabs">
-        {[['profile', 'Profile'], ['voice', 'Avatar & voice'], ['media', 'Voice & video'], ['app', 'App']].map(([k, l]) =>
+        {[['profile', 'Profile'], ['voice', 'Avatar & voice'], ['media', 'Voice & video'], ['app', 'App'], ['privacy', 'Privacy']].map(([k, l]) =>
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
       </div>
 
@@ -72,19 +129,19 @@ export default function Settings({ me, onClose, tab: firstTab }) {
         <div className="col">
           <div className="pngtuber-setup">
             <div className="pngtuber-slot">
-              <div className="slot-img">{form.avatar_idle ? <img src={form.avatar_idle} alt="" /> : <Critter size={80} color={form.color} />}</div>
+              <div className="slot-img">{form.avatar_idle ? <CropImg src={form.avatar_idle} crop={form.avatar_crop} /> : <Critter size={80} color={form.color} />}</div>
               <label className="btn ghost small">{busy === 'avatar_idle' ? 'Uploading…' : 'Idle image'}
-                <input type="file" accept="image/*" hidden onChange={e => upload('avatar_idle', e.target.files[0])} /></label>
+                <input type="file" accept={IMAGE_TYPES} hidden onChange={e => pick('avatar_idle', e.target)} /></label>
             </div>
             <div className="pngtuber-slot">
-              <div className="slot-img">{form.avatar_talk ? <img src={form.avatar_talk} alt="" /> : <Critter size={80} color={form.color} talk />}</div>
+              <div className="slot-img">{form.avatar_talk ? <CropImg src={form.avatar_talk} crop={form.avatar_talk_crop} /> : <Critter size={80} color={form.color} talk />}</div>
               <label className="btn ghost small">{busy === 'avatar_talk' ? 'Uploading…' : 'Talking image'}
-                <input type="file" accept="image/*" hidden onChange={e => upload('avatar_talk', e.target.files[0])} /></label>
+                <input type="file" accept={IMAGE_TYPES} hidden onChange={e => pick('avatar_talk', e.target)} /></label>
             </div>
           </div>
           <p className="muted small">PNGtuber style: your idle image swaps to the talking one while your messages type out.
             Leave both empty to be a critter. {(form.avatar_idle || form.avatar_talk) &&
-              <button className="link" onClick={() => setForm(f => ({ ...f, avatar_idle: null, avatar_talk: null }))}>Reset to critter</button>}</p>
+              <button className="link" onClick={() => setForm(f => ({ ...f, avatar_idle: null, avatar_talk: null, avatar_crop: null, avatar_talk_crop: null }))}>Reset to critter</button>}</p>
 
           <div>Voice
             <div className="tabs small">{WAVES.map(([w, l]) =>
@@ -93,16 +150,28 @@ export default function Settings({ me, onClose, tab: firstTab }) {
           <label>Pitch <input type="range" min="0.5" max="2" step="0.05" value={form.voice.pitch} onChange={e => setVoice('pitch', +e.target.value)} /></label>
           <label>Speed <input type="range" min="0.5" max="2" step="0.05" value={form.voice.speed} onChange={e => setVoice('speed', +e.target.value)} /></label>
           <button className="btn ghost test-voice" onClick={testTalk}><Avatar id={me.id} size={28} /> Test my voice</button>
+          <div>Speak my TTS messages as
+            <div className="tabs small">{[['animalese', 'Animalese'], ['real', 'Real voice']].map(([v, l]) =>
+              <button key={v} className={(form.voice.tts || 'animalese') === v ? 'on' : ''} onClick={() => setVoice('tts', v)}>{l}</button>)}</div>
+            <span className="muted small">For 🔊 TTS messages in stadium chats. Pitch and speed above apply to both.</span>
+          </div>
+          {form.voice.tts === 'real' && <RealVoicePick voice={form.voice} setVoice={setVoice} />}
         </div>
       )}
 
       {tab === 'media' && <VoiceSettings />}
+      {tab === 'privacy' && <Privacy />}
 
       {tab === 'app' && (
         <div className="col">
           <label className="toggle"><input type="checkbox" checked={p.animalese} onChange={e => setPref('animalese', e.target.checked)} />
             <span>Animalese voices on new messages</span></label>
           <label>Typing voice volume <input type="range" min="0" max="1" step="0.05" value={p.volume} onChange={e => setPref('volume', +e.target.value)} /></label>
+          <div>Animate avatars
+            <div className="tabs small">{[['always', 'Always'], ['hover', 'On hover only']].map(([v, l]) =>
+              <button key={v} className={p.animateAvatars === v ? 'on' : ''} onClick={() => setPref('animateAvatars', v)}>{l}</button>)}</div>
+            <span className="muted small">GIF avatars and server icons. With reduced motion turned on, they only move on hover.</span>
+          </div>
           {Object.keys(p.muted).length > 0 && (
             <button className="btn ghost" onClick={() => setPref('muted', {})}>Unmute everyone ({Object.keys(p.muted).length})</button>
           )}
@@ -113,6 +182,8 @@ export default function Settings({ me, onClose, tab: firstTab }) {
       )}
 
       {(tab === 'profile' || tab === 'voice') && <div className="modal-foot"><button className="btn primary" onClick={save}>Save changes</button></div>}
+      {cropping && <ImageCropper file={cropping.file} title={cropping.key === 'avatar_idle' ? 'Crop idle image' : 'Crop talking image'}
+        onCancel={closeCropper} onApply={applyCrop} />}
     </Modal>
   )
 }

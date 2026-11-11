@@ -1,4 +1,4 @@
-import { prefs } from './store'
+import { prefs, isDND } from './store'
 
 // Synthesised "Animalese": one short formant-filtered blip per letter. No audio files needed.
 let ctx
@@ -16,9 +16,9 @@ export function letterPitch(ch, pitch = 1) {
   return { f0: 180 * pitch * (1 + (code % 7) / 14) * (vowel ? 1.2 : 1), vowel, code }
 }
 
-export function blip(ch, voice = {}, { force = false } = {}) {
-  const { volume, animalese } = prefs.get()
-  if (!ch || !ctx || (!animalese && !force) || volume <= 0) return
+export function blip(ch, voice = {}, { force = false, vol = 1 } = {}) {
+  const { animalese } = prefs.get(), volume = Math.min(1, prefs.get().volume * vol)
+  if (!ch || !ctx || ((!animalese || isDND()) && !force) || volume <= 0) return
   if (!/[\p{L}\p{N}]/u.test(ch)) return // spaces and punctuation are natural pauses
   const now = ctx.currentTime
   if (now - lastAt < 0.035) return // shortcut: one global voice so simultaneous talkers don't stack into noise

@@ -72,6 +72,13 @@ export default function VoiceSettings() {
         <label className="toggle"><input type="checkbox" checked={p.agc} onChange={e => setPref('agc', e.target.checked)} /><span>Automatic gain control</span></label>
       </div>
 
+      <div className="col tight">
+        <label className="toggle"><input type="checkbox" checked={p.normalise} onChange={e => setPref('normalise', e.target.checked)} />
+          <span>Normalise voices <span className="muted small">· evens out quiet and loud people in stadiums</span></span></label>
+        <label className="toggle"><input type="checkbox" checked={p.ttsHear} onChange={e => setPref('ttsHear', e.target.checked)} />
+          <span>Read 🔊 TTS messages aloud in stadiums I've joined</span></label>
+      </div>
+
       {canCam && (
         <div className="cam-setup">
           {picker('Camera', 'camId', 'videoinput')}

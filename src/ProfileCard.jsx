@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from './lib/supabase'
-import { createStore, prefs, profiles, setPref, toast, useProfile } from './lib/store'
-import Avatar, { Name } from './Avatar'
+import { createStore, prefs, profiles, refreshProfile, setPref, toast, useProfile } from './lib/store'
+import Avatar, { Name, CustomStatus } from './Avatar'
 import { acceptFriend, addFriend, friendships, friendStatus, removeFriend } from './Friends'
+import { RoleChips, useCanKick } from './Roles'
+import { block, unblock, useBlocked } from './lib/blocks'
 
 export const ROLE_BADGE = { owner: '👑', admin: '⭐' }
 
@@ -59,10 +61,12 @@ export default function ProfileCardHost({ ctx, members }) {
 
 function Card({ id, role, ctx, onClose }) {
   const p = useProfile(id)
+  useEffect(() => { refreshProfile(id) }, [id])
   const self = id === ctx.userId
   const myRole = ctx.role
   const muted = prefs.use(s => !!s.muted[id])
   const vol = prefs.use(s => s.peerVol[id] ?? 1)
+  const canKick = useCanKick(ctx, id, role)
 
   async function setRole(r) {
     const { error } = await supabase.from('members').update({ role: r }).eq('server_id', ctx.server.id).eq('user_id', id)
@@ -80,8 +84,10 @@ function Card({ id, role, ctx, onClose }) {
     <>
       <div className="profile-banner" style={{ background: p?.color }} />
       <div className="profile-av"><Avatar id={id} size={72} status /></div>
-      <h3><Name id={id} /> {ROLE_BADGE[role]}</h3>
+      <h3><Name id={id} serverId={ctx.server?.id} /> {ROLE_BADGE[role]}</h3>
       <div className="muted small">@{p?.username}</div>
+      {role && <RoleChips ctx={ctx} uid={id} />}
+      <CustomStatus id={id} className="profile-cs" />
       {p?.bio && <p className="bio">{p.bio}</p>}
       <div className="col">
         {self && <button className="btn ghost" onClick={() => { ctx.setModal({ type: 'settings' }); onClose() }}>Edit profile</button>}
@@ -94,11 +100,20 @@ function Card({ id, role, ctx, onClose }) {
             onChange={e => setPref('peerVol', { ...prefs.get().peerVol, [id]: +e.target.value })} /></label>}
         {ctx.server && myRole === 'owner' && !self && role === 'member' && <button className="btn ghost" onClick={() => setRole('admin')}>Make admin</button>}
         {ctx.server && myRole === 'owner' && !self && role === 'admin' && <button className="btn ghost" onClick={() => setRole('member')}>Remove admin</button>}
-        {ctx.server && role && !self && role !== 'owner' && (myRole === 'owner' || (myRole === 'admin' && role === 'member')) &&
-          <button className="btn danger" onClick={kick}>Remove from server</button>}
+        {canKick && <button className="btn danger" onClick={kick}>Remove from server</button>}
+        {!self && <BlockButton id={id} />}
       </div>
     </>
   )
+}
+
+function BlockButton({ id }) {
+  const blocked = useBlocked(id)
+  const p = profiles.get()[id], name = p?.display_name || p?.username || 'them'
+  const go = () => blocked
+    ? confirm(`Unblock ${name}?`) && unblock(id)
+    : confirm(`Block ${name}? Their messages get hidden for you, they can't friend you or start new DMs with you, and any friendship ends.`) && block(id)
+  return <button className="btn ghost" onClick={go}>{blocked ? 'Unblock' : '🚫 Block'}</button>
 }
 
 function FriendButton({ id }) {

@@ -1,0 +1,7 @@
+/* Framed (CSS-cropped) avatar-like images: see CropImg in Avatar.jsx */
+.cimg { position: relative; display: block; width: 100%; height: 100%; overflow: hidden; border-radius: inherit; }
+.avatar .cimg { border-radius: 50%; }
+.cimg img.framed, .avatar .cimg img.framed { position: absolute; max-width: none; border-radius: 0; object-fit: fill; animation: none; }
+.avatar.talking .cimg { animation: bob .28s ease-in-out infinite; }
+.slot-img .cimg, .server-icon-preview .cimg { border-radius: inherit; }
+.slot-img { border-radius: 50%; overflow: hidden; }

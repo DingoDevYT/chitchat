@@ -2,9 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { online, setVoiceTalking, streams, cams, dropStream, toast, prefs, setPref, micLevel, pttDown } from './lib/store'
 import { trackVoice } from './lib/presence'
-import { TALK, missingDevice } from './lib/voice'
+import { TALK, missingDevice, level, normGain } from './lib/voice'
+import { bubbles, speakTTS, stopTTS } from './lib/stadium'
+import { emojify } from './Markdown'
 import gateUrl from './lib/voice.js?url'
 import Avatar, { Name } from './Avatar'
+import { openMenu } from './ContextMenu'
+import { personMenu, streamItems } from './menus'
 
 // shortcut: STUN only, no TURN relay. ~10-20% of strict NAT / mobile networks won't connect; add a TURN server (e.g. Cloudflare Calls TURN) when someone reports it.
 const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }]
@@ -51,6 +55,42 @@ function watchLevel(audioCtx, stream, id) {
     setVoiceTalking(id, Math.sqrt(sum / buf.length) > 6)
   }, 80)
   return () => { clearInterval(t); src.disconnect(); setVoiceTalking(id, false) }
+}
+
+// "Normalise voices" for one remote mic: input → compressor → slow make-up gain (normGain) → dest.
+// With the setting off, input goes straight to dest. Make-up only adapts while they talk, so silence is never boosted.
+function makeNorm(ctx, dest) {
+  const input = ctx.createGain(), comp = ctx.createDynamicsCompressor(), make = ctx.createGain(), an = ctx.createAnalyser()
+  comp.threshold.value = -24; comp.knee.value = 24; comp.ratio.value = 3; comp.attack.value = 0.005; comp.release.value = 0.3
+  an.fftSize = 1024
+  comp.connect(make).connect(dest)
+  comp.connect(an) // measured before the make-up gain, as normGain expects
+  const buf = new Float32Array(an.fftSize)
+  let on = null, g = 1
+  const sync = () => {
+    if (prefs.get().normalise === on) return
+    on = prefs.get().normalise
+    input.disconnect()
+    input.connect(on ? comp : dest)
+  }
+  sync()
+  const unsub = prefs.subscribe(sync)
+  const t = setInterval(() => {
+    if (!on) return
+    an.getFloatTimeDomainData(buf)
+    let sum = 0
+    for (const v of buf) sum += v * v
+    g = normGain(g, level(Math.sqrt(sum / buf.length)))
+    make.gain.setTargetAtTime(g, ctx.currentTime, 0.1)
+  }, 100)
+  return { input, stop() { clearInterval(t); unsub(); input.disconnect(); make.disconnect(); comp.disconnect() } }
+}
+
+// Local per-person levels from the right-click menu: voice (peerVol / callMuted) and their screen share (streamVol / streamMuted).
+function peerGains(id, p) {
+  const P = prefs.get()
+  p.vol.gain.value = P.callMuted[id] ? 0 : P.peerVol[id] ?? 1
+  p.svol.gain.value = P.streamMuted[id] ? 0 : P.streamVol[id] ?? 1
 }
 
 // Safari can't pick an output device.
@@ -154,7 +194,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
     const peers = peersRef.current
     const send = (to, data) => ch?.send({ type: 'broadcast', event: 'signal', payload: { from: me.id, to, ...data } })
     // Per-person call volume (profile popover) and unplugged devices, live.
-    stops.push(prefs.subscribe(() => { for (const [id, p] of peers) p.vol.gain.value = prefs.get().peerVol[id] ?? 1 }))
+    stops.push(prefs.subscribe(() => { for (const [id, p] of peers) peerGains(id, p) }))
     const onDevices = () => navigator.mediaDevices.enumerateDevices().then(checkDevices, () => {})
     navigator.mediaDevices.addEventListener?.('devicechange', onDevices)
     stops.push(() => navigator.mediaDevices.removeEventListener?.('devicechange', onDevices))
@@ -162,16 +202,18 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
     function close(id) {
       const p = peers.get(id)
       if (!p) return
-      p.pc.close(); p.stop?.(); p.vol.disconnect()
+      p.pc.close(); p.stop?.(); p.norm.stop(); p.vol.disconnect(); p.svol.disconnect()
       for (const a of p.media.values()) { a.remove(); dropStream(id, a.srcObject); dropStream(id, a.srcObject, cams) }
       peers.delete(id)
     }
 
     function makePeer(id) {
       const pc = new RTCPeerConnection({ iceServers: ICE })
-      const p = { pc, pending: [], media: new Map(), polite: me.id > id, makingOffer: false, ignoreOffer: false, vol: audioCtx.createGain() }
-      p.vol.gain.value = prefs.get().peerVol[id] ?? 1
+      const p = { pc, pending: [], media: new Map(), polite: me.id > id, makingOffer: false, ignoreOffer: false, vol: audioCtx.createGain(), svol: audioCtx.createGain() }
+      peerGains(id, p)
       p.vol.connect(out.master)
+      p.svol.connect(out.master)
+      p.norm = makeNorm(audioCtx, p.vol) // mic only; screen-share audio skips leveling
       peers.set(id, p)
       streamRef.current.getTracks().forEach(t => pc.addTrack(t, streamRef.current))
       const share = shareRef.current // late joiners get the current screen share too
@@ -201,7 +243,9 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
             if (!ms.getTracks().length) { a.remove(); p.media.delete(ms.id) }
           }
         }
-        if (track.kind === 'audio') audioCtx.createMediaStreamSource(new MediaStream([track])).connect(p.vol)
+        // Screen-share audio (a stream with video, or the one presence names as live) gets its own volume.
+        const screen = ms.getVideoTracks().length > 0 || ms.id === online.get()[id]?.live
+        if (track.kind === 'audio') audioCtx.createMediaStreamSource(new MediaStream([track])).connect(screen ? p.svol : p.norm.input)
         if (track.kind === 'video') {
           route(id, ms)
           track.onunmute = track.onmute = track.onended = () => route(id, ms)
@@ -261,6 +305,10 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
 
       ch = supabase.channel(`chan:${channel.id}`, { config: { private: true, presence: { key: me.id } } })
       ch.on('broadcast', { event: 'signal' }, onSignal)
+      // 🔊 TTS messages in this stadium's chat are read aloud to everyone who joined (lib/stadium.js queues them).
+      ch.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `channel_id=eq.${channel.id}` },
+        ({ new: row }) => { if (row.tts && !vstateRef.current.deafened) speakTTS(row) })
+      stops.push(stopTTS)
       ch.on('presence', { event: 'sync' }, () => {
         const ids = Object.keys(ch.presenceState()).filter(id => id !== me.id)
         for (const id of peers.keys()) if (!ids.includes(id)) close(id)
@@ -372,6 +420,14 @@ function Screen({ stream }) {
   return <video ref={ref} autoPlay playsInline muted />
 }
 
+// Speech bubble over a seat: typing dots, then their latest stadium-chat message for a few seconds.
+function Bubble({ id }) {
+  const b = bubbles.use(s => s[id])
+  if (!b) return null
+  return <div key={b.key || 'typing'} className={`stage-bubble${b.typing ? ' typing' : ''}`} aria-hidden="true">
+    {b.typing ? <span className="dots"><i /><i /><i /></span> : <span>{emojify(b.text)}</span>}</div>
+}
+
 // The main-area view of a stadium: a big screen for whoever is live, with everyone standing in the crowd below.
 export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, onCam, onMenu }) {
   const ids = online.use(s => Object.keys(s).filter(id => s[id].voice === channel.id).join(','))
@@ -379,9 +435,14 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   const all = streams.use()
   const faces = cams.use()
   const [pick, setPick] = useState(null)
+  const [hidden, setHidden] = useState([]) // streams hidden from the right-click menu, until you leave this view
   const list = ids ? ids.split(',') : []
   const lives = liveIds ? liveIds.split(',') : []
-  const shown = joined ? Object.keys(all) : []
+  const shown = joined ? Object.keys(all).filter(id => !hidden.includes(id)) : []
+  const streamMenu = id => e => openMenu(e, () => streamItems(id, {
+    me: id === meId, focused: id === main, focus: () => setPick(id), hide: () => setHidden(h => [...h, id]),
+    video: e.currentTarget.querySelector('video'),
+  }))
   const main = shown.includes(pick) ? pick : shown[0]
   const size = list.length > 8 ? 88 : 116
 
@@ -392,7 +453,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
         <span className="ch-icon">🏟️</span><h2>{channel.name}</h2>
       </header>
       <div className="stadium">
-        <div className={`stage-screen${main ? ' on' : ''}`}>
+        <div className={`stage-screen${main ? ' on' : ''}`} onContextMenu={main ? streamMenu(main) : undefined}>
           {main ? (
             <>
               <Screen stream={all[main]} />
@@ -400,7 +461,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
               {shown.length > 1 && (
                 <div className="stage-thumbs">
                   {shown.filter(id => id !== main).map(id => (
-                    <button key={id} className="stage-thumb" onClick={() => setPick(id)} title="Watch this stream">
+                    <button key={id} className="stage-thumb" onClick={() => setPick(id)} onContextMenu={streamMenu(id)} title="Watch this stream">
                       <Screen stream={all[id]} />
                     </button>
                   ))}
@@ -419,8 +480,9 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
         <div className="stage-crowd">
           {list.length === 0 && <p className="muted">Nobody's here yet.</p>}
           {list.map(id => (
-            <div key={id} className={`stage-seat${id === meId ? ' me' : ''}`}>
+            <div key={id} className={`stage-seat${id === meId ? ' me' : ''}`} {...personMenu(id)}>
               {lives.includes(id) && <b className="live-badge">🔴 LIVE</b>}
+              <Bubble id={id} />
               <Avatar id={id} size={size}>{joined && faces[id] && <Screen stream={faces[id]} />}</Avatar>
               <Name id={id} />
             </div>
@@ -429,6 +491,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
       </div>
       <div className="stage-actions">
         {!joined && <button className="btn primary big join-voice" onClick={onJoin}>Join stadium</button>}
+        {joined && hidden.length > 0 && <button className="btn ghost" onClick={() => setHidden([])}>🙈 Show {hidden.length} hidden</button>}
         {joined && canShare && <button className={`btn ${live ? 'danger' : 'primary'}`} onClick={onLive}>{live ? '⏹️ Stop sharing' : '📺 Go live'}</button>}
         {joined && canCam && <button className={`btn ${cam ? 'danger' : 'primary'}`} onClick={onCam}>{cam ? '🚫 Camera off' : '📷 Camera'}</button>}
       </div>
