@@ -530,3 +530,12 @@ button.reply-ref::before { left: 34px; }
 .gif-btn { font-size: 11px; font-weight: 900; letter-spacing: .5px; border: 2px solid currentColor; height: 24px; width: auto; padding: 0 5px; border-radius: 7px; align-self: center; }
 /* keep the grid row at window height so long chats scroll inside .scroller, not the whole app */
 .app { grid-template-rows: minmax(0, 1fr); }
+
+/* ── profile popover ── */
+.profile-card { right: auto; z-index: 150; max-height: calc(100vh - 16px); overflow-y: auto; }
+.av-btn { border-radius: 50%; display: inline-grid; transition: transform .18s var(--spring); }
+.av-btn:hover { transform: scale(1.06); }
+.name-btn { padding: 0; }
+.name-btn:hover .name { text-decoration: underline; }
+button.mention { font: inherit; cursor: pointer; }
+button.mention:hover { background: color-mix(in srgb, var(--accent) 35%, transparent); }

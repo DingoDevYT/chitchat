@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react'
 import { tokenize, isJumbo, splitEmoji, emojiUrl } from './lib/markdown'
+import { openProfileByUsername } from './ProfileCard'
 
 // Noto emoji image; falls back to the native character if the image is missing.
 export function Emoji({ e, url = emojiUrl(e), lazy }) {
@@ -28,7 +29,8 @@ function render(tokens, me) {
       case 's': return <s key={i}>{render(tk.c, me)}</s>
       case 'spoiler': return <Spoiler key={i}>{render(tk.c, me)}</Spoiler>
       case 'url': return <a key={i} href={tk.v} target="_blank" rel="noopener noreferrer">{tk.v}</a>
-      case 'mention': return <span key={i} className={`mention${tk.v === me ? ' me' : ''}`}>@{tk.v}</span>
+      case 'mention': return <button key={i} data-profile className={`mention${tk.v === me ? ' me' : ''}`}
+        onClick={e => openProfileByUsername(tk.v, e.currentTarget)}>@{tk.v}</button>
       default: return null
     }
   })

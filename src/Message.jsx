@@ -4,6 +4,7 @@ import { blip } from './lib/animalese'
 import { mediaLinks, summarizeReactions } from './lib/chat'
 import Avatar, { Name } from './Avatar'
 import Markdown, { Emoji, emojify } from './Markdown'
+import { openProfile } from './ProfileCard'
 import EmojiPicker from './EmojiPicker'
 import Attachments from './Media'
 
@@ -89,10 +90,10 @@ function Message({ m, head, me, myName, canDelete, replied, editing, onReply, on
       {m.reply_to && <ReplyPreview m={replied} />}
       <div className="msg-row">
         <div className="msg-gutter">
-          {head ? <Avatar id={m.author_id} size={42} /> : <time className="hover-time">{fmtTime(new Date(m.created_at))}</time>}
+          {head ? <button className="av-btn" data-profile onClick={e => openProfile(m.author_id, e.currentTarget)} aria-label="View profile"><Avatar id={m.author_id} size={42} /></button> : <time className="hover-time">{fmtTime(new Date(m.created_at))}</time>}
         </div>
         <div className="msg-body">
-          {head && <div className="msg-meta"><Name id={m.author_id} /><time className="muted small">{fmtStamp(m.created_at)}</time></div>}
+          {head && <div className="msg-meta"><button className="name-btn" data-profile onClick={e => openProfile(m.author_id, e.currentTarget)}><Name id={m.author_id} /></button><time className="muted small">{fmtStamp(m.created_at)}</time></div>}
           {editing
             ? <EditBox initial={m.content} onSave={onSaveEdit} onCancel={onCancelEdit} />
             : m.content && (

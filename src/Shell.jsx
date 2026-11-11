@@ -7,6 +7,7 @@ import Avatar from './Avatar'
 import Sidebar from './Sidebar'
 import Chat from './Chat'
 import Members, { useMembers } from './Members'
+import ProfileCardHost from './ProfileCard'
 import { VoiceConnection, VoiceStage } from './Voice'
 import QuickSwitch from './QuickSwitch'
 import { CreateJoinModal, ServerSettingsModal, ChannelModal, NewDMModal } from './Modals'
@@ -204,6 +205,7 @@ export default function Shell({ userId }) {
         onError={msg => { toast(msg); joinVoice(null) }} />}
 
       <QuickSwitch servers={servers} channels={channels} go={go} />
+      <ProfileCardHost ctx={ctx} members={members} />
 
       {modal?.type === 'createJoin' && <CreateJoinModal ctx={ctx} onClose={() => setModal(null)} joinInvite={joinInvite} />}
       {modal?.type === 'serverSettings' && server && <ServerSettingsModal ctx={ctx} onClose={() => setModal(null)} />}
