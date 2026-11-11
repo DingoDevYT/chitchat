@@ -98,8 +98,8 @@ begin
   perform pg_temp.ok(pg_temp.fails(format('select public.begin_interaction(%L, %L, %L)', gen, cc_iid, 'secret'), 'Only some roles'), 'role-only command refused');
   perform pg_temp.ok(pg_temp.fails(format('select public.begin_interaction(%L, %L, %L)', gen, chef_iid, 'nope'), 'no /nope'), 'unknown command refused');
   perform pg_temp.ok(pg_temp.fails(format('select public.begin_interaction(%L, %L, %L, %L)', gen, chef_iid, 'chef menu', '[1]'), 'Bad command options'), 'options must be an object');
-  perform pg_temp.ok(pg_temp.fails(format('insert into public.messages (channel_id, author_id, content, embeds) values (%L, %L, %L, %L)', gen, mochi, 'x', '[{"title":"fake"}]'), 'Only bots'), 'members cannot post embeds');
-  perform pg_temp.ok(pg_temp.fails(format('insert into public.messages (channel_id, author_id, content, interaction) values (%L, %L, %L, %L)', gen, mochi, 'x', '{"name":"x"}'), 'Only bots'), 'members cannot fake "used /command" lines');
+  perform pg_temp.ok(pg_temp.fails(format('insert into public.messages (channel_id, author_id, content, embeds) values (%L, %L, %L, %L)', gen, mochi, 'x', '[{"title":"fake"}]'), 'Only bots|permission denied'), 'members cannot post embeds (column grant + trigger)');
+  perform pg_temp.ok(pg_temp.fails(format('insert into public.messages (channel_id, author_id, content, interaction) values (%L, %L, %L, %L)', gen, mochi, 'x', '{"name":"x"}'), 'Only bots|permission denied'), 'members cannot fake "used /command" lines');
   perform pg_temp.ok(pg_temp.fails(format('update public.messages set embeds = %L where id = %s', '[{"title":"x"}]', mid), 'permission denied'), 'members cannot add embeds by editing');
   perform pg_temp.ok(pg_temp.fails(format('select public.bot_send(%L, %L, %L)', chef_iid, gen, 'hi'), 'permission denied'), 'bot_send closed to members');
   perform pg_temp.ok(pg_temp.fails('select public.plugin_runtime_secret()', 'permission denied'), 'runtime secret closed');

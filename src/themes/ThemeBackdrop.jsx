@@ -6,18 +6,18 @@ import '../styles/themes.css'
 
 // Each scene is its own chunk, fetched the first time something shows it.
 const loaders = {
-  beach: () => import('./scenes/Beach'),
+  beach: () => import('./v2/Beach'),
   night: () => import('./v2/Night'),
   rain: () => import('./v2/Rain'),
   forest: () => import('./v2/Forest'),
-  snow: () => import('./scenes/Snow'),
-  sakura: () => import('./scenes/Sakura'),
+  snow: () => import('./v2/Snow'),
+  sakura: () => import('./v2/Sakura'),
   sea: () => import('./v2/Sea'),
   synthwave: () => import('./v2/Synthwave'),
   campfire: () => import('./v2/Campfire'),
 }
 // painted redos (src/themes/v2) sit on a shared paper grain
-const PAINTED = new Set(['rain', 'sea', 'synthwave', 'night', 'forest', 'campfire'])
+const PAINTED = new Set(['rain', 'sea', 'synthwave', 'night', 'forest', 'campfire', 'beach', 'snow', 'sakura'])
 const scenes = {}
 const sceneOf = id => scenes[id] ||= lazy(loaders[id])
 
