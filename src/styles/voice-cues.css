@@ -19,9 +19,15 @@ body .stage-seat .avatar .vbadge { width: 28px; font-size: 15px; }
 body .profile-av .avatar .vbadge { width: 24px; font-size: 13px; border-width: 3px; }
 body .voice-user .avatar .vbadge { width: 13px; font-size: 7px; border-width: 1px; top: -4px; right: -4px; }
 
-/* Sidebar roster: green ring while they talk (voice level, like the stage). */
-body .voice-user .avatar { transition: box-shadow .15s; }
-body .voice-user.speaking .avatar { box-shadow: 0 0 0 2px var(--mint), 0 0 8px 1px var(--mint); }
+/* Talking (voice level): a soft green halo behind the face, so the character overlaps it.
+   Sidebar roster and your own avatar in the account panel. */
+body :is(.voice-user, .me-av) .avatar { isolation: isolate; }
+body :is(.voice-user, .me-av) .avatar::before {
+  content: ''; position: absolute; inset: -3px; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: color-mix(in srgb, var(--mint) 30%, transparent); box-shadow: 0 0 6px color-mix(in srgb, var(--mint) 35%, transparent);
+  opacity: 0; transition: opacity .15s;
+}
+body :is(.voice-user.speaking, .me-av.speaking) .avatar::before { opacity: 1; }
 body .voice-user .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 body .voice-user > :is(.live-tag, .peer-st) { flex: none; }
 
@@ -44,5 +50,5 @@ body .in-stadium.link:focus-visible { outline: 2px solid var(--accent); outline-
 
 @media (prefers-reduced-motion: reduce) {
   body .peer-st.connecting { animation: none; opacity: .7; }
-  body .voice-user .avatar, body .avatar.vdim > * { transition: none; }
+  body :is(.voice-user, .me-av) .avatar::before, body .avatar.vdim > * { transition: none; }
 }

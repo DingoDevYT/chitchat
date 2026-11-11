@@ -20,6 +20,8 @@ const Icon = ({ name, size = 16 }) => <BaseIcon name={name} size={size} classNam
 const inviteUrl = code => `${location.origin}${location.pathname}#/invite/${code}`
 // Name as this server shows it: nickname, then display name, then username.
 const shownName = id => nicknames.get().map[id] || profiles.get()[id]?.display_name || profiles.get()[id]?.username || 'someone'
+// The audit log names people by their own display name, so a nickname can't disguise who did what.
+const realName = id => profiles.get()[id]?.display_name || profiles.get()[id]?.username || 'someone'
 const memberOf = id => app.members.find(m => m.user_id === id)
 
 // ── badges, gates, profile-card bits ──
@@ -336,21 +338,21 @@ export function AuditTab({ ctx }) {
     })
     return () => { on = false }
   }, [sid, action, actor])
-  const people = app.members.map(m => m.user_id).sort((a, b) => shownName(a).localeCompare(shownName(b)))
+  const people = app.members.map(m => m.user_id).sort((a, b) => realName(a).localeCompare(realName(b)))
   return (
     <div className="col mod-tab">
       <div className="mod-create">
         <label>Action<select value={action} onChange={e => setAction(e.target.value)}>
           <option value="">Everything</option>{AUDIT_ACTIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
         <label>By<select value={actor} onChange={e => setActor(e.target.value)}>
-          <option value="">Anyone</option>{people.map(id => <option key={id} value={id}>{shownName(id)}</option>)}</select></label>
+          <option value="">Anyone</option>{people.map(id => <option key={id} value={id}>{realName(id)}</option>)}</select></label>
       </div>
       {list?.length === 0 && <p className="muted small">Nothing logged{action || actor ? ' for that filter' : ' yet'}.</p>}
       <ul className="mod-list audit">
         {list?.map(e => (
           <li key={e.id}>
             {e.actor_id ? <Avatar id={e.actor_id} size={28} /> : <span className="mod-av-gap" />}
-            <span className="mod-audit-line"><b>{e.actor_id ? shownName(e.actor_id) : 'Someone'}</b> {describeAudit(e, shownName)}
+            <span className="mod-audit-line"><b>{e.actor_id ? realName(e.actor_id) : 'Someone'}</b> {describeAudit(e, realName)}
               {e.details?.reason && <span className="muted small"> · “{e.details.reason}”</span>}</span>
             <time className="muted small" dateTime={e.created_at} title={new Date(e.created_at).toLocaleString()}>{relTime(e.created_at)}</time>
           </li>

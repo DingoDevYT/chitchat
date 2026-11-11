@@ -467,7 +467,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
       </div>
 
       <PostGate ctx={ctx}>{/* timeout banner / rules card instead of the composer while you can't post */}
-      <Composer key={channel.id} draftKey={channel.id} placeholder={`Message ${title}`} slow={slow} exempt={exempt} slowUntil={exempt ? null : slowUntil(msgs, userId, slow)}
+      <Composer key={channel.id} draftKey={channel.id} placeholder={channel.kind === 'post' ? 'Add a comment' : `Message ${title}`} slow={slow} exempt={exempt} slowUntil={exempt ? null : slowUntil(msgs, userId, slow)}
         onSend={(...a) => { stopMeTyping(); return send(...a) }} onTyping={onTyping} onEditLast={editLast}
         replyTo={replyTo} onCancelReply={() => setReplyTo(null)} profileMap={profileMap} serverId={server?.id} canTTS={!!stadium} onPoll={createPoll} />
       </PostGate>

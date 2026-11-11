@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { primeProfiles, profiles, toast, useProfile } from './lib/store'
+import { primeProfiles, profiles, talking, toast, useProfile } from './lib/store'
 import { STATUSES, CLEAR_AFTER, expiryFor } from './lib/status'
 import Avatar, { CustomStatus, useCustomStatus } from './Avatar'
 import { Emoji } from './Markdown'
@@ -22,9 +22,10 @@ function Swatch({ k }) {
 // Me-panel avatar: click to pick a status or set a custom one.
 export default function MeStatus({ userId }) {
   const [open, setOpen] = useState(false)
+  const speaking = talking.use(s => !!s['v:' + userId]) // your own mic level, set by Voice.jsx while you're in a stadium or call
   return (
     <>
-      <button className="me-av" onClick={() => setOpen(o => !o)} aria-expanded={open} aria-haspopup="dialog" title="Set status" aria-label="Set status">
+      <button className={`me-av${speaking ? ' speaking' : ''}`} onClick={() => setOpen(o => !o)} aria-expanded={open} aria-haspopup="dialog" title="Set status" aria-label="Set status">
         <Avatar id={userId} size={36} status />
       </button>
       {open && <Picker userId={userId} onClose={() => setOpen(false)} />}

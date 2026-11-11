@@ -19,7 +19,7 @@ body .call-screen .stage-caption { top: 12px; left: 12px; padding: 4px 10px; }
 body .call-crowd { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 20px; padding: 14px 4px 4px; } /* top room: a talking seat hops up */
 body .call-panel.sharing .call-crowd { flex: none; max-height: 45%; }
 body .call-crowd .stage-seat { margin: 0; }
-body .call-crowd .stage-seat .name { background: var(--bg-3); }
+body .call-crowd .stage-seat .name { background: none; font-weight: 800; } /* no pill: Day darkens coloured names with a filter, which would muddy it */
 body .call-bar { flex: none; display: flex; align-items: center; gap: 4px; padding: 6px 10px 8px; flex-wrap: wrap; }
 body .call-note { font-size: 13px; font-weight: 800; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 4px; }
 body .call-ctl.hangup { background: var(--danger); color: var(--danger-ink); width: 44px; border-radius: 999px; }

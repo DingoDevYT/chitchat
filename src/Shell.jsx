@@ -9,6 +9,7 @@ import { Splash } from './App'
 import Avatar, { CropImg } from './Avatar'
 import Sidebar from './Sidebar'
 import Chat from './Chat'
+import Gallery from './Gallery'
 import Members, { useMembers } from './Members'
 import ProfileCardHost from './ProfileCard'
 import { useMemberRoles } from './Roles'
@@ -343,6 +344,8 @@ export default function Shell({ userId }) {
               live={vstate.live} onLive={() => setVstate(v => ({ ...v, live: !v.live }))}
               cam={vstate.cam} onCam={() => setVstate(v => ({ ...v, cam: !v.cam }))} onMenu={() => setNavOpen(true)} />
           </StadiumChat>
+          : channel?.kind === 'gallery'
+            ? <Gallery key={channel.id} channel={channel} ctx={ctx} onMenu={() => setNavOpen(true)} />
           : channel
             ? <Chat key={channel.id} channel={channel} ctx={ctx} members={members} onMenu={() => setNavOpen(true)} />
             : !server && (servers.length > 0 || hasFriends || location.hash.startsWith('#/dm')) // #/dm = picked Friends, even with none yet

@@ -1,0 +1,146 @@
+/* Galleries: the justified photo wall, the post view and the new-post bubble. Calm: nothing moves unless you touch it.
+   `body ` where this overrides styles.css (it loads after component CSS). */
+
+/* ── the wall ── */
+.gallery { position: relative; }
+.g-head .g-new-btn { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.g-scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 16px 24px; }
+.g-bar { display: flex; align-items: center; gap: 10px; padding: 12px 0 10px; }
+body .g-sort { margin: 0; width: auto; flex: none; }
+body .g-sort button { flex: none; padding: 5px 14px; }
+.g-grid { position: relative; min-height: 120px; }
+.g-end { height: 1px; }
+
+.g-card {
+  position: absolute; display: block; overflow: hidden; border-radius: var(--r); color: #fff; text-decoration: none;
+  background: var(--bg-2); box-shadow: inset 0 0 0 2px var(--line);
+}
+.g-card img, .g-card video { width: 100%; height: 100%; object-fit: cover; display: block; } /* boxes match the cover's ratio; cover only crops clamped extremes */
+.g-card:focus-visible { outline: 3px solid var(--room-accent, var(--accent)); outline-offset: 2px; }
+.g-card.spoiler img, .g-card.spoiler video { filter: blur(22px) saturate(.8); transform: scale(1.1); }
+.g-spoiler {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 999px; background: #000a; color: #fff; font: 600 13px var(--font-head); white-space: nowrap;
+}
+.g-badges { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
+.g-badge { display: inline-flex; align-items: center; gap: 3px; padding: 3px 7px; border-radius: 999px; background: #0009; color: #fff; font: 600 12px var(--font-head); }
+.g-fresh { position: absolute; top: 9px; left: 9px; width: 12px; height: 12px; border-radius: 50%; background: var(--room-accent, var(--accent)); box-shadow: 0 0 0 3px #0006; }
+
+/* caption: on hover/focus with a mouse; always (compact) on touch screens */
+.g-cap {
+  position: absolute; inset: auto 0 0 0; display: flex; flex-direction: column; gap: 4px; padding: 26px 10px 9px;
+  background: linear-gradient(transparent, #000c); opacity: 0; transition: opacity .18s var(--ease); pointer-events: none;
+}
+.g-card:hover .g-cap, .g-card:focus-visible .g-cap { opacity: 1; }
+.g-title { font: 600 14.5px/1.25 var(--font-head); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px #0008; }
+.g-meta { display: flex; align-items: center; gap: 6px; font-size: 12.5px; min-width: 0; }
+.g-author { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .g-author .name { color: #fff !important; filter: none !important; }
+.g-count { display: inline-flex; align-items: center; gap: 3px; flex: none; }
+@media (hover: none) {
+  .g-cap { opacity: 1; padding: 18px 8px 6px; }
+  .g-cap .g-meta .avatar, .g-cap .g-author { display: none; }
+  .g-cap .g-meta { justify-content: flex-end; margin-top: -19px; }
+  .g-title { font-size: 13px; padding-right: 34px; }
+}
+
+.g-loading { display: flex; gap: 8px; flex-wrap: wrap; }
+.g-loading i { height: 180px; min-width: 120px; border-radius: var(--r); background: var(--bg-2); box-shadow: inset 0 0 0 2px var(--line); }
+.g-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 56px 16px; color: var(--muted); }
+.g-empty p { margin: 0; max-width: 340px; }
+.g-empty b { color: var(--text); font: 600 17px var(--font-head); }
+
+/* ── one post ── */
+.g-post {
+  position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; min-height: 0;
+  background: var(--paper), var(--bg);
+}
+.g-post-head { gap: 4px; }
+.g-back { display: inline-flex; align-items: center; gap: 4px; max-width: 60%; padding-left: 6px; }
+.g-back span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-post-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); }
+.g-viewer { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 14px; background: color-mix(in srgb, #000 22%, var(--bg)); }
+.g-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; container-type: size; touch-action: pan-y; }
+.g-img, .g-spoiler-gate { display: grid; place-items: center; width: 100%; height: 100%; padding: 0; cursor: zoom-in; }
+.g-img img { max-width: 100cqw; max-height: 100cqh; object-fit: contain; border-radius: var(--r); box-shadow: var(--shadow); }
+.g-spoiler-gate { position: relative; overflow: hidden; border-radius: var(--r); cursor: pointer; }
+.g-spoiler-gate img { max-width: 100cqw; max-height: 100cqh; filter: blur(28px); opacity: .7; }
+body .g-stage .m-vid { width: min(100cqw, calc(100cqh * var(--ar))); max-height: 100cqh; }
+.g-nav {
+  position: absolute; top: 50%; width: 42px; height: 42px; margin-top: -21px; display: grid; place-items: center;
+  border-radius: 50%; background: #0007; color: #fff; transition: background .15s, transform .2s var(--spring);
+}
+.g-nav:hover { background: #000a; transform: scale(1.08); }
+.g-nav.prev { left: 6px; }
+.g-nav.next { right: 6px; }
+.g-dots { display: flex; align-items: center; justify-content: center; gap: 6px; flex: none; }
+.g-dots button { width: 9px; height: 9px; padding: 0; border-radius: 50%; background: var(--bg-4); transition: transform .2s var(--spring), background .15s; }
+.g-dots button.on { background: var(--room-accent, var(--accent)); transform: scale(1.3); }
+.g-dots .muted { margin-left: 6px; }
+.g-alt { margin: 0; text-align: center; flex: none; max-height: 4.2em; overflow: auto; }
+.g-alt b { font-size: 10.5px; letter-spacing: .04em; padding: 1px 5px; border-radius: 6px; background: var(--bg-3); color: var(--text); }
+
+.g-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; border-left: 2px dashed var(--stitch); }
+.g-info { flex: none; max-height: 42%; overflow-y: auto; padding: 14px 16px 10px; border-bottom: 2px dashed var(--stitch); }
+.g-post-title { margin: 0 0 6px; font: 600 21px/1.25 var(--font-head); overflow-wrap: anywhere; }
+.g-byline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.g-byline .name-btn { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.g-desc { margin-top: 8px; overflow-wrap: anywhere; line-height: 1.45; }
+.g-reacts { margin-top: 10px; align-items: center; }
+.g-quick { opacity: .7; }
+.g-quick:hover { opacity: 1; }
+.g-react-more { position: relative; display: inline-flex; }
+.g-side > .chat { flex: 1; height: auto; min-height: 0; }
+.g-chat-wait { flex: 1; }
+.g-wait { height: 48px; border-radius: var(--r); background: var(--bg-2); margin: 16px; }
+.g-edit textarea { resize: vertical; }
+
+@media (max-width: 900px) {
+  .g-post-body { display: flex; flex-direction: column; }
+  .g-viewer { flex: none; height: min(46vh, 420px); padding: 8px; }
+  .g-side { flex: 1; border-left: 0; }
+  .g-info { max-height: 30vh; padding: 10px 12px 8px; }
+  .g-post-title { font-size: 18px; }
+}
+@media (max-width: 600px) {
+  .g-scroll { padding: 0 8px 16px; }
+  .g-head .g-new-btn span { display: none; }
+  .g-head .g-new-btn { padding: 8px; }
+}
+
+/* ── new post bubble ── */
+.g-drop {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 30px 16px; text-align: center; cursor: pointer;
+  border: 2px dashed var(--stitch); border-radius: var(--r-lg); background: var(--dots), var(--bg-2); color: var(--text);
+  transition: border-color .15s, background-color .15s;
+}
+.g-drop:hover, .g-drop.on, .g-picks.on { border-color: var(--room-accent, var(--accent)); }
+.g-drop:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.g-picks { display: flex; flex-wrap: wrap; gap: 10px; padding: 8px; border: 2px dashed transparent; border-radius: var(--r-lg); }
+.g-pick { width: 118px; display: flex; flex-direction: column; gap: 4px; cursor: grab; }
+.g-pick.dragging { opacity: .45; }
+.g-pick-media {
+  position: relative; height: 96px; display: grid; place-items: center; overflow: hidden; border-radius: var(--r);
+  background: var(--stripes), var(--bg-2); box-shadow: inset 0 0 0 2px var(--line);
+}
+.g-pick-media img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
+.g-pick-media.spoiler img { filter: blur(10px); }
+.g-pick.cover .g-pick-media { box-shadow: inset 0 0 0 3px var(--room-accent, var(--accent)); }
+.g-cover-tag {
+  position: absolute; left: 6px; top: 6px; padding: 1px 8px; border-radius: 999px; font: 600 11.5px var(--font-head);
+  background: var(--room-accent, var(--accent)); color: var(--room-ink, var(--accent-ink));
+}
+.g-pick-media .g-badge { position: absolute; right: 6px; bottom: 6px; }
+.g-pick-tools { display: flex; justify-content: center; gap: 2px; }
+body .g-pick-tools .icon-btn { width: 30px; height: 30px; }
+body .g-alt-input { padding: 5px 8px; font-size: 12.5px; border-radius: 10px; }
+.g-pick-add {
+  height: 96px; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: var(--muted);
+  border: 2px dashed var(--stitch); border-radius: var(--r);
+}
+.g-pick-add:hover { color: var(--text); border-color: var(--room-accent, var(--accent)); }
+.g-hint { margin: -6px 0 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .g-cap, .g-nav, .g-dots button { transition: none; }
+}

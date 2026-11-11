@@ -24,14 +24,14 @@ export function roomVars(c, server) {
   return a ? { '--room-accent': a, '--room-ink': inkFor(a) } : undefined
 }
 
-// Room icon: emoji, custom server emoji or uploaded image; default stadium doodle for stadiums, a soft dot for rooms.
+// Room icon: emoji, custom server emoji or uploaded image; default doodles for stadiums and galleries, a soft dot for rooms.
 export function RoomIcon({ c, className = '' }) {
   const k = iconKind(c.icon)
   return (
     <span className={`ch-icon room-icon ${className}`} aria-hidden="true">
       {k === 'image' ? <img src={c.icon} alt="" draggable="false" loading="lazy" />
         : k ? <Emoji e={c.icon} />
-          : c.kind === 'voice' ? <Icon name="stadium" size={18} /> : c.kind ? <i className="room-dot" /> : null}
+          : c.kind === 'voice' ? <Icon name="stadium" size={18} /> : c.kind === 'gallery' ? <Icon name="gallery" size={18} /> : c.kind ? <i className="room-dot" /> : null}
     </span>
   )
 }

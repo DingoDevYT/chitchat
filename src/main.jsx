@@ -20,8 +20,11 @@ startLook()
 addEventListener('change', e => e.target.type === 'checkbox' && uiSound('toggle'))
 addEventListener('click', e => e.target.closest?.('.tabs button:not(.on)') && uiSound('toggle'), true) // capture: before React marks it .on
 
-// Dev-only icon review sheet at #/icons (dropped from production builds).
-const IconGallery = import.meta.env.DEV && location.hash === '#/icons' && lazy(() => import('./icons/IconGallery'))
-if (import.meta.env.DEV) addEventListener('hashchange', () => { if (!!IconGallery !== (location.hash === '#/icons')) location.reload() })
+// Dev-only review sheets: icons at #/icons, theme redos at #/themes (dropped from production builds).
+const devPages = import.meta.env.DEV ? { '#/icons': () => import('./icons/IconGallery'), '#/themes': () => import('./themes/ThemeLab') } : {}
+const devKey = () => devPages[location.hash.split('?')[0]] ? location.hash.split('?')[0] : null
+const dev = devKey()
+const DevPage = dev && lazy(devPages[dev])
+if (import.meta.env.DEV) addEventListener('hashchange', () => { if (devKey() !== dev) location.reload() })
 
-createRoot(document.getElementById('root')).render(IconGallery ? <Suspense><IconGallery /></Suspense> : <App />)
+createRoot(document.getElementById('root')).render(DevPage ? <Suspense><DevPage /></Suspense> : <App />)

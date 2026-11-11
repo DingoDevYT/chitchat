@@ -124,10 +124,10 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
 
   const n = cleanRoomName(name)
   const draft = {
-    ...c0, kind, name: n || (kind === 'voice' ? 'Stadium' : 'New room'), icon, topic: topic.trim() || null, font: font === DEFAULT_FONT ? null : font,
+    ...c0, kind, name: n || (kind === 'voice' ? 'Stadium' : kind === 'gallery' ? 'New gallery' : 'New room'), icon, topic: topic.trim() || null, font: font === DEFAULT_FONT ? null : font,
     accent: accent || null, banner_url: banner.url, banner_crop: banner.crop, background_url: bg, background_dim: dim,
   }
-  const word = kind === 'voice' ? 'stadium' : 'room'
+  const word = kind === 'voice' ? 'stadium' : kind === 'gallery' ? 'gallery' : 'room'
 
   async function save(e) {
     e?.preventDefault()
@@ -174,6 +174,7 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
 
   const nonAdmins = members.filter(m => m.role === 'member')
   const TABS = [['general', 'General'], ['look', 'Look'], ['welcome', 'Welcome'], ['slowmode', 'Slowmode'], ['privacy', 'Privacy']]
+    .filter(([k]) => kind !== 'gallery' || k !== 'welcome') // a gallery is a wall of posts: no chat top to welcome people at
   return (
     <Modal title={editing ? `Edit ${channel.name}` : `New ${word}`} onClose={onClose} wide>
       <div className="col room-editor">{/* not a <form>: the emoji picker's buttons would submit it */}
@@ -181,6 +182,7 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
           <div className="tabs">
             <button type="button" className={kind === 'text' ? 'on' : ''} onClick={() => setKind('text')}><Icon name="chat" size={16} /> Room</button>
             <button type="button" className={kind === 'voice' ? 'on' : ''} onClick={() => setKind('voice')}><Icon name="stadium" size={16} /> Stadium</button>
+            <button type="button" className={kind === 'gallery' ? 'on' : ''} onClick={() => { setKind('gallery'); if (tab === 'welcome') setTab('general') }}><Icon name="gallery" size={16} /> Gallery</button>
           </div>
         )}
 
@@ -199,7 +201,7 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
 
         {tab === 'general' && <div className="col">
           <label>Name<input value={name} onChange={e => setName(e.target.value)} maxLength={80} required autoFocus
-            placeholder={kind === 'text' ? 'General Chat 🍵' : 'Movie Night'} /></label>
+            placeholder={kind === 'text' ? 'General Chat 🍵' : kind === 'gallery' ? 'Art wall' : 'Movie Night'} /></label>
           <IconPicker value={icon} onChange={setIcon} img={img} />
           <label><span className="srv-label">Topic <span className="srv-count">{topic.length}/{TOPIC_MAX}</span></span>
             <input value={topic} maxLength={TOPIC_MAX} onChange={e => setTopic(e.target.value)} placeholder="What's this room about?" /></label>
@@ -254,7 +256,7 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
         </div>}
 
         {tab === 'slowmode' && <div className="col">
-          <p className="muted small">How long each person waits between messages. People who can manage messages or rooms aren't slowed down.</p>
+          <p className="muted small">How long each person waits between {kind === 'gallery' ? 'posts, and between comments on a post' : 'messages'}. People who can manage messages or rooms aren't slowed down.</p>
           <div className="re-slow" role="radiogroup" aria-label="Slowmode">
             {SLOWMODE.map(s => <button key={s} type="button" role="radio" aria-checked={slow === s} className={`btn small ${slow === s ? 'primary' : 'ghost'}`} onClick={() => setSlow(s)}>{fmtSlow(s)}</button>)}
           </div>
