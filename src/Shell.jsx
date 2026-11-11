@@ -27,7 +27,8 @@ export default function Shell({ userId }) {
   const [route, setRoute] = useState(parseHash)
   const [modal, setModal] = useState(null)
   const [voice, setVoice] = useState(null)
-  const [vstate, setVstate] = useState({ muted: false, deafened: false })
+  const [vstate, setVstate] = useState({ muted: false, deafened: false, live: false })
+  const joinVoice = c => { setVoice(c); setVstate(v => ({ ...v, live: false })) }
   const [navOpen, setNavOpen] = useState(false)
   const [visible, setVisible] = useState(!document.hidden)
   const showMembers = prefs.use(s => s.showMembers)
@@ -186,12 +187,12 @@ export default function Shell({ userId }) {
       </nav>
 
       <Sidebar ctx={ctx} channels={server ? serverChannels : dms} current={channel} isUnread={isUnread}
-        voice={voice} vstate={vstate} setVstate={setVstate} onLeaveVoice={() => setVoice(null)} />
+        voice={voice} vstate={vstate} setVstate={setVstate} onLeaveVoice={() => joinVoice(null)} />
 
       <main className="main">
         {channel?.kind === 'voice'
-          ? <VoiceStage channel={channel} joined={voice?.id === channel.id} onJoin={() => setVoice(channel)}
-            onMenu={() => setNavOpen(true)} />
+          ? <VoiceStage channel={channel} joined={voice?.id === channel.id} onJoin={() => joinVoice(channel)}
+            live={vstate.live} onLive={() => setVstate(v => ({ ...v, live: !v.live }))} onMenu={() => setNavOpen(true)} />
           : channel
             ? <Chat key={channel.id} channel={channel} ctx={ctx} members={members} onMenu={() => setNavOpen(true)} />
             : <Welcome ctx={ctx} onMenu={() => setNavOpen(true)} hasServers={servers.length > 0} />}
@@ -199,8 +200,8 @@ export default function Shell({ userId }) {
 
       {server && showMembers && <Members members={members} ctx={ctx} />}
 
-      {voice && <VoiceConnection key={voice.id} channel={voice} me={me} vstate={vstate}
-        onError={msg => { toast(msg); setVoice(null) }} />}
+      {voice && <VoiceConnection key={voice.id} channel={voice} me={me} vstate={vstate} setVstate={setVstate}
+        onError={msg => { toast(msg); joinVoice(null) }} />}
 
       <QuickSwitch servers={servers} channels={channels} go={go} />
 

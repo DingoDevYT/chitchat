@@ -22,7 +22,7 @@ export default function QuickSwitch({ servers, channels, go }) {
     const sname = Object.fromEntries(servers.map(s => [s.id, s.name]))
     const all = channels.map(c => ({
       c, label: c.kind === 'dm' ? dmTitle(c, null, pmap) : c.name,
-      sub: c.kind === 'dm' ? 'Direct message' : sname[c.server_id], icon: c.kind === 'dm' ? '@' : c.kind === 'voice' ? '🔊' : '#',
+      sub: c.kind === 'dm' ? 'Direct message' : sname[c.server_id], icon: c.kind === 'dm' ? '@' : c.kind === 'voice' ? '🏟️' : '#',
     }))
     const t = q.toLowerCase()
     return all.filter(i => (i.label + ' ' + i.sub).toLowerCase().includes(t)).slice(0, 8)

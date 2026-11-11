@@ -94,3 +94,23 @@ test('emoji picker logic', () => {
   assert.deepEqual(searchEmoji(list, 'red love'), [heart])
   assert.deepEqual(searchEmoji(list, '  '), [])
 })
+
+import { mediaLinks } from './chat.js'
+test('media links', () => {
+  const l = mediaLinks('look https://x.com/a/cat%20pic.PNG?w=2 and https://x.com/song.mp3, https://x.com/page.html')
+  assert.deepEqual(l.map(m => [m.type, m.name]), [['image/png', 'cat pic.PNG'], ['audio/mpeg', 'song.mp3']])
+  assert.equal(l[0].url, 'https://x.com/a/cat%20pic.PNG?w=2')
+  assert.equal(mediaLinks('https://x.com/v.mov https://x.com/v.mov').length, 1) // deduped
+  assert.deepEqual(mediaLinks('`https://x.com/a.gif` ||https://x.com/b.gif||'), []) // not in code or spoilers
+  assert.equal(mediaLinks('**https://x.com/c.webm**')[0].type, 'video/webm')
+  assert.deepEqual(mediaLinks('https://x.com/%E0%A4%A.gif'), []) // bad escape doesn't throw
+  assert.deepEqual(mediaLinks(''), [])
+})
+
+import { toGif } from './giphy.js'
+test('giphy mapping', () => {
+  const g = toGif({ id: 'x', title: '', images: {
+    fixed_width: { url: 'a.gif', webp: 'a.webp', width: '200', height: '150' },
+    downsized: { url: 'b.gif', width: '400', height: '300' }, original: { url: 'c.gif', width: '800', height: '600' } } })
+  assert.deepEqual(g, { id: 'x', title: 'GIF', preview: 'a.webp', pw: 200, ph: 150, url: 'b.gif', w: 400, h: 300 })
+})

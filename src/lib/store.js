@@ -42,8 +42,14 @@ export function setVoiceTalking(id, on) {
   if (!!talking.get()['v:' + id] !== on) talking.set(s => ({ ...s, ['v:' + id]: on }))
 }
 
-// ── presence: id -> { voice: channelId|null } ──
+// ── presence: id -> { voice: channelId|null, live: boolean } ──
 export const online = createStore({})
+
+// ── screen shares in the stadium you're in: userId -> MediaStream (yours too, as a local preview) ──
+export const streams = createStore({})
+export function dropStream(id, ms) {
+  if (streams.get()[id] === ms) streams.set(s => { const n = { ...s }; delete n[id]; return n })
+}
 
 // ── local prefs ──
 const PREFS_KEY = 'chitchat:prefs'

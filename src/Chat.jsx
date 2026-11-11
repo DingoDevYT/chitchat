@@ -7,6 +7,7 @@ import Message from './Message'
 import { dmTitle } from './Sidebar'
 import { Emoji } from './Markdown'
 import EmojiPicker from './EmojiPicker'
+import GifPicker from './GifPicker'
 
 const PAGE = 50
 const msgCache = new Map() // channelId -> recent messages, so switching back is instant
@@ -94,19 +95,19 @@ export default function Chat({ channel, ctx, onMenu }) {
     return () => io.disconnect()
   }, [loadOlder])
 
-  const send = useCallback(async (text, files) => {
+  const send = useCallback(async (text, files, ready = []) => {
     const content = text.trim()
-    if (!content && !files.length) return
+    if (!content && !files.length && !ready.length) return
     const tmp = 'tmp-' + crypto.randomUUID()
     const reply = replyTo?.id ?? null
     setMsgs(l => [...(l || []), {
       id: tmp, key: tmp, pending: true, _live: true, channel_id: channel.id, author_id: userId, content, reply_to: reply,
-      attachments: files.map(f => ({ name: f.name, type: f.type, url: URL.createObjectURL(f), uploading: true })),
+      attachments: [...ready, ...files.map(f => ({ name: f.name, type: f.type, url: URL.createObjectURL(f), uploading: true }))],
       reactions: [], created_at: new Date().toISOString(),
     }])
     setReplyTo(null)
     try {
-      const attachments = await Promise.all(files.map(f => uploadFile(f, userId)))
+      const attachments = [...ready, ...await Promise.all(files.map(f => uploadFile(f, userId)))]
       const { data, error } = await supabase.from('messages')
         .insert({ channel_id: channel.id, author_id: userId, content, reply_to: reply, attachments }).select().single()
       if (error) throw error
@@ -228,8 +229,10 @@ function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancel
   const [text, setText] = useState(() => DRAFTS.get(key) || '')
   const [files, setFiles] = useState([])
   const [drag, setDrag] = useState(false)
-  const [emoji, setEmoji] = useState(false)
+  const [picker, setPicker] = useState(null) // 'emoji' | 'gif' | null
   const fileInput = useRef(null)
+  const previews = useMemo(() => files.map(f => f.type.startsWith('image/') ? URL.createObjectURL(f) : null), [files])
+  useEffect(() => () => previews.forEach(u => u && URL.revokeObjectURL(u)), [previews])
 
   useEffect(() => { DRAFTS.set(key, text) }, [key, text])
   useEffect(() => { ref.current?.focus() }, [replyTo])
@@ -239,10 +242,13 @@ function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancel
     el.style.height = Math.min(el.scrollHeight, 240) + 'px'
   }, [text])
 
+  // Keep focus on the textarea so Enter sends instead of re-pressing whatever button was clicked.
+  const focus = () => ref.current?.focus()
   const addFiles = list => {
     const arr = [...list].filter(f => f.size <= 25 * 1024 * 1024)
     if (arr.length < list.length) toast('Files over 25 MB were skipped.')
     setFiles(f => [...f, ...arr].slice(0, 10))
+    focus()
   }
 
   function submit() {
@@ -255,8 +261,15 @@ function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancel
   function insert(e) {
     const el = ref.current, s = el.selectionStart, end = el.selectionEnd
     setText(t => t.slice(0, s) + e + t.slice(end))
-    setEmoji(false)
+    setPicker(null)
     requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + e.length, s + e.length) })
+  }
+
+  // GIFs send straight away (like Discord), keeping any reply that's set.
+  function sendGif(g) {
+    setPicker(null)
+    onSend('', [], [{ url: g.url, type: 'image/gif', name: `${g.title}.gif`, w: g.w, h: g.h, gif: true }])
+    focus()
   }
 
   const rp = replyTo && profileMap[replyTo.author_id]
@@ -275,14 +288,14 @@ function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancel
         <div className="file-chips">
           {files.map((f, i) => (
             <span key={i} className="file-chip pop">
-              {f.type.startsWith('image/') ? <img src={URL.createObjectURL(f)} alt="" /> : '📄'} {f.name}
-              <button onClick={() => setFiles(fs => fs.filter((_, j) => j !== i))} aria-label={`Remove ${f.name}`}>✕</button>
+              {previews[i] ? <img src={previews[i]} alt="" /> : '📄'} {f.name}
+              <button onClick={() => { setFiles(fs => fs.filter((_, j) => j !== i)); focus() }} aria-label={`Remove ${f.name}`}>✕</button>
             </span>
           ))}
         </div>
       )}
       <div className="composer-row">
-        <button className="icon-btn attach" onClick={() => fileInput.current.click()} title="Attach files" aria-label="Attach files">＋</button>
+        <button className="icon-btn attach" onMouseDown={e => e.preventDefault()} onClick={() => fileInput.current.click()} title="Attach files" aria-label="Attach files">＋</button>
         <input ref={fileInput} type="file" multiple hidden onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
         <textarea ref={ref} rows={1} value={text} placeholder={placeholder} aria-label={placeholder}
           onChange={e => { setText(e.target.value); onTyping() }}
@@ -292,8 +305,10 @@ function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancel
             else if (e.key === 'ArrowUp' && !text) { e.preventDefault(); onEditLast() }
             else if (e.key === 'Escape' && replyTo) onCancelReply()
           }} />
-        <button className="icon-btn emoji-btn" onMouseDown={e => e.stopPropagation()} onClick={() => setEmoji(o => !o)} title="Emoji" aria-label="Emoji"><Emoji e="😊" /></button>
-        {emoji && <EmojiPicker className="up" onPick={insert} onClose={() => setEmoji(false)} />}
+        <button className="icon-btn gif-btn" onMouseDown={e => e.stopPropagation()} onClick={() => setPicker(p => p === 'gif' ? null : 'gif')} title="GIFs" aria-label="GIFs">GIF</button>
+        <button className="icon-btn emoji-btn" onMouseDown={e => e.stopPropagation()} onClick={() => setPicker(p => p === 'emoji' ? null : 'emoji')} title="Emoji" aria-label="Emoji"><Emoji e="😊" /></button>
+        {picker === 'emoji' && <EmojiPicker className="up" onPick={insert} onClose={() => setPicker(null)} />}
+        {picker === 'gif' && <GifPicker className="up" onPick={sendGif} onClose={() => setPicker(null)} />}
         <button className="send-btn" onClick={submit} disabled={!text.trim() && !files.length} aria-label="Send">➤</button>
       </div>
     </div>

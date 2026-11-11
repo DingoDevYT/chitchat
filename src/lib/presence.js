@@ -4,7 +4,7 @@ import { online } from './store'
 // One global presence channel: who's online, and which voice channel they're in.
 // shortcut: every client hears every join/leave; fine for a few hundred users, shard per server beyond that.
 let ch = null
-let meta = { voice: null }
+let meta = { voice: null, live: false }
 
 export function startPresence(meId) {
   ch = supabase.channel('online', { config: { private: true, presence: { key: meId } } })
@@ -16,7 +16,7 @@ export function startPresence(meId) {
   return () => { supabase.removeChannel(ch); ch = null; online.set({}) }
 }
 
-export function trackVoice(channelId) {
-  meta = { voice: channelId }
+export function trackVoice(channelId, live = false) {
+  meta = { voice: channelId, live }
   ch?.track(meta)
 }

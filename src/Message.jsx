@@ -1,10 +1,11 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { prefs, profiles, setTalking, useProfile } from './lib/store'
 import { blip } from './lib/animalese'
-import { summarizeReactions } from './lib/chat'
+import { mediaLinks, summarizeReactions } from './lib/chat'
 import Avatar, { Name } from './Avatar'
 import Markdown, { Emoji, emojify } from './Markdown'
 import EmojiPicker from './EmojiPicker'
+import Attachments from './Media'
 
 export const QUICK_EMOJI = ['👍', '❤️', '😂']
 
@@ -16,7 +17,6 @@ function fmtStamp(iso) {
   if (d.toDateString() === y.toDateString()) return `Yesterday at ${fmtTime(d)}`
   return `${d.toLocaleDateString()} ${fmtTime(d)}`
 }
-const fmtSize = b => b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.ceil(b / 1e3)} KB`
 
 // Types new messages out letter by letter while the author's avatar talks in their voice.
 function useTypewriter(m) {
@@ -41,24 +41,6 @@ function useTypewriter(m) {
     return () => { clearInterval(t); if (!done) setTalking(id, false) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   return n
-}
-
-function Attachment({ a }) {
-  if (a.type?.startsWith('image/')) {
-    return (
-      <a href={a.url} target="_blank" rel="noopener noreferrer" className={`att-img${a.uploading ? ' uploading' : ''}`}
-        style={a.w ? { aspectRatio: `${a.w} / ${a.h}`, width: Math.min(a.w, 400) } : undefined}>
-        <img src={a.url} alt={a.name} loading="lazy" />
-      </a>
-    )
-  }
-  if (a.type?.startsWith('video/')) return <video className="att-video" src={a.url} controls preload="metadata" />
-  if (a.type?.startsWith('audio/')) return <audio src={a.url} controls preload="metadata" />
-  return (
-    <a className="att-file" href={a.url} target="_blank" rel="noopener noreferrer" download={a.name}>
-      <span>📄</span><span><b>{a.name}</b><span className="muted small">{a.size ? fmtSize(a.size) : 'uploading…'}</span></span>
-    </a>
-  )
 }
 
 function EditBox({ initial, onSave, onCancel }) {
@@ -99,6 +81,7 @@ function Message({ m, head, me, myName, canDelete, replied, editing, onReply, on
   const mine = m.author_id === me
   const reactions = summarizeReactions(m.reactions || [], me)
   const allProfiles = profiles.get()
+  const media = useMemo(() => [...(m.attachments || []), ...(typing ? [] : mediaLinks(m.content))], [m.attachments, m.content, typing])
   const mentionsMe = myName && new RegExp(`(^|[^\\w@])@${myName.replace(/\./g, '\\.')}\\b`, 'i').test(m.content)
 
   return (
@@ -120,7 +103,7 @@ function Message({ m, head, me, myName, canDelete, replied, editing, onReply, on
               </div>
             )}
           {m.failed && <div className="note err small">Didn't send. Check your connection and try again.</div>}
-          {m.attachments?.length > 0 && <div className="atts">{m.attachments.map((a, i) => <Attachment key={i} a={a} />)}</div>}
+          <Attachments list={media} />
           {reactions.length > 0 && (
             <div className="reactions">
               {reactions.map(r => (

@@ -40,7 +40,7 @@ export function CreateJoinModal({ ctx, onClose, joinInvite }) {
       </div>
       {tab === 'create' ? (
         <form onSubmit={create} className="col">
-          <p className="muted">You'll get a #general text channel and a Hangout voice channel to start.</p>
+          <p className="muted">You'll get a #general text channel and a Hangout stadium to start.</p>
           <label>Server name<input value={name} onChange={e => setName(e.target.value)} maxLength={64} required autoFocus /></label>
           <button className="btn primary" disabled={busy}>Create server</button>
         </form>
@@ -148,12 +148,12 @@ export function ChannelModal({ ctx, members, channel, onClose }) {
 
   const nonAdmins = members.filter(m => m.role === 'member')
   return (
-    <Modal title={editing ? `Edit ${channel.kind === 'voice' ? '🔊' : '#'}${channel.name}` : 'New channel'} onClose={onClose}>
+    <Modal title={editing ? `Edit ${channel.kind === 'voice' ? '🏟️' : '#'}${channel.name}` : 'New channel'} onClose={onClose}>
       <form onSubmit={save} className="col">
         {!editing && (
           <div className="tabs">
             <button type="button" className={kind === 'text' ? 'on' : ''} onClick={() => setKind('text')}># Text</button>
-            <button type="button" className={kind === 'voice' ? 'on' : ''} onClick={() => setKind('voice')}>🔊 Voice</button>
+            <button type="button" className={kind === 'voice' ? 'on' : ''} onClick={() => setKind('voice')}>🏟️ Stadium</button>
           </div>
         )}
         <label>Name<input value={name} onChange={e => setName(e.target.value)} maxLength={64} required autoFocus

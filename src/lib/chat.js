@@ -1,4 +1,5 @@
 // Pure message-list helpers (tested in chat.test.js).
+import { tokenize } from './markdown.js'
 
 const GROUP_GAP = 5 * 60 * 1000
 
@@ -45,4 +46,25 @@ export function summarizeReactions(reactions, me) {
     map.set(r.emoji, e)
   }
   return [...map.values()]
+}
+
+const MEDIA_EXT = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp',
+  mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
+  mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav', m4a: 'audio/mp4',
+}
+
+// Direct media links in message text → attachment-shaped embeds. Skips code and spoilers.
+export function mediaLinks(text) {
+  const walk = ts => ts.flatMap(t => t.t === 'url' ? [t.v] : t.c && t.t !== 'spoiler' ? walk(t.c) : [])
+  const seen = new Set()
+  return walk(tokenize(text || '')).flatMap(url => {
+    try {
+      const path = new URL(url).pathname
+      const type = MEDIA_EXT[path.match(/\.(\w+)$/)?.[1].toLowerCase()]
+      if (!type || seen.has(url)) return []
+      seen.add(url)
+      return [{ url, type, name: decodeURIComponent(path.split('/').pop()), link: true }]
+    } catch { return [] }
+  })
 }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from './lib/supabase'
 import { online, toast, useProfile } from './lib/store'
 import Avatar, { Name } from './Avatar'
+import { canShare } from './Voice'
 
 export function dmTitle(channel, meId, profileMap) {
   const others = channel.channel_members.map(m => m.user_id).filter(id => id !== meId)
@@ -88,7 +89,7 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
             <div key={c.id}>
               <div className={`ch-item${current?.id === c.id ? ' active' : ''}${isUnread(c) ? ' unread' : ''}`}>
                 <button className="ch-main" onClick={() => go(server.id, c.id)}>
-                  <span className="ch-icon">{c.kind === 'voice' ? '🔊' : '#'}</span>
+                  <span className="ch-icon">{c.kind === 'voice' ? '🏟️' : '#'}</span>
                   <span className="ch-name">{c.name}</span>
                   {c.private && <span className="lock" title="Private">🔒</span>}
                 </button>
@@ -102,13 +103,15 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
 
       {voice && (
         <div className="voice-panel pop">
-          <div><b className="ok">● Voice connected</b><div className="muted small">{voice.name}</div></div>
+          <div><b className="ok">● Stadium connected</b><div className="muted small">{voice.name}</div></div>
           <div className="row">
+            {canShare && <button className={`icon-btn${vstate.live ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, live: !v.live }))}
+              title={vstate.live ? 'Stop sharing' : 'Go live'}>{vstate.live ? '⏹️' : '📺'}</button>}
             <button className={`icon-btn${vstate.muted ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, muted: !v.muted }))}
               title={vstate.muted ? 'Unmute' : 'Mute'}>{vstate.muted ? '🔇' : '🎙️'}</button>
             <button className={`icon-btn${vstate.deafened ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, deafened: !v.deafened }))}
               title={vstate.deafened ? 'Undeafen' : 'Deafen'}>{vstate.deafened ? '🙉' : '🎧'}</button>
-            <button className="icon-btn danger" onClick={onLeaveVoice} title="Leave voice">📞</button>
+            <button className="icon-btn danger" onClick={onLeaveVoice} title="Leave stadium">📞</button>
           </div>
         </div>
       )}
