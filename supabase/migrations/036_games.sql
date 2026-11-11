@@ -160,3 +160,8 @@ begin
     end if;
   end loop;
 end $$;
+
+-- (applied as 036b) covering indexes for the user foreign keys
+create index if not exists game_seats_user on public.game_seats (user_id);
+create index if not exists games_host on public.games (host_id);
+

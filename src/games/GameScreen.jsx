@@ -38,7 +38,7 @@ function TableFlat({ UI, v, people, meIdx, turnPid, info, winners, me }) {
       {people.map((p, i) => {
         const a = Math.PI / 2 + (2 * Math.PI * ((i - meIdx + n) % n)) / n
         return (
-          <div key={p.pid} className="gflat-seat" style={{ left: `${50 + 40 * Math.cos(a)}%`, top: `${50 + 36 * Math.sin(a)}%` }}>
+          <div key={p.pid} className="gflat-seat" style={{ left: `${50 + 40 * Math.cos(a)}%`, top: `${46 + 32 * Math.sin(a)}%` }}>
             <Person p={p} turn={p.pid === turnPid} info={info(p.pid)} me={p.pid === me} won={winners?.includes(p.pid)} />
             {v && <span className="gflat-cards">{UI.seatCards(v, p.pid, me).map((c, k) => <FlatCard key={k} {...c} />)}</span>}
           </div>

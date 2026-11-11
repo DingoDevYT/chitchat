@@ -120,6 +120,8 @@ function CardMesh({ kind, id, up, pos, rot = 0, tilt = 0, from, speed }) {
 
 // ── the room ──
 function Room({ layout }) {
+  const { size } = useThree()
+  const portrait = size.width / Math.max(1, size.height) < 1.25 // phones look down past the lamp: leave it out
   const wall = useMemo(() => canvasTex('wall', 256, 256, (g, w, h) => {
     g.fillStyle = '#6b4c58'; g.fillRect(0, 0, w, h)
     g.fillStyle = '#7a5866'; for (let x = 0; x < w; x += 64) g.fillRect(x, 0, 30, h)
@@ -161,7 +163,7 @@ function Room({ layout }) {
           <mesh key={i} position={[x, y, z]} castShadow><sphereGeometry args={[r, 12, 10]} /><meshStandardMaterial color={i % 2 ? '#5f9a58' : '#6fb06a'} roughness={1} /></mesh>)}
       </group>
       {/* hanging lamp over the table */}
-      <group position={[0, 5.4, 0]}>
+      <group position={[0, 5.4, 0]} visible={!portrait}>
         <mesh position={[0, 1.6, 0]}><cylinderGeometry args={[0.02, 0.02, 3.2, 6]} /><meshStandardMaterial color="#2b2230" /></mesh>
         <mesh><coneGeometry args={[1.0, 0.8, 32, 1, true]} /><meshStandardMaterial color="#e8b86b" side={THREE.DoubleSide} roughness={0.7} emissive="#7a4a10" emissiveIntensity={0.4} /></mesh>
         <mesh position={[0, -0.25, 0]}><sphereGeometry args={[0.22, 16, 12]} /><meshBasicMaterial color="#fff1cf" /></mesh>
@@ -463,8 +465,9 @@ function Rig({ layout }) {
   const { camera, size } = useThree()
   useEffect(() => {
     const aspect = size.width / Math.max(1, size.height)
-    const k = aspect < 1.25 ? Math.min(1.9, Math.pow(1.25 / aspect, 0.85)) : 1
-    camera.position.set(layout.cam[0], layout.cam[1] * (1 + (k - 1) * 0.9), layout.cam[2] * k)
+    const k = aspect < 1.25 ? Math.min(1.7, Math.pow(1.25 / aspect, 0.8)) : 1
+    // Portrait phones: higher and steeper rather than just further away, so the table fills the width.
+    camera.position.set(layout.cam[0], layout.cam[1] * (1 + (k - 1) * 1.5), layout.cam[2] * (1 + (k - 1) * 0.55))
     camera.lookAt(...layout.look)
     camera.updateProjectionMatrix()
   }, [camera, size.width, size.height, layout])
@@ -499,11 +502,12 @@ export default function Table3D({ game, v, people, meIdx, me, turnPid, info, win
     return () => document.removeEventListener('visibilitychange', f)
   }, [])
   const n = people.length
+  const r = layout.seatR * (innerWidth < 700 ? 0.8 : 1) // phones: pull seats in so side players stay on screen
   const seats = people.map((p, i) => {
-    let [x, z, a] = seatAt(i, Math.max(n, 2), meIdx, layout.seatR)
+    let [x, z, a] = seatAt(i, Math.max(n, 2), meIdx, r)
     // You stand at the front-left corner (like your corner in the crowd), leaving the middle clear for your hand.
-    if (p.pid === me) { x = -layout.seatR * 0.62; z = layout.seatR * 0.82; a = Math.atan2(z, x) }
-    return { ...p, x, z, a, r: layout.seatR }
+    if (p.pid === me) { x = -r * 0.62; z = r * 0.82; a = Math.atan2(z, x) }
+    return { ...p, x, z, a, r }
   })
   const els = useRef([])
   const Scene = SCENES[game]
@@ -513,7 +517,7 @@ export default function Table3D({ game, v, people, meIdx, me, turnPid, info, win
       <Canvas shadows dpr={[1, 1.5]} frameloop={hidden ? 'never' : 'always'} camera={{ fov: 42, near: 0.1, far: 60, position: layout.cam }}
         gl={{ antialias: true, powerPreference: 'low-power' }} onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.05 }}>
         <color attach="background" args={['#2a1f2b']} />
-        <fog attach="fog" args={['#2a1f2b', 12, 26]} />
+        <fog attach="fog" args={['#2a1f2b', 18, 40]} />
         <Rig layout={layout} />
         <Lights layout={layout} />
         <Room layout={layout} />
@@ -524,7 +528,7 @@ export default function Table3D({ game, v, people, meIdx, me, turnPid, info, win
         <Projector seats={seats} els={els} H={layout.H} />
       </Canvas>
       {seats.map((p, i) => (
-        <Person key={p.pid} p={p} far={p.z < -0.3} elRef={el => { els.current[i] = el }} turn={p.pid === turnPid} info={info(p.pid)} me={p.pid === me} won={winners?.includes(p.pid)} />
+        <Person key={p.pid} p={p} elRef={el => { els.current[i] = el }} turn={p.pid === turnPid} info={info(p.pid)} me={p.pid === me} won={winners?.includes(p.pid)} />
       ))}
     </div>
   )
