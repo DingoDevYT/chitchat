@@ -7,17 +7,17 @@ import '../styles/themes.css'
 // Each scene is its own chunk, fetched the first time something shows it.
 const loaders = {
   beach: () => import('./scenes/Beach'),
-  night: () => import('./scenes/Night'),
+  night: () => import('./v2/Night'),
   rain: () => import('./v2/Rain'),
-  forest: () => import('./scenes/Forest'),
+  forest: () => import('./v2/Forest'),
   snow: () => import('./scenes/Snow'),
   sakura: () => import('./scenes/Sakura'),
   sea: () => import('./v2/Sea'),
   synthwave: () => import('./v2/Synthwave'),
-  campfire: () => import('./scenes/Campfire'),
+  campfire: () => import('./v2/Campfire'),
 }
 // painted redos (src/themes/v2) sit on a shared paper grain
-const PAINTED = new Set(['rain', 'sea', 'synthwave'])
+const PAINTED = new Set(['rain', 'sea', 'synthwave', 'night', 'forest', 'campfire'])
 const scenes = {}
 const sceneOf = id => scenes[id] ||= lazy(loaders[id])
 
@@ -44,8 +44,8 @@ export default function ThemeBackdrop({ theme, variant = 'room', intensity }) {
     <div className={`theme-backdrop tb-${theme} tb-${variant} tb-${level}${meta.dark ? ' tb-dark' : ' tb-light'}`} aria-hidden="true"
       style={c ? { '--c1': c[0], '--c2': c[1], '--c3': c[2] } : undefined}>
       {Scene && <Suspense fallback={null}><div className="tb-scene"><Scene variant={variant} /></div></Suspense>}
+      {Scene && PAINTED.has(theme) && <div className="tb-grain" />}{/* under the scrim: over it, it greys the cream Day look */}
       <div className="tb-scrim" />
-      {Scene && PAINTED.has(theme) && <div className="tb-grain" />}
     </div>
   )
 }

@@ -110,7 +110,7 @@ function showdown(s) {
   const left = alive(pub)
   let board = pub.board, deck = [...s.secret.deck]
   if (left.length > 1 && board.length < 5) board = [...board, ...deck.splice(-(5 - board.length))]
-  const score = Object.fromEntries(left.map(p => [p, best([...s.priv[p].cards, ...board])]))
+  const score = left.length < 2 ? {} : Object.fromEntries(left.map(p => [p, best([...s.priv[p].cards, ...board])]))
   const stacks = { ...pub.stacks }, won = {}
   // Side pots: slice contributions by each distinct all-in level.
   const levels = [...new Set(Object.values(put))].sort((a, b) => a - b)
@@ -161,12 +161,15 @@ export function move(s, pid, a) {
   else if (type === 'call') { if (owe <= 0) throw new Error('Nothing to call.'); pay(owe) }
   else if (type === 'raise' || type === 'allin') {
     const to = type === 'allin' ? mine + stack : Math.floor(a.to)
+    if (type === 'allin' && to <= bet) pay(stack) // all in for less than the bet: just a short call
+    else {
     if (!(to > bet)) throw new Error('Raise above the current bet.')
     if (to > mine + stack) throw new Error("You don't have that many acorns.")
     if (to < bet + minRaise && to < mine + stack) throw new Error(`Raise to at least ${bet + minRaise}.`)
     pay(to - mine)
     if (to - bet >= minRaise) { minRaise = to - bet; acted = { [pid]: true } } // a full raise reopens the betting
     bet = Math.max(bet, to)
+    }
   } else throw new Error('Fold, check, call or raise.')
   const p = { ...pub, bets, stacks, put, allin, folded, bet, minRaise, acted, last: { pid, type, amt: bets[pid] || 0 } }
   const s2 = { ...s, pub: p }
