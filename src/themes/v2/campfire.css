@@ -1,0 +1,57 @@
+/* Campfire (v2, painted). Static painted layers rasterise once; motion is transform/opacity on small unfiltered parts.
+   Timing comes from the shared .a primitive (--d/--dl, scaled by --k). */
+.v2-campfire-canvas { left: 0; top: 0; will-change: transform; }
+.v2-campfire-pin { width: 1px; height: 1px; overflow: visible; }
+.v2-campfire-land { inset: 0; }
+/* rooms: the clearing sits lower so the middle band behind messages stays quiet sky */
+.tb-room .v2-campfire-land { transform: translateY(9%); }
+.v2-campfire-fall { width: 0; height: 0; }
+
+/* flipbook: each frame is held, then hands over (a hair of overlap so there is never an empty frame) */
+.v2-campfire-frame { animation-name: v2-campfire-frame; animation-timing-function: steps(1, end); }
+@keyframes v2-campfire-frame { 0% { opacity: 1; } 35% { opacity: 0; } 100% { opacity: 0; } }
+.v2-campfire-core { animation-name: v2-campfire-core; animation-timing-function: steps(1, end); }
+@keyframes v2-campfire-core { 0% { opacity: 1; } 52% { opacity: 0; } 100% { opacity: 0; } }
+/* the fire's body leans and stretches a little */
+.v2-campfire-fire { width: 0; height: 0; transform-origin: 0 0; animation-name: v2-campfire-lean; animation-direction: alternate; }
+@keyframes v2-campfire-lean { 0% { transform: none; } 40% { transform: scale(.96, 1.06) skewX(-2deg); } 100% { transform: scale(1.03, .95) skewX(2.5deg); } }
+
+/* firelight: uneven, never fully dark. Plain soft light (no edge to see), so a gradient is right here */
+.v2-campfire-light { width: 440px; height: 130px; margin: -70px 0 0 -220px; border-radius: 50%;
+  background: radial-gradient(closest-side, #e0884a3a, #c8683a18 55%, transparent); }
+.v2-campfire-light.sky { width: 380px; height: 320px; margin: -290px 0 0 -190px;
+  background: radial-gradient(closest-side, #b85a3a22, #9a4a300e 60%, transparent); }
+.v2-campfire-flick { animation-name: v2-campfire-flick; }
+.v2-campfire-flick.f2 { animation-name: v2-campfire-flick2; }
+@keyframes v2-campfire-flick { 0%, 100% { opacity: .85; } 18% { opacity: 1; } 34% { opacity: .7; } 52% { opacity: .95; } 77% { opacity: .62; } }
+@keyframes v2-campfire-flick2 { 0%, 100% { opacity: .7; } 27% { opacity: 1; } 49% { opacity: .55; } 68% { opacity: .9; } }
+.v2-campfire-lit { animation-name: v2-campfire-lit; animation-timing-function: steps(1, end); }
+@keyframes v2-campfire-lit { 0% { opacity: 1; } 21% { opacity: .55; } 33% { opacity: .9; } 58% { opacity: .4; } 72% { opacity: .85; } 100% { opacity: 1; } }
+
+.v2-campfire-flap { transform-origin: 0 0; animation-name: v2-campfire-flap; animation-direction: alternate; }
+@keyframes v2-campfire-flap { from { transform: skewX(-3deg); } to { transform: skewX(4deg); } }
+
+.v2-campfire-sway { animation-name: v2-campfire-sway; animation-direction: alternate; transform-origin: 50% 100%; }
+@keyframes v2-campfire-sway { from { transform: rotate(calc(var(--r, .5deg) * -1)); } to { transform: rotate(var(--r, .5deg)); } }
+
+.v2-campfire-smoke { opacity: 0; animation-name: v2-campfire-smoke; animation-timing-function: ease-out; }
+@keyframes v2-campfire-smoke { 0% { transform: translate(0, 0) scale(.6); opacity: 0; } 15% { opacity: .9; }
+  60% { transform: translate(18px, -110px) scale(1.9); opacity: .5; } 100% { transform: translate(52px, -190px) scale(2.8); opacity: 0; } }
+
+.v2-campfire-ember { opacity: 0; animation-name: v2-campfire-ember; animation-timing-function: ease-out; }
+@keyframes v2-campfire-ember { 0% { transform: translate(0, 0); opacity: 0; } 8% { opacity: 1; }
+  45% { transform: translate(var(--mx), calc(var(--y) * .42)); opacity: .9; } 100% { transform: translate(var(--x), var(--y)) scale(.5); opacity: 0; } }
+
+/* a log settles: a burst of sparks, then nothing for a long while */
+.v2-campfire-spark { opacity: 0; animation-name: v2-campfire-spark; animation-timing-function: ease-out; }
+@keyframes v2-campfire-spark { 0% { transform: none; opacity: 0; } .4% { opacity: 1; } 5% { transform: translate(var(--x), var(--y)) scale(.6); opacity: 0; } 100% { transform: translate(var(--x), var(--y)); opacity: 0; } }
+
+.v2-campfire-tw { animation-name: v2-campfire-tw; }
+@keyframes v2-campfire-tw { 0%, 100% { opacity: .95; } 29% { opacity: .4; } 46% { opacity: .8; } 71% { opacity: .3; } 85% { opacity: .72; } }
+.v2-campfire-glint { animation-name: v2-campfire-glint; animation-timing-function: steps(1, end); }
+@keyframes v2-campfire-glint {
+  0% { opacity: .95; transform: none; } 23% { opacity: .5; transform: scale(.78); } 41% { opacity: .85; transform: scale(.95) rotate(8deg); }
+  63% { opacity: .32; transform: scale(.66); } 81% { opacity: .75; transform: scale(1.04) rotate(-4deg); } 100% { opacity: .95; transform: none; } }
+
+.v2-campfire-shoot { opacity: 0; animation-name: v2-campfire-shoot; animation-timing-function: ease-out; }
+@keyframes v2-campfire-shoot { 0% { transform: none; opacity: 0; } .5% { opacity: .85; } 2.2%, 100% { transform: translateX(-260px); opacity: 0; } }

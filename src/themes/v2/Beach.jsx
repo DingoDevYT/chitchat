@@ -8,7 +8,7 @@ import './beach.css'
 
 // palette: cerulean sky, greyed teal sea, warm cream light, ochre sand, olive grass, one clay accent
 const C = {
-  sky: '#98bccd', skyHi: '#b8d0d5', haze: '#e6e0cd', far: '#a6babd', deep: '#4e8395', sea: '#679ca6', shallow: '#9cc6b9',
+  sky: '#8cb8cf', skyHi: '#b6d4dc', haze: '#efe6cf', far: '#a6babd', deep: '#4e8395', sea: '#679ca6', shallow: '#9cc6b9',
   foam: '#f4efe0', sand: '#e0c796', sandLo: '#c8ad83', grass: '#a19c63', grassLo: '#737d59', clay: '#b9765c', sun: '#f7ecc8',
 }
 
@@ -37,8 +37,33 @@ const TUFTS = [
   [[-5, 26, -11], [-2, 34, -4], [1, 40, 1], [3, 31, 7], [6, 22, 13], [-3, 20, -14], [2, 28, 10], [0, 24, -6]],
 ]
 const blade = ([x, h, l]) => `M${x - 1.5} 0C${x - 1} ${-h * .5} ${x + l * .5} ${-h * .85} ${x + l} ${-h}C${x + l * .4} ${-h * .8} ${x + 1.1} ${-h * .45} ${x + 1.5} 0Z`
-// x %, y % (stadium space), tuft, scale, sway deg, duration s
-const GRASS = [[69.5, 70.2, 1, .7, 3, 6.7], [77.5, 64.6, 0, 1, 2.4, 8.3], [84, 61.8, 2, 1.1, 2, 7.1], [90.5, 60.9, 1, .9, 2.8, 9.7], [95.5, 62, 0, 1.15, 2.2, 5.9]]
+// x %, y % (stadium space), tufts [kind, dx px, scale], sway deg, duration s
+const GRASS = [
+  [68.6, 73.6, [[1, 0, .8]], 3, 6.7],
+  [74.6, 69.8, [[0, -8, .9], [1, 9, .75]], 2.6, 8.3],
+  [80.4, 67.1, [[2, 0, 1.15], [1, 14, .8]], 2.1, 7.1],
+  [86.2, 64.3, [[0, -6, 1.1], [2, 10, 1.25]], 1.8, 9.7],
+  [92.4, 63.6, [[1, -10, .95], [0, 6, 1.2]], 2.4, 5.9],
+  [97.6, 64.9, [[2, 0, 1.2]], 2, 10.9],
+]
+const DUNE = [[44, 104], [53, 93], [60, 85.5], [66, 78.5], [70.5, 73], [74, 69.6], [78, 67.8], [82, 65.6], [86, 63.8], [91, 63], [96, 64.2], [100, 65.4]]
+// foam lip of the shore wash, two held frames: [x, y, thickness] in the surf box (0–100 × 0–10), sloping up toward the dune
+const LIPS = [
+  [[-2, 9.2, 1.1], [6, 8.6, .7], [12, 8.9, 1.2], [19, 8, .8], [26, 8.2, 1.3], [33, 7.5, .6], [40, 7.6, 1.1], [47, 6.8, .9], [54, 6.6, 1.4],
+    [61, 5.9, .7], [68, 5.6, 1.2], [75, 5.1, .8], [82, 5, 1.3], [89, 4.8, .7], [96, 5, 1.1], [102, 4.8, .9]],
+  [[-2, 9, .8], [5, 8.9, 1.3], [11, 8.4, .7], [18, 8.4, 1.2], [25, 7.8, .8], [32, 7.8, 1.3], [39, 7.1, .7], [46, 7.1, 1.2], [53, 6.3, .8],
+    [60, 6.2, 1.3], [67, 5.4, .7], [74, 5.4, 1.2], [81, 4.8, .8], [88, 5, 1.2], [95, 4.7, .8], [102, 5, 1.2]],
+]
+const FOAM = [[[10, 7.4, 5], [30, 6.2, 6], [52, 5, 5], [74, 3.9, 6], [90, 3.6, 4]], [[16, 7, 6], [38, 5.8, 5], [60, 4.6, 6], [80, 3.7, 5], [96, 3.5, 4]]]
+const r2 = n => Math.round(n * 100) / 100
+// a soft line through hand-placed points (midpoint quadratics), and a ragged band along [x, y, thickness] points
+const smooth = pts => {
+  const m = (a, b) => `${r2((a[0] + b[0]) / 2)} ${r2((a[1] + b[1]) / 2)}`
+  let d = `${pts[0][0]} ${pts[0][1]}L${m(pts[0], pts[1])}`
+  for (let i = 1; i < pts.length - 1; i++) d += `Q${pts[i][0]} ${pts[i][1]} ${m(pts[i], pts[i + 1])}`
+  return d + `L${pts.at(-1)[0]} ${pts.at(-1)[1]}`
+}
+const lip = pts => `M${smooth(pts)}L${smooth(pts.map(([x, y, t]) => [x, r2(y + t)]).reverse())}Z`
 
 const CLOUDS = {
   big: ['M-140 20C-138 10 -126 4 -112 6C-110 -8 -94 -16 -80 -12C-74 -30 -50 -38 -32 -28C-22 -48 8 -54 26 -40C36 -52 62 -50 72 -34C86 -40 104 -32 106 -18C120 -20 134 -10 134 2C142 6 146 14 140 20C100 26 40 27 -20 26S-110 25 -140 20Z',
@@ -66,9 +91,9 @@ export default function Beach({ variant = 'room' }) {
           </linearGradient>
         </defs>
         <rect width="100%" height="100%" fill={`url(#${p.id}bg)`} />
-        <Wash f={p.sky} d={band(-8, Y(17), 2.5, 0)} fill={['#8fb5c8', '#96bacb', '#8ab0c3']} o={.55} />
+        <Wash f={p.sky} d={band(-8, Y(17), 2.5, 0)} fill={['#86b3cc', '#8fb9cf', '#80adc6']} o={.6} />
         <Wash f={p.sky} d={band(Y(15), Y(36), 3, 1.3)} fill={[C.skyHi, '#bdd3d6', '#b2cbd1']} o={.45} />
-        <Wash f={p.sky} d={band(Y(33), Y(50), 2, 2.4)} fill={[C.haze, '#e9e3d1', '#dfdccd']} o={.6} />
+        <Wash f={p.sky} d={band(Y(37), Y(50), 1.5, 2.4)} fill={[C.haze, '#f1e9d4', '#e6e2d2']} o={.45} />
         {/* far headland, two lobes, lighter and cooler than anything near */}
         <Wash f={p.haze} fill={[C.far, '#adc0c2', '#a0b4b8']} o={.9}
           d={ridge([[0, Y(44.4)], [4, Y(43.3)], [8.5, Y(42.8)], [13, Y(43.9)], [18, Y(45.5)], [23, Y(47.4)], [29, Y(48.7)], [35, Y(49.3)]])} />
@@ -79,11 +104,14 @@ export default function Beach({ variant = 'room' }) {
         <Wash f={p.brush} d={band(Y(51.5), Y(60), 1, .7)} fill={[C.sea, '#6fa3ab', '#6297a2']} o={.55} />
         <Wash f={p.brush} d={band(Y(57), Y(68), 1.2, 2)} fill={['#7fb1b0', '#86b6b3', '#79abab']} o={.55} />
         <Wash f={p.haze} d={band(Y(64), Y(77), 1, 3.1)} fill={[C.shallow, '#a3cbbd', '#95c0b4']} o={.75} />
-        <Wash f={p.haze} d={`M72.5 ${Y(49.3)}L79.5 ${Y(49.3)}L89 ${Y(71)}L63 ${Y(71)}Z`} fill={C.sun} o={.2} />
+        {/* sunlight on the water: stacked horizontal glazes, narrow at the horizon, wider and looser near */}
+        {[[75.5, 50.2, 1.6, .5, .4], [76.4, 52.4, 2.6, .6, .34], [75, 55.2, 4, .8, .3], [77.2, 58.4, 5.4, .9, .26], [75.4, 62, 7.5, 1.1, .22], [77.6, 66, 9, 1.2, .16]].map(([x, y, w, h, o], i) =>
+          <Wash key={i} f={p.haze} fill={C.sun} o={o} d={`M${x - w} ${Y(y)}C${x - w * .4} ${Y(y - h)} ${x + w * .5} ${Y(y - h * .9)} ${x + w} ${Y(y + .1)}C${x + w * .3} ${Y(y + h * .8)} ${x - w * .5} ${Y(y + h * .7)} ${x - w} ${Y(y)}Z`} />)}
         <Wash f={p.haze} d={band(Y(47.6), Y(50.4), .4, 1)} fill={C.haze} o={.35} />
         {/* sand: dry-brushed, a darker wet margin, sun-bleached streaks, a few clustered pebbles and shells */}
-        <Wash f={p.brush} fill={[C.sand, '#e6d0a2', '#dac08f']} d={ridge([[0, Y(75.4)], [22, Y(74.9)], [48, Y(75.8)], [76, Y(75.1)], [100, Y(75.6)]])} />
-        <Wash f={p.haze} d={band(Y(75.2), Y(80), .5, .4)} fill={[C.sandLo, '#ccb28a', '#c2a87e']} o={.6} />
+        <Wash f={p.brush} fill={[C.sand, '#e6d0a2', '#dac08f']} d={ridge([[0, Y(78.4)], [18, Y(77.6)], [36, Y(77)], [52, Y(76.1)], [66, Y(75.3)], [80, Y(74.9)], [100, Y(75)]])} />
+        <Wash f={p.haze} fill={[C.sandLo, '#ccb28a', '#c2a87e']} o={.6}
+          d={`M-3 ${Y(78.6)}C20 ${Y(77.6)} 44 ${Y(76.6)} 66 ${Y(75.5)}S96 ${Y(75)} 103 ${Y(75.2)}V${Y(78.4)}C80 ${Y(78.6)} 50 ${Y(80)} 30 ${Y(81.4)}S2 ${Y(82.6)} -3 ${Y(82.8)}Z`} />
         <Wash f={p.brush} d={`M4 ${Y(88)}C14 ${Y(86.6)} 30 ${Y(86.9)} 42 ${Y(87.8)}C30 ${Y(88.6)} 15 ${Y(88.8)} 4 ${Y(88)}Z`} fill="#efe0be" o={.55} />
         <Wash f={p.brush} d={`M50 ${Y(94)}C62 ${Y(92.8)} 78 ${Y(93.2)} 92 ${Y(94.1)}C78 ${Y(95)} 62 ${Y(95)} 50 ${Y(94)}Z`} fill="#efe0be" o={.45} />
         <g filter={p.fine}>
@@ -98,10 +126,10 @@ export default function Beach({ variant = 'room' }) {
 
       {/* the sun: a painted disc with a slow-breathing halo, a little off the top right */}
       <Pin x="74%" y="calc(13% + var(--sky))" className="a v2-beach-breathe" style={anim(13.7, 4, { '--lo': .55 })}>
-        <Glaze r={34} fill="#fbf1d0" o={.55} f={p.glow} />
+        <Glaze r={40} fill="#fff4d2" o={.72} f={p.glow} />
       </Pin>
       <Pin x="74%" y="calc(13% + var(--sky))">
-        <Wash px f={p.fine} fill={[C.sun, '#faf0d2', '#f3e5bd']}
+        <Wash px f={p.fine} fill={['#fdf6df', '#fff9e8', '#f6ead0']}
           d="M-22 1C-23 -12 -12 -22 0 -22C13 -23 22 -12 22 0C23 12 12 22 -1 22C-13 22 -22 13 -22 1Z" />
       </Pin>
 
@@ -148,47 +176,46 @@ export default function Beach({ variant = 'room' }) {
         </Pin>
       ))}
 
-      {/* the shore wash: a thin turquoise sheet with a lacy foam lip, the lace re-drawn in two held frames */}
-      <div className="v2-beach-sheen a" style={{ top: pc(75.4), height: `${Y(80) - Y(75.4)}%`, ...anim(9.7, 3) }}>
+      {/* the shore wash: a thin sheet with a lacy foam lip runs up the sand and slides back; the lace is re-drawn in two held frames */}
+      <div className="v2-beach-sheen a" style={{ top: pc(75), height: `${Y(82) - Y(75)}%`, ...anim(9.7, 3) }}>
         <svg viewBox="0 0 100 10" preserveAspectRatio="none">
-          <path d="M0 3C12 1.5 22 4 36 2.6S60 1.2 74 3.2 92 2 100 2.8V8C80 9 60 7.4 40 8.6S10 8 0 8.4Z" fill="#e8ecdf" opacity=".45" />
+          <path d="M-2 5C20 4.2 44 3 66 1.2S96 0 102 .2V2.2C80 2.6 50 4.8 30 6.4S2 7.6 -2 7.8Z" fill="#eef0e4" opacity=".5" />
         </svg>
       </div>
-      <div className="v2-beach-surf a" style={{ top: pc(71.5), height: `${Y(77.5) - Y(71.5)}%`, ...anim(9.7, 1) }}>
+      <div className="v2-beach-surf a" style={{ top: pc(71.5), height: `${Y(79) - Y(71.5)}%`, ...anim(9.7, 1) }}>
         <svg viewBox="0 0 100 10" preserveAspectRatio="none">
-          <g filter={p.haze}><path d="M0 0H100V7.2C92 8.6 86 6.8 78 8.1S64 9.4 55 7.6 40 8.8 30 7.4 14 8.9 0 7.6Z" fill={C.shallow} opacity=".7" /></g>
+          <g filter={p.haze}><path d={`M-2 0H102V4.6L${smooth(LIPS[0].map(([x, y]) => [x, y + .3]).reverse())}Z`} fill={C.shallow} opacity=".7" /></g>
         </svg>
-        {[0, 1].map(f => (
+        {LIPS.map((pts, f) => (
           <svg key={f} className="a v2-beach-f2" style={anim(1.9, f * .95)} viewBox="0 0 100 10" preserveAspectRatio="none">
             <g filter={p.fine} fill={C.foam}>
-              <path d={f
-                ? 'M0 6.6C6 7.8 11 6.4 17 7.6S28 8.6 33 6.9 44 7.9 50 7.2 61 8.5 67 7.1 79 8.4 85 7.3 95 8.1 100 7V8.6C90 9.4 80 8.7 70 9.4S50 9 40 9.5 20 9 10 9.5 2 9.1 0 9.3Z'
-                : 'M0 7C5 6.2 10 8.1 16 7.2S27 6.6 34 7.8 45 6.8 51 7.6 62 7 68 8 80 6.9 86 7.7 96 7.1 100 7.6V8.8C90 9.6 80 8.9 70 9.5S50 9.1 40 9.6 20 9.2 10 9.6 2 9.3 0 9.4Z'} opacity=".9" />
-              <path d={f ? 'M8 5.2C14 4.8 20 5.6 26 5.1M46 5.4C54 4.9 60 5.8 68 5.2M82 5.6C88 5.1 92 5.7 97 5.3' : 'M3 5.6C10 5.1 16 5.9 22 5.4M38 5.1C46 5.6 52 4.8 60 5.3M74 5.5C80 5 86 5.8 92 5.2'}
-                fill="none" stroke={C.foam} strokeWidth=".5" opacity=".7" />
+              <path d={lip(pts)} opacity=".92" />
+              {FOAM[f].map(([x, y, w], j) => <path key={j} opacity=".7"
+                d={`M${x - w} ${y}C${x - w / 3} ${y - .35} ${x + w / 3} ${y - .3} ${x + w} ${y + .05}C${x + w / 3} ${y + .2} ${x - w / 3} ${y + .25} ${x - w} ${y}Z`} />)}
             </g>
           </svg>
         ))}
       </div>
 
-      {/* the dune in front, lit on its sea-facing side, with weathered fence posts */}
+      {/* the dune in front: lit along its crest, cooler at its foot, a few weathered fence posts */}
       <Canvas>
-        <Wash f={p.brush} fill={['#dcc493', '#e3cc9c', '#d4bb89']} rim={['#efdcb0', .4, .5]}
-          d={ridge([[50, 104], [58, Y(86)], [65, Y(74.5)], [72, Y(68.2)], [79, Y(64.4)], [85, Y(62)], [91, Y(61.2)], [96, Y(62)], [100, Y(63.4)]])} />
-        <Wash f={p.haze} fill={['#bfa985', '#c4ae8a', '#b8a27e']} o={.55}
-          d={`M100 ${Y(66)}C94 ${Y(70)} 90 ${Y(78)} 92 ${Y(88)}S98 ${Y(98)} 100 ${Y(100)}Z`} />
+        <Wash f={p.brush} fill={['#d9c091', '#e0c899', '#d1b887']} rim={['#ecd9ac', .4, .5]} d={ridge(DUNE.map(([x, y]) => [x, Y(y)]))} />
+        <Wash f={p.brush} fill="#f0ddb0" o={.7} d={lip(DUNE.slice(3).map(([x, y], i) => [x, Y(y + .3), 1.2 + (i % 3) * .5]))} />
+        <Wash f={p.haze} fill="#b9a587" o={.4} d={lip([[58, Y(92), 3], [63, Y(85), 4], [68, Y(81), 5], [76, Y(79), 6], [88, Y(80), 5], [103, Y(78), 6]])} />
         <g filter={p.fine} fill="#8e7c64">
-          {[[66.4, 72.6, -7, 17], [70.6, 69.6, -4, 20], [74.8, 67, -8, 16], [78.9, 65, -3, 19]].map(([x, y, r, h], i) => (
+          {[[71.5, 71.6, -7, 15], [75.2, 69.1, -4, 17], [79, 67.4, -8, 14], [82.8, 65.4, -3, 16]].map(([x, y, r, h], i) => (
             <At key={i} x={`${x}%`} y={pc(y)}><path d={`M-1.6 0L-1 ${-h}L1.2 ${-h - .8}L1.6 0Z`} transform={`rotate(${r})`} /></At>
           ))}
         </g>
       </Canvas>
-      {GRASS.map(([x, y, k, s, r, d], i) => (
+      {GRASS.map(([x, y, tufts, r, d], i) => (
         <Pin key={i} x={`${x}%`} y={pc(y)} className="a v2-beach-sway" style={anim(d, d * i * .53, { '--r': `${r}deg` })}>
-          <g transform={`scale(${s})`} filter={p.fine}>
-            <g fill={C.grassLo}>{TUFTS[k].map((b, j) => <path key={j} d={blade([b[0] - 2, b[1] * .8, b[2] - 3])} />)}</g>
-            <g fill={C.grass}>{TUFTS[k].map((b, j) => <path key={j} d={blade(b)} />)}</g>
-            <g fill="#cbbb80">{TUFTS[k].filter((_, j) => j % 3 === 1).map((b, j) => <path key={j} d={blade([b[0] + .5, b[1] * .95, b[2]])} opacity=".8" />)}</g>
+          <g filter={p.fine}>{tufts.map(([k, dx, s], t) => (
+            <g key={t} transform={`translate(${dx} 0) scale(${s * 1.3})`}>
+              <g fill={C.grassLo}>{TUFTS[k].map((b, j) => <path key={j} d={blade([b[0] - 2, b[1] * .8, b[2] - 3])} />)}</g>
+              <g fill={C.grass}>{TUFTS[k].map((b, j) => <path key={j} d={blade(b)} />)}</g>
+              <g fill="#cdbd82">{TUFTS[k].filter((_, j) => j % 3 === 1).map((b, j) => <path key={j} d={blade([b[0] + .5, b[1] * .95, b[2]])} opacity=".8" />)}</g>
+            </g>))}
           </g>
         </Pin>
       ))}

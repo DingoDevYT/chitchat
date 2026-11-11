@@ -19,6 +19,9 @@ const loop = pts => {
 }
 // a lopsided halo blob (radius ~10), scaled per use
 const HALO = loop([[0, -10], [7.6, -6.8], [10.4, .6], [7, 7.8], [-.8, 10.2], [-7.4, 7], [-10, -.4], [-6.6, -7.6]])
+// a soft glaze: several lopsided blobs, each larger, fainter and turned, so no edge lines up (no filter: it may animate)
+const Halo = ({ k, fill, o, sx = 1, n = 4 }) => Array.from({ length: n }, (_, i) =>
+  <path key={i} d={HALO} transform={`rotate(${i * 67}) scale(${r2(k * (1 + i * .45) * sx)} ${r2(k * (1 + i * .45))})`} fill={fill} opacity={r2(o / (1 + i * .7))} />)
 // four-point glint, taller than wide
 const glint = (s, w = s * .72) => `M0 ${-s}Q${r2(s * .12)} ${r2(-s * .12)} ${r2(w)} 0Q${r2(s * .12)} ${r2(s * .12)} 0 ${s}Q${r2(-s * .12)} ${r2(s * .12)} ${r2(-w)} 0Q${r2(-s * .12)} ${r2(-s * .12)} 0 ${-s}Z`
 
@@ -77,11 +80,10 @@ export default function Night() {
       <Glaze r={40} fill="#e6dcba" o={.26} f={p.glow} />
     </Pin>
     <Pin x="78%" y="calc(17% + var(--sky))" className="v2-night-pin a v2-night-breathe" style={anim(13.7, 4, { '--lo': .35 })}>
-      <path d={HALO} transform="scale(4.4)" fill="#efe4c4" opacity=".07" />
-      <path d={HALO} transform="rotate(40) scale(6.6)" fill="#cfc7ea" opacity=".045" />
+      <Halo k={3.6} fill="#efe4c4" o={.05} n={5} />
     </Pin>
     <Pin x="78%" y="calc(17% + var(--sky))" className="v2-night-pin a v2-night-breathe" style={anim(19.3, 11, { '--lo': .2 })}>
-      <path d={HALO} transform="translate(3 -2) rotate(-70) scale(9.5)" fill="#bfb8e2" opacity=".035" />
+      <g transform="translate(3 -2)"><Halo k={7} fill="#bfb8e2" o={.03} n={3} /></g>
     </Pin>
     <Pin x="78%" y="calc(17% + var(--sky))" className="v2-night-pin">
       <g filter={p.fine} transform="scale(1.22)">
@@ -95,15 +97,15 @@ export default function Night() {
 
     {/* moonlit wisps drifting past */}
     <Pin x="58%" y="calc(24% + var(--sky))" className="v2-night-pin a v2-night-drift" style={anim(61, 23, { '--x': '38px' })}>
-      <Wash px o={.42} rim={['#8682b0', 1.5, 2.4]} fill={['#3f4277', '#45477c', '#3b3e70']}
+      <Wash px o={.32} rim={['#625f90', 1, 1.6]} fill={['#3f4277', '#45477c', '#3b3e70']}
         d="M-132 8C-116 2 -100 1 -88 -3S-62 -10 -46 -7-20 -14 0 -11 28 -9 40 -6 70 -9 86 -4 112 1 136 7C110 12 64 12 22 11S-54 12 -92 11-124 11 -132 8Z" />
     </Pin>
     <Pin x="92%" y="calc(31% + var(--sky))" className="v2-night-pin a v2-night-drift" style={anim(83, 52, { '--x': '-30px' })}>
-      <Wash px o={.36} rim={['#78759f', 1.2, 2]} fill={['#3b3d71', '#414377', '#37396b']}
+      <Wash px o={.28} rim={['#5a5888', .8, 1.4]} fill={['#3b3d71', '#414377', '#37396b']}
         d="M-88 6C-74 1 -58 -1 -46 -5S-22 -9 -6 -6 18 -10 32 -6 64 -2 90 5C60 9 18 9 -22 9S-74 9 -88 6Z" />
     </Pin>
     <Pin x="21%" y="calc(13% + var(--sky))" className="v2-night-pin a v2-night-drift" style={anim(47, 9, { '--x': '24px' })}>
-      <Wash px o={.32} rim={['#6e6c98', 1, 1.8]} fill={['#262a5c', '#2b2e61', '#232756']}
+      <Wash px o={.32} rim={['#45467a', .8, 1.2]} fill={['#262a5c', '#2b2e61', '#232756']}
         d="M-72 5C-58 0 -44 -3 -30 -5S-6 -8 10 -5 40 -6 54 -2 70 3 74 5C50 8 10 9 -26 8S-64 7 -72 5Z" />
     </Pin>
 
@@ -185,8 +187,7 @@ export default function Night() {
 
       {/* the lamp: held-frame flicker, a slow glow, and now and then someone crossing in front of it */}
       <Pin x={atCab(...WIN)[0]} y={atCab(...WIN)[1]} className="v2-night-pin a v2-night-breathe" style={anim(8.7, 2, { '--lo': .5 })}>
-        <path d={HALO} transform="scale(1.6 1.3)" fill="#f2bd6a" opacity=".18" />
-        <path d={HALO} transform="rotate(30) scale(2.8 2.2)" fill="#f2bd6a" opacity=".07" />
+        <Halo k={1.3} sx={1.15} fill="#f2bd6a" o={.08} n={5} />
       </Pin>
       <Pin x={atCab(...WIN)[0]} y={atCab(...WIN)[1]} className="v2-night-pin a v2-night-lamp" style={anim(5.3, 1)}>
         <path d="M-5 -5.2H5.2V5H-5.2Z" transform={`scale(${CS})`} fill="#ffd690" opacity=".55" />
@@ -202,8 +203,8 @@ export default function Night() {
       ))}
       {[[10.4, 0], [11.7, 3.1], [9.6, 5.6], [12.9, 8.8]].map(([d, dl], i) => (
         <Pin key={i} x={atCab(15.5 * CS, -50 * CS)[0]} y={atCab(15.5 * CS, -50 * CS)[1]} className="v2-night-pin a v2-night-puff" style={anim(d, dl)}>
-          <path d={HALO} transform={`rotate(${i * 50}) scale(.7 .45)`} fill="#8d8ab5" opacity=".32" />
-          <path d={HALO} transform={`translate(2 -1) rotate(${i * 50 + 90}) scale(.45 .3)`} fill="#a9a6cc" opacity=".22" />
+          <path d={HALO} transform={`rotate(${i * 50}) scale(.62 .4)`} fill="#8d8ab5" opacity=".2" />
+          <path d={HALO} transform={`translate(2 -1) rotate(${i * 50 + 90}) scale(.95 .55)`} fill="#a9a6cc" opacity=".1" />
         </Pin>
       ))}
     </div>

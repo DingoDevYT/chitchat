@@ -32,8 +32,19 @@
 .srv-preview .rail-btn.srv { max-width: 100%; }
 /* dvh = the height the browser's toolbars actually leave on phones (vh can sit under them); also caps the fixed tabbed height */
 .backdrop > .modal { max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); }
+/* tab bar: one line per label ("Avatar & voice" no longer breaks inside its pill); wraps to a second row only if it must */
+.modal-body > .tabs:first-child { flex-wrap: wrap; }
+.modal-body > .tabs:first-child > button { flex: 1 1 auto; white-space: nowrap; }
 /* scrolled content stays inside the rounded corners instead of poking out at the bottom */
 .backdrop > .modal > .modal-body { border-radius: 0 0 30px 30px; }
+
+/* ── stadium: between phone and wide desktop a 300px side chat squeezed the stage to a sliver
+      ("Hangou", two-line "Join stadium"), so the open chat docks under the stage instead ── */
+@media (min-width: 721px) and (max-width: 1099px) {
+  .stadium-split.chat-open { flex-direction: column; }
+  .stadium-split > .stadium-chat { width: auto; height: clamp(220px, 50%, calc(100% - 330px)); border-left: 0; border-top: 2px dashed var(--stitch); animation-name: sc-up; }
+  /* 330px keeps the stage's header, screen (min 180px) and Join button whole on short windows */
+}
 
 /* ── tablets and small windows (no member list below 900px) ── */
 @media (max-width: 900px) {

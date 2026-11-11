@@ -5,6 +5,8 @@ export const EVENTS = ['message_created', 'bot_mentioned', 'member_joined', 'rea
 export const SCOPES = ['send_messages', 'read_messages', 'add_reactions', 'manage_roles', 'timeout_members']
 export const OPTION_TYPES = ['string', 'integer', 'number', 'boolean', 'user', 'room']
 export const MAX_CONTENT = 4000
+// Bad input from a bot or a user (shown to them as-is), as opposed to a bug.
+export class InvalidInput extends Error {}
 
 // ── templates: {user} {mention} {server} {room} {args} and {random:a|b|c} ──
 // Variables first, so {random:hi {user}|yo} works. Unknown {words} stay as they are.
@@ -27,11 +29,11 @@ const colour = c => typeof c === 'number' && c >= 0 ? '#' + (c & 0xffffff).toStr
 // Throws a friendly Error for the wrong shape; quietly trims long text and drops non-https links.
 export function cleanEmbeds(list) {
   if (list == null) return []
-  if (!Array.isArray(list)) throw new Error('embeds must be a list')
-  if (list.length > 5) throw new Error('up to 5 embeds per message')
+  if (!Array.isArray(list)) throw new InvalidInput('embeds must be a list')
+  if (list.length > 5) throw new InvalidInput('up to 5 embeds per message')
   return list.map((e, i) => {
-    if (!e || typeof e !== 'object' || Array.isArray(e)) throw new Error(`embed ${i + 1} must be an object`)
-    if (e.fields != null && !Array.isArray(e.fields)) throw new Error(`embed ${i + 1}: fields must be a list`)
+    if (!e || typeof e !== 'object' || Array.isArray(e)) throw new InvalidInput(`embed ${i + 1} must be an object`)
+    if (e.fields != null && !Array.isArray(e.fields)) throw new InvalidInput(`embed ${i + 1}: fields must be a list`)
     const out = {
       title: str(e.title, 256),
       url: e.url ? httpsUrl(e.url) : undefined,
@@ -44,8 +46,8 @@ export function cleanEmbeds(list) {
       footer: str(typeof e.footer === 'string' ? e.footer : e.footer?.text, 2048) ? { text: str(typeof e.footer === 'string' ? e.footer : e.footer.text, 2048) } : undefined,
     }
     for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k]
-    if (!out.title && !out.description && !out.fields && !out.image) throw new Error(`embed ${i + 1} needs a title, description, fields or an image`)
-    if (JSON.stringify(out).length > 8000) throw new Error(`embed ${i + 1} is too big (keep it under about 6000 characters)`)
+    if (!out.title && !out.description && !out.fields && !out.image) throw new InvalidInput(`embed ${i + 1} needs a title, description, fields or an image`)
+    if (JSON.stringify(out).length > 8000) throw new InvalidInput(`embed ${i + 1} is too big (keep it under about 6000 characters)`)
     return out
   })
 }
@@ -54,16 +56,16 @@ export function cleanEmbeds(list) {
 const CMD = /^[a-z0-9][a-z0-9_-]{0,31}( [a-z0-9][a-z0-9_-]{0,31})?$/
 const OPT = /^[a-z0-9_-]{1,32}$/
 export function cleanCommands(list) {
-  if (!Array.isArray(list)) throw new Error('send a list of commands')
-  if (list.length > 50) throw new Error('up to 50 commands')
+  if (!Array.isArray(list)) throw new InvalidInput('send a list of commands')
+  if (list.length > 50) throw new InvalidInput('up to 50 commands')
   const seen = new Set()
   return list.map(c => {
     const name = String(c?.name ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
-    if (!CMD.test(name)) throw new Error(`bad command name "${name}": use lowercase letters, numbers, - and _ (one word, or two like "dice roll")`)
-    if (seen.has(name)) throw new Error(`two commands are called /${name}`)
+    if (!CMD.test(name)) throw new InvalidInput(`bad command name "${name}": use lowercase letters, numbers, - and _ (one word, or two like "dice roll")`)
+    if (seen.has(name)) throw new InvalidInput(`two commands are called /${name}`)
     seen.add(name)
     const opts = c.options ?? []
-    if (!Array.isArray(opts) || opts.length > 10) throw new Error(`/${name}: options must be a list of up to 10`)
+    if (!Array.isArray(opts) || opts.length > 10) throw new InvalidInput(`/${name}: options must be a list of up to 10`)
     const names = new Set()
     let optional = false
     return {
@@ -71,17 +73,17 @@ export function cleanCommands(list) {
       description: String(c.description ?? '').slice(0, 100),
       options: opts.map(o => {
         const on = String(o?.name ?? '').trim().toLowerCase()
-        if (!OPT.test(on)) throw new Error(`/${name}: bad option name "${on}"`)
-        if (names.has(on)) throw new Error(`/${name}: two options are called ${on}`)
+        if (!OPT.test(on)) throw new InvalidInput(`/${name}: bad option name "${on}"`)
+        if (names.has(on)) throw new InvalidInput(`/${name}: two options are called ${on}`)
         names.add(on)
         const type = o.type ?? 'string'
-        if (!OPTION_TYPES.includes(type)) throw new Error(`/${name} ${on}: type must be one of ${OPTION_TYPES.join(', ')}`)
+        if (!OPTION_TYPES.includes(type)) throw new InvalidInput(`/${name} ${on}: type must be one of ${OPTION_TYPES.join(', ')}`)
         const required = !!o.required
-        if (required && optional) throw new Error(`/${name}: put required options before optional ones`)
+        if (required && optional) throw new InvalidInput(`/${name}: put required options before optional ones`)
         optional ||= !required
         let choices
         if (o.choices != null) {
-          if (!Array.isArray(o.choices) || o.choices.length > 25) throw new Error(`/${name} ${on}: choices must be a list of up to 25`)
+          if (!Array.isArray(o.choices) || o.choices.length > 25) throw new InvalidInput(`/${name} ${on}: choices must be a list of up to 25`)
           choices = o.choices.map(x => String(x).slice(0, 100))
         }
         return { name: on, type, description: String(o.description ?? '').slice(0, 100), required, ...(choices && { choices }) }
@@ -97,32 +99,32 @@ export function coerceOption(opt, raw) {
   const s = String(v ?? '')
   switch (opt.type) {
     case 'integer':
-      if (!(typeof v === 'number' && Number.isInteger(v)) && !/^-?\d{1,15}$/.test(s)) throw new Error(`${opt.name} should be a whole number`)
+      if (!(typeof v === 'number' && Number.isInteger(v)) && !/^-?\d{1,15}$/.test(s)) throw new InvalidInput(`${opt.name} should be a whole number`)
       v = Number(v); break
     case 'number':
-      if (!(typeof v === 'number' && Number.isFinite(v)) && !/^-?\d{1,15}(\.\d+)?$/.test(s)) throw new Error(`${opt.name} should be a number`)
+      if (!(typeof v === 'number' && Number.isFinite(v)) && !/^-?\d{1,15}(\.\d+)?$/.test(s)) throw new InvalidInput(`${opt.name} should be a number`)
       v = Number(v); break
     case 'boolean':
       if (typeof v === 'boolean') break
       if (/^(yes|y|true|on|1)$/i.test(s)) v = true
       else if (/^(no|n|false|off|0)$/i.test(s)) v = false
-      else throw new Error(`${opt.name} should be yes or no`)
+      else throw new InvalidInput(`${opt.name} should be yes or no`)
       break
     case 'user':
       v = s.replace(/^@/, '').toLowerCase()
-      if (!/^[a-z0-9_.]{2,32}$/.test(v)) throw new Error(`${opt.name} should be an @person`)
+      if (!/^[a-z0-9_.]{2,32}$/.test(v)) throw new InvalidInput(`${opt.name} should be an @person`)
       break
     case 'room':
       v = s.replace(/^~/, '').trim()
-      if (!v || v.length > 64) throw new Error(`${opt.name} should be a room name`)
+      if (!v || v.length > 64) throw new InvalidInput(`${opt.name} should be a room name`)
       break
     default:
       v = s
-      if (v.length > 1000) throw new Error(`${opt.name} is too long (1000 characters max)`)
+      if (v.length > 1000) throw new InvalidInput(`${opt.name} is too long (1000 characters max)`)
   }
   if (opt.choices?.length) {
     const hit = opt.choices.find(c => String(c).toLowerCase() === String(v).toLowerCase())
-    if (hit == null) throw new Error(`${opt.name} should be one of: ${opt.choices.join(', ')}`)
+    if (hit == null) throw new InvalidInput(`${opt.name} should be one of: ${opt.choices.join(', ')}`)
     v = hit
   }
   return v

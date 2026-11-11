@@ -1,0 +1,50 @@
+/* Under the sea (v2): painted water, light shafts, kelp and fish. Static paintings are composited once;
+   only small separate roots move (transform/opacity), on odd, unsynced loops. */
+.v2-sea-canvas { left: 0; top: 0; will-change: transform; }
+.v2-sea-pin { width: 1px; height: 1px; }
+.v2-sea-full { left: 0; top: 0; width: 100%; height: 100%; }
+
+.v2-sea-sway { animation-name: v2-sea-sway; animation-direction: alternate; }
+@keyframes v2-sea-sway { from { transform: rotate(calc(var(--r, 2deg) * -1)); } to { transform: rotate(var(--r, 2deg)); } }
+.v2-sea-ray { animation-name: v2-sea-ray; animation-direction: alternate; }
+@keyframes v2-sea-ray { from { opacity: var(--lo, .5); transform: rotate(-1.1deg); } to { opacity: 1; transform: rotate(1.3deg); } }
+
+/* the surface rolls slowly; its glints and the caustics on the floor are three painted frames held in turn */
+.v2-sea-surf { left: 0; top: 0; width: 200%; height: 7%; animation-name: v2-sea-left; animation-timing-function: linear; }
+.v2-sea-surf > svg { top: 0; width: 50%; height: 100%; }
+@keyframes v2-sea-left { from { transform: none; } to { transform: translateX(-50%); } }
+.v2-sea-h0, .v2-sea-h1, .v2-sea-h2 { animation-timing-function: steps(1, end); }
+.v2-sea-h0 { animation-name: v2-sea-h0; }
+.v2-sea-h1 { animation-name: v2-sea-h1; }
+.v2-sea-h2 { animation-name: v2-sea-h2; }
+@keyframes v2-sea-h0 { 0% { opacity: 1; } 33.3% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes v2-sea-h1 { 0% { opacity: 0; } 33.3% { opacity: 1; } 66.6% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes v2-sea-h2 { 0% { opacity: 0; } 66.6% { opacity: 1; } 100% { opacity: 1; } }
+
+/* fish: a lane they cross, a lazy bob, and a tail flicking between two painted frames */
+.v2-sea-lane { left: 0; width: 100%; height: 0; animation-timing-function: linear; }
+.v2-sea-lane > div { left: 0; top: 0; }
+.v2-sea-swim { animation-name: v2-sea-swim; }
+@keyframes v2-sea-swim { from { transform: translateX(-12%); } to { transform: translateX(110%); } }
+.v2-sea-back { animation-name: v2-sea-back; }
+@keyframes v2-sea-back { 0% { transform: translateX(112%); } 48% { transform: translateX(-14%); } 100% { transform: translateX(-14%); } }
+.v2-sea-glide { animation-name: v2-sea-glide; }
+@keyframes v2-sea-glide { 0% { transform: translateX(-16%); } 42% { transform: translateX(114%); } 100% { transform: translateX(114%); } }
+.v2-sea-bob { animation-name: v2-sea-bob; animation-direction: alternate; }
+@keyframes v2-sea-bob { from { transform: translateY(-5px) rotate(-1.5deg); } to { transform: translateY(5px) rotate(1deg); } }
+.v2-sea-ta, .v2-sea-tb { animation-timing-function: steps(1, end); }
+.v2-sea-ta { animation-name: v2-sea-ta; }
+.v2-sea-tb { animation-name: v2-sea-tb; }
+@keyframes v2-sea-ta { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes v2-sea-tb { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 1; } }
+.tb-room .v2-sea-lane { opacity: .55; }
+
+/* bubbles rise in wobbling columns from vents; marine snow sinks; each plane loops one tile */
+.v2-sea-col { top: 0; width: 70px; margin-left: -35px; overflow: hidden; }
+.v2-sea-wob { left: 0; top: 0; width: 100%; height: 100%; animation-name: v2-sea-wob; animation-direction: alternate; }
+@keyframes v2-sea-wob { from { transform: translateX(-6px); } to { transform: translateX(7px); } }
+.v2-sea-plane { left: 0; top: 0; width: 100%; height: 200%; animation-timing-function: linear; }
+.v2-sea-up { animation-name: v2-sea-up; }
+@keyframes v2-sea-up { from { transform: none; } to { transform: translateY(-50%); } }
+.v2-sea-down { animation-name: v2-sea-down; }
+@keyframes v2-sea-down { from { transform: translateY(-50%); } to { transform: none; } }

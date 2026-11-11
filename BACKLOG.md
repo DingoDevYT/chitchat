@@ -24,7 +24,7 @@ Ship rule: every push goes through `.claude/ship.ps1` (tests + production build 
 - Copy pass: friendly, consistent wording everywhere (Rooms/Stadiums/Galleries, Chit's voice)
 - Cost review: realtime/egress/storage usage, orphaned uploads cleanup job
 
-## Big one the owner really wants (not started, needs a design pass first)
+## Big one the owner really wants (planned in GAMES.md, not started)
 - Stadium games: built-in game nights inside a stadium, way beyond Discord's activities. Original takes on card/board/party games (an Uno-like, a Monopoly-like, poker), with everyone's animated PNGtuber avatars sitting around a table (three.js or 2D), reacting as they talk and play. Use what we already have: stadium presence/voice, realtime broadcast for game state, server roles for hosts. Start with one small game to prove the table + turn sync, then grow.
 
 ## Parked (owner's ideas, not started)

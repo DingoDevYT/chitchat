@@ -1,0 +1,31 @@
+/* Snowfall (v2, gouache): painted static layers + slow, uneven transform/opacity loops. */
+.v2-snow-root { inset: 0; }
+.v2-snow-root .pt-canvas { left: 0; top: 0; will-change: transform; }
+.v2-snow-root .pt-pin { width: 1px; height: 1px; overflow: visible; }
+/* a plane of flakes two tiles tall that slides down one tile per loop */
+.v2-snow-sway { inset: -40px; }
+.v2-snow-plane { left: 0; top: 0; width: 100%; height: 200%; animation-name: v2-snow-down; animation-timing-function: linear; }
+@keyframes v2-snow-down { from { transform: translateY(-50%); } to { transform: none; } }
+.v2-snow-plane > i { background: #f7f5f1; border-radius: 46% 54% 50% 50% / 55% 45% 52% 48%; }
+.v2-snow-col { top: 0; width: 0; height: 100%; animation-name: v2-snow-fall; animation-timing-function: linear; }
+@keyframes v2-snow-fall { from { transform: translateY(-6%); } to { transform: translateY(104%); } }
+.v2-snow-tree { width: 0; height: 0; transform-origin: 0 0; }
+.v2-snow-room .v2-snow-plane, .v2-snow-room .v2-snow-col { opacity: .7; }
+
+.v2-snow-drift { animation-name: v2-snow-drift; animation-direction: alternate; }
+@keyframes v2-snow-drift { from { transform: translateX(calc(var(--x, 30px) * -1)); } to { transform: translateX(var(--x, 30px)); } }
+.v2-snow-breathe { animation-name: v2-snow-breathe; animation-direction: alternate; }
+@keyframes v2-snow-breathe { from { opacity: var(--lo, .6); } to { opacity: 1; } }
+.v2-snow-sway-r { animation-name: v2-snow-sway-r; animation-direction: alternate; }
+@keyframes v2-snow-sway-r { from { transform: rotate(calc(var(--r, 1deg) * -1)); } to { transform: rotate(var(--r, 1deg)); } }
+/* a lit window: a few held brightness steps, never a smooth pulse */
+.v2-snow-flicker { animation-name: v2-snow-flicker; animation-timing-function: steps(1, end); }
+@keyframes v2-snow-flicker { 0%, 100% { opacity: 1; } 23% { opacity: .78; } 31% { opacity: .95; } 58% { opacity: .84; } 64% { opacity: 1; } 81% { opacity: .88; } }
+.v2-snow-puff { animation-name: v2-snow-puff; animation-timing-function: ease-out; }
+@keyframes v2-snow-puff { 0% { transform: translate(0, 0) scale(.45); opacity: 0; } 14% { opacity: .75; } 100% { transform: translate(var(--x, 30px), -88px) scale(2); opacity: 0; } }
+/* rare: wind lifts a veil of powder off the hill crest */
+.v2-snow-gust { animation-name: v2-snow-gust; animation-timing-function: ease-in-out; }
+@keyframes v2-snow-gust { 0% { transform: translateX(-70px); opacity: 0; } 8% { opacity: .85; } 22% { transform: translateX(150px); opacity: 0; } 100% { transform: translateX(150px); opacity: 0; } }
+/* rare: a clump slides off a bough, then snow builds back up there */
+.v2-snow-clump { animation-name: v2-snow-clump; animation-timing-function: ease-in; }
+@keyframes v2-snow-clump { 0%, 86% { transform: none; opacity: 1; } 91% { transform: translate(4px, 76px) rotate(30deg); opacity: 0; } 92%, 94% { transform: none; opacity: 0; } 100% { transform: none; opacity: 1; } }

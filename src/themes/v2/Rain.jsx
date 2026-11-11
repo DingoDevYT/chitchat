@@ -47,16 +47,16 @@ const BOKEH = [
 // condensation beads: hand-placed clusters (centre x, y, spread x, y, count, seed), heavy at the bottom edge and corners
 const BEADS = [[50, 95, 52, 4, 34, 7], [5, 78, 6, 16, 14, 8], [91, 9, 9, 8, 12, 9], [30, 46, 30, 24, 7, 10], [72, 30, 12, 9, 7, 11]]
   .flatMap(([cx, cy, sx, sy, n, seed]) => scatter(n, seed).map(q =>
-    [r2(cx + (q.x + q.y - 1) * sx), r2(cy + (q.r + q.t - 1) * sy), r2(1.1 + q.t * q.x * 3.6)]))
+    [r2(cx + (q.x + q.y - 1) * sx), r2(cy + (q.r + q.t - 1) * sy), r2(1.4 + q.t * q.x * 4.6)]))
 // running drops: x %, duration, radius, trail length, cling pattern
-const LANES = [[7, 17.3, 3.2, 70, 0], [12.5, 23.9, 2.4, 40, 1], [21, 13.1, 3.8, 90, 0], [29, 29.3, 2.6, 55, 1], [47, 19.7, 3, 60, 0],
-  [58, 31.1, 2.2, 35, 1], [66, 15.3, 4.2, 110, 1], [81, 21.1, 3.4, 80, 0], [88.5, 26.7, 2.6, 45, 1], [95, 11.9, 3.6, 95, 0]]
+const LANES = [[7, 17.3, 3.2, 34, 0], [12.5, 23.9, 2.4, 20, 1], [21, 13.1, 3.8, 46, 0], [29, 29.3, 2.6, 26, 1], [47, 19.7, 3, 30, 0],
+  [58, 31.1, 2.2, 16, 1], [66, 15.3, 4.2, 54, 1], [81, 21.1, 3.4, 40, 0], [88.5, 26.7, 2.6, 22, 1], [95, 11.9, 3.6, 48, 0]]
 // rain sheets: streaks bunch into curtains rather than an even field
 const sheet = (n, seed) => scatter(n, seed).filter(q => q.t < .4 + .6 * Math.abs(Math.sin(q.x * 9.4 + seed)))
 const SHEETS = [
-  { pts: sheet(70, 3), d: 2.6, dl: .7, len: [9, 18], w: .9, o: .22 },
-  { pts: sheet(44, 13), d: 1.7, dl: 1.1, len: [18, 30], w: 1.2, o: .3 },
-  { pts: sheet(20, 23), d: 1.15, dl: .4, len: [34, 54], w: 1.6, o: .36 },
+  { pts: sheet(70, 3), d: 2.6, dl: .7, len: [10, 20], w: 1.2, o: .42 },
+  { pts: sheet(44, 13), d: 1.7, dl: 1.1, len: [20, 34], w: 1.6, o: .5 },
+  { pts: sheet(20, 23), d: 1.15, dl: .4, len: [38, 60], w: 2.1, o: .55 },
 ]
 
 function Rainfall({ id, pts, d, dl, len, w, o }) {
@@ -75,8 +75,9 @@ function Rainfall({ id, pts, d, dl, len, w, o }) {
   )
 }
 
-const Drop = ({ r, L }) => <>
-  <path d={`M-.5 ${-L}C.7 ${r2(-L * .66)} -.8 ${r2(-L * .33)} -.7 -2L.7 -2C.4 ${r2(-L * .33)} 1.4 ${r2(-L * .66)} .6 ${-L}Z`} fill={C.glass} opacity=".2" />
+// a drop and the wet trail it leaves, fading upward (gradient defined with the beads)
+const Drop = ({ r, L, g }) => <>
+  <path d={`M-.4 ${-L}C.6 ${r2(-L * .66)} -1 ${r2(-L * .33)} ${r2(-r * .55)} -1L${r2(r * .55)} -1C.5 ${r2(-L * .33)} 1.2 ${r2(-L * .66)} .4 ${-L}Z`} fill={`url(#${g})`} opacity=".42" />
   <ellipse rx={r} ry={r2(r * 1.2)} fill="#161d2c" opacity=".38" />
   <ellipse cy={r2(r * .42)} rx={r2(r * .62)} ry={r2(r * .38)} fill={C.glass} opacity=".5" />
   <circle cx={r2(-r * .35)} cy={r2(-r * .45)} r={r2(r * .3)} fill="#f1f4f8" opacity=".85" />
@@ -105,11 +106,11 @@ export default function Rain({ variant }) {
     </Pin>
     <Pin x="30%" y="calc(10% + var(--sky) * .4)" className="v2-rain-pin a v2-rain-drift" style={anim(61.7, 23, { '--x': '38px' })}>
       <Wash px f={p.haze} o={.55} fill={['#333b51', '#373f56', '#30384d']} rim={['#4c536a', 0, 3]}
-        d="M-190 6C-150 -10 -90 -16 -20 -12S110 -8 200 4C130 14 40 16 -50 14S-160 12 -190 6Z" />
+        d="M-230 10C-200 -6 -170 -2 -150 -12C-120 -26 -80 -14 -60 -22C-30 -34 10 -20 30 -26C60 -34 90 -18 120 -20C160 -22 190 -6 230 8C190 16 150 12 110 18C60 24 20 16 -20 20C-70 24 -120 16 -160 18C-190 19 -215 16 -230 10Z" />
     </Pin>
     <Pin x="77%" y="calc(22% + var(--sky) * .4)" className="v2-rain-pin a v2-rain-drift" style={anim(83.9, 51, { '--x': '-30px' })}>
       <Wash px f={p.haze} o={.45} fill={['#3b4258', '#40465c', '#383f55']} rim={['#575b6f', 0, 2.5]}
-        d="M-120 3C-90 -7 -40 -10 10 -7S90 -3 130 2C90 9 30 10 -30 9S-100 7 -120 3Z" />
+        d="M-150 6C-130 -4 -110 -2 -96 -10C-74 -20 -50 -8 -34 -14C-10 -22 20 -10 40 -14C70 -18 110 -4 150 5C110 12 70 9 30 13C-10 16 -50 10 -90 12C-120 13 -140 10 -150 6Z" />
     </Pin>
 
     <Canvas className="v2-rain-canvas">
@@ -119,7 +120,7 @@ export default function Rain({ variant }) {
         <At key={i} x={`${x}%`} y={`${y}%`}><path d="M-1.6 -2.1L1.7 -1.9 1.6 2.1 -1.7 2Z" fill={i % 5 ? C.amber : '#efcf93'} opacity={o} /></At>)}</g>
       <Wash f={p.brush} d={ridge([[0, 75.4], [21, 74.6], [47, 75.8], [70, 74.9], [100, 75.6]])} fill={['#1d2333', '#202637', '#1b2131']} rim={['#30364a', 0, .5]} o={.94} />
       <g filter={p.haze}>
-        {[[72.5, .1, C.rose], [78.8, .16, C.amber], [84.5, .1, C.rose], [88, .13, '#d9b07a'], [82, .1, C.amber], [8.4, .1, C.teal], [55, .07, C.teal]].map(([x, o, c], i) =>
+        {[[72.5, .07, C.rose], [78.8, .12, C.amber], [84.5, .07, C.rose], [88, .1, '#d9b07a'], [8.4, .08, C.teal], [55, .05, C.teal]].map(([x, o, c], i) =>
           <Wash key={i} fill={c} o={o} d={`M${x - .9} 76C${x - .2} 81 ${x - 1.3} 87 ${x - .4} 94L${x + 1.1} 94C${x + 1.5} 87 ${x + .5} 81 ${x + .9} 76Z`} />)}
       </g>
     </Canvas>
@@ -152,6 +153,7 @@ export default function Rain({ variant }) {
     </div>
 
     <Canvas className="v2-rain-canvas">
+      <defs><linearGradient id={`${p.id}tr`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={C.glass} stopOpacity="0" /><stop offset="1" stopColor={C.glass} /></linearGradient></defs>
       <g filter={p.fine}>{BEADS.map(([x, y, r], i) => (
         <At key={i} x={`${x}%`} y={`${y}%`}>
           <ellipse rx={r} ry={r2(r * 1.12)} fill="#161d2c" opacity=".3" />
@@ -165,7 +167,7 @@ export default function Rain({ variant }) {
     </div>
     {LANES.map(([x, d, r, L, t], i) => (
       <div key={i} className={`v2-rain-lane a t${t}`} style={{ left: `${x}%`, ...anim(d, d * ((i * .37) % 1)) }}>
-        <svg className="v2-rain-pin"><Drop r={r} L={L} /></svg>
+        <svg className="v2-rain-pin"><Drop r={r} L={L} g={`${p.id}tr`} /></svg>
       </div>
     ))}
     <svg className="v2-rain-full a v2-rain-breathe" width="100%" height="100%" style={anim(23.3, 9, { '--lo': .5 })}>
@@ -175,8 +177,9 @@ export default function Rain({ variant }) {
 
     {glass && <>
       <Canvas className="v2-rain-canvas">
-        <Wash f={p.brush} fill={['#191e2c', '#1c2131', '#171c29']} rim={['#6d5c57', .2, .35]}
-          d="M33.6 -2L35.9 -2C35.8 30 36 70 35.95 102L33.7 102C33.75 70 33.5 30 33.6 -2ZM-2 29.4C30 29.2 70 29.6 102 29.3L102 32.1C70 32.3 30 32 -2 32.2Z" />
+        <Wash f={p.fine} fill={['#191e2c', '#1c2131', '#171c29']} rim={['#4f4a55', .16, .3]}
+          d="M33.7 -2L35.8 -2L35.85 40L35.8 102L33.75 102L33.7 60ZM-2 29.5L50 29.4L102 29.55L102 32.1L48 32.2L-2 32.05Z" />
+        <Wash f={p.brush} fill="#2a3042" o={.5} d="M34.1 -2L34.9 -2L35 102L34.2 102ZM-2 30.1L102 30.2L102 30.8L-2 30.7Z" />
       </Canvas>
       {[[52, 9.1, 2], [18, 6.7, 6], [71, 11.3, 1]].map(([x, d, dl], i) => DRIP.map((f, k) => (
         <Pin key={i + '-' + k} x={`${x}%`} y="32%" className={`v2-rain-pin a v2-rain-d${k}`} style={anim(d, dl)}>
