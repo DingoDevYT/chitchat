@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { ensureProfiles, prefs, startProfileSync, toast, toasts, useProfile } from './lib/store'
-import { startPresence } from './lib/presence'
+import { startPresence, trackVoice } from './lib/presence'
 import { byPosition, moveId, step } from './lib/reorder'
 import { useDrag } from './lib/useDrag'
 import FriendsHome, { friendships, startFriends, useIncomingCount } from './Friends'
@@ -40,6 +40,8 @@ export default function Shell({ userId }) {
   const [voice, setVoice] = useState(null)
   const [vstate, setVstate] = useState({ muted: false, deafened: false, live: false, cam: false })
   const joinVoice = c => { setVoice(c); setVstate(v => ({ ...v, live: false, cam: false })) }
+  // Others see your muted/deafened avatar expressions.
+  useEffect(() => { trackVoice({ muted: !!voice && vstate.muted, deaf: !!voice && vstate.deafened }) }, [voice, vstate.muted, vstate.deafened])
   const [navOpen, setNavOpen] = useState(false)
   const [visible, setVisible] = useState(!document.hidden)
   const showMembers = prefs.use(s => s.showMembers)

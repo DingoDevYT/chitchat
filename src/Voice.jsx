@@ -483,7 +483,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
             <div key={id} className={`stage-seat${id === meId ? ' me' : ''}`} {...personMenu(id)}>
               {lives.includes(id) && <b className="live-badge">🔴 LIVE</b>}
               <Bubble id={id} />
-              <Avatar id={id} size={size}>{joined && faces[id] && <Screen stream={faces[id]} />}</Avatar>
+              <Avatar id={id} size={size} full>{joined && faces[id] && <Screen stream={faces[id]} />}</Avatar>
               <Name id={id} />
             </div>
           ))}

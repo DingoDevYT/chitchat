@@ -3,7 +3,9 @@ import { prefs } from './lib/store'
 import { useMemberColor } from './Roles'
 import { cropBox } from './lib/crop'
 import './styles/avatar-crop.css'
-import { talking, online, useProfile } from './lib/store'
+import { talking, online, typingNow, useProfile } from './lib/store'
+import { pickExpression, hasBlink, nextBlink } from './lib/expressions'
+import './styles/avatar-shape.css'
 import { statusOf, activeCustom } from './lib/status'
 import { Emoji } from './Markdown'
 import './styles/statuses.css'
@@ -106,14 +108,45 @@ export function CropImg({ src, crop }) {
 
 // PNGtuber avatar: idle image, swaps to the talking image (or bounces) while the user speaks.
 // Children (a webcam <video>) replace the face, in a ring of the user's colour.
-export default function Avatar({ id, size = 40, status = false, children }) {
+// Random blinking, only for people who uploaded a blink frame (no timers otherwise).
+function useBlink(on) {
+  const [blink, setBlink] = useState(false)
+  useEffect(() => {
+    if (!on || reducedMotion) return
+    let t
+    const cycle = () => {
+      const { wait, double } = nextBlink()
+      t = setTimeout(() => {
+        setBlink(true)
+        t = setTimeout(() => {
+          setBlink(false)
+          if (!double) return cycle()
+          t = setTimeout(() => { setBlink(true); t = setTimeout(() => { setBlink(false); cycle() }, 120) }, 140)
+        }, 130)
+      }, wait)
+    }
+    cycle()
+    return () => { clearTimeout(t); setBlink(false) }
+  }, [on])
+  return blink
+}
+
+// full: the whole uncropped image with no rounding (stadium audience: real PNGtuber style).
+export default function Avatar({ id, size = 40, status = false, children, full = false }) {
   const p = useProfile(id)
+  const blink = useBlink(hasBlink(p))
   const talk = talking.use(s => (s[id] || 0) > 0 || !!s['v:' + id])
   const st = useStatus(id)
+  const typing = typingNow.use(s => Object.values(s).some(ids => ids.includes(id)))
+  const muted = online.use(s => !!s[id]?.muted)
+  const deafened = online.use(s => !!s[id]?.deaf)
+  const live = online.use(s => !!s[id]?.live)
+  const expr = pickExpression(p, { talk, typing, muted, deafened, live, away: st === 'idle', blink })
+  const isFull = full && !children && !!expr
   return (
-    <span className={`avatar${talk ? ' talking' : ''}${children ? ' cam' : ''}`} style={{ width: size, height: size, '--ring': p?.color }}>
-      {children || (p?.avatar_idle
-        ? (talk && p.avatar_talk ? <CropImg src={p.avatar_talk} crop={p.avatar_talk_crop} /> : <CropImg src={p.avatar_idle} crop={p.avatar_crop} />)
+    <span className={`avatar${talk ? ' talking' : ''}${children ? ' cam' : ''}${expr ? ' expr-' + expr.key : ''}${isFull ? ' full' : ''}`} style={{ width: size, height: size, '--ring': p?.color }}>
+      {children || (expr
+        ? <CropImg src={expr.src} crop={isFull ? null : expr.crop} />
         : <Critter size={size} color={p?.color} talk={talk} />)}
       {status && <i className={`dot st-${st}${st === 'online' ? ' on' : ''}`} role="img" aria-label={STATUS_LABEL[st]} title={STATUS_LABEL[st]} />}
     </span>

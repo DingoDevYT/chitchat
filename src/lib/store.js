@@ -110,3 +110,11 @@ export function toast(text) {
   toasts.set(t => [...t, { id, text }])
   setTimeout(() => toasts.set(t => t.filter(x => x.id !== id)), 3500)
 }
+
+// ── who's typing right now, per source (each open chat, plus 'self') ──
+export const typingNow = createStore({})
+export function setTypingIn(key, ids) {
+  const cur = typingNow.get()[key] || []
+  if (cur.length === ids.length && cur.every((x, i) => x === ids[i])) return
+  typingNow.set(s => ({ ...s, [key]: ids }))
+}

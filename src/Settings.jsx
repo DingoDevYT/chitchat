@@ -7,6 +7,7 @@ import { IMAGE_TYPES, checkImage } from './lib/crop'
 import Modal from './Modal'
 import Avatar, { Critter, CropImg } from './Avatar'
 import ImageCropper from './ImageCropper'
+import { EXPRESSIONS, BLINKS } from './lib/expressions'
 import VoiceSettings from './VoiceSettings'
 import Privacy from './Privacy'
 
@@ -50,6 +51,7 @@ export default function Settings({ me, onClose, tab: firstTab }) {
   const [form, setForm] = useState({
     username: me.username, display_name: me.display_name || '', bio: me.bio || '', color: me.color,
     avatar_idle: me.avatar_idle, avatar_talk: me.avatar_talk, avatar_crop: me.avatar_crop || null, avatar_talk_crop: me.avatar_talk_crop || null,
+    avatar_states: me.avatar_states || {},
     voice: { pitch: 1, speed: 1, wave: 'square', ...me.voice },
   })
   const [busy, setBusy] = useState(null)
@@ -80,7 +82,9 @@ export default function Settings({ me, onClose, tab: firstTab }) {
 
   // Avatar images save straight away: shown everywhere for you at once, then for others via realtime.
   async function applyCrop({ file, crop, preview }) {
-    const key = cropping.key, cropKey = key === 'avatar_idle' ? 'avatar_crop' : 'avatar_talk_crop'
+    const key = cropping.key
+    if (key.startsWith('state:')) return applyState(key.slice(6), { file, crop, preview })
+    const cropKey = key === 'avatar_idle' ? 'avatar_crop' : 'avatar_talk_crop'
     const prev = profiles.get()[me.id]
     primeProfiles([{ ...prev, [key]: preview, [cropKey]: crop }])
     setBusy(key)
@@ -93,6 +97,32 @@ export default function Settings({ me, onClose, tab: firstTab }) {
       setCropping(null)
     } catch (e) { primeProfiles([prev]); toast(e.message) }
     setBusy(null)
+  }
+
+  // Extra expressions (typing, muted, blink…) live in profiles.avatar_states and save straight away too.
+  async function saveStates(states, optimistic) {
+    const prev = profiles.get()[me.id]
+    primeProfiles([{ ...prev, avatar_states: optimistic || states }])
+    const { data, error } = await supabase.from('profiles').update({ avatar_states: states }).eq('id', me.id).select().single()
+    if (error) { primeProfiles([prev]); toast(error.message); return false }
+    primeProfiles([data])
+    setForm(f => ({ ...f, avatar_states: data.avatar_states }))
+    return true
+  }
+  async function applyState(k, { file, crop, preview }) {
+    const base = profiles.get()[me.id]?.avatar_states || {}
+    setBusy('state:' + k)
+    try {
+      const shown = { ...base, [k]: { url: preview, crop } }
+      primeProfiles([{ ...profiles.get()[me.id], avatar_states: shown }])
+      const { url } = await uploadFile(file, me.id)
+      if (await saveStates({ ...base, [k]: { url, crop } }, shown)) setCropping(null)
+    } catch (e) { toast(e.message) }
+    setBusy(null)
+  }
+  function clearState(k) {
+    const { [k]: _, ...rest } = form.avatar_states
+    saveStates(rest)
   }
 
   function testTalk() {
@@ -143,6 +173,33 @@ export default function Settings({ me, onClose, tab: firstTab }) {
             Leave both empty to be a critter. {(form.avatar_idle || form.avatar_talk) &&
               <button className="link" onClick={() => setForm(f => ({ ...f, avatar_idle: null, avatar_talk: null, avatar_crop: null, avatar_talk_crop: null }))}>Reset to critter</button>}</p>
 
+          <details className="expr-more" open={Object.keys(form.avatar_states).length > 0 || undefined}>
+            <summary>✨ More expressions <span className="muted small">optional{Object.keys(form.avatar_states).length ? ` · ${Object.keys(form.avatar_states).length} set` : ''}</span></summary>
+            <p className="muted small">Extra images your avatar switches to automatically. Transparent PNGs and GIFs work, and anything left empty just uses your idle image.</p>
+            {[['Expressions', EXPRESSIONS], ['Blinking (advanced)', BLINKS]].map(([label, list]) => (
+              <div key={label}>
+                <p className="expr-section-label">{label}</p>
+                <div className="expr-grid">
+                  {list.map(([k, name, icon, hint]) => {
+                    const cur = form.avatar_states[k]
+                    return (
+                      <div key={k} className="expr-slot">
+                        <div className="slot-img">{cur?.url ? <CropImg src={cur.url} crop={cur.crop} /> : <span aria-hidden="true">{icon}</span>}</div>
+                        <b>{name}</b>
+                        <span className="muted">{hint}</span>
+                        <div className="row">
+                          <label className="btn ghost small">{busy === 'state:' + k ? 'Uploading…' : cur?.url ? 'Change' : 'Upload'}
+                            <input type="file" accept={IMAGE_TYPES} hidden onChange={e => pick('state:' + k, e.target)} /></label>
+                          {cur?.url && <button className="btn ghost small" onClick={() => clearState(k)} aria-label={`Remove ${name} image`}>✕</button>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </details>
+
           <div>Voice
             <div className="tabs small">{WAVES.map(([w, l]) =>
               <button key={w} className={form.voice.wave === w ? 'on' : ''} onClick={() => setVoice('wave', w)}>{l}</button>)}</div>
@@ -182,7 +239,8 @@ export default function Settings({ me, onClose, tab: firstTab }) {
       )}
 
       {(tab === 'profile' || tab === 'voice') && <div className="modal-foot"><button className="btn primary" onClick={save}>Save changes</button></div>}
-      {cropping && <ImageCropper file={cropping.file} title={cropping.key === 'avatar_idle' ? 'Crop idle image' : 'Crop talking image'}
+      {cropping && <ImageCropper file={cropping.file} title={cropping.key === 'avatar_idle' ? 'Crop idle image' : cropping.key === 'avatar_talk' ? 'Crop talking image'
+          : `Crop ${[...EXPRESSIONS, ...BLINKS].find(([k]) => 'state:' + k === cropping.key)?.[1].toLowerCase() || 'expression'} image`}
         onCancel={closeCropper} onApply={applyCrop} />}
     </Modal>
   )

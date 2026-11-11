@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { ensureProfiles, prefs, profiles, setPref, toast } from './lib/store'
+import { ensureProfiles, prefs, profiles, setPref, setTypingIn, toast } from './lib/store'
+import Avatar from './Avatar'
 import { applyReaction, mergeIncoming, startsGroup } from './lib/chat'
 import { uploadFile } from './lib/upload'
 import Message, { flashTo } from './Message'
@@ -76,6 +77,10 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
     chRef.current = ch
     return () => { alive = false; supabase.removeChannel(ch) }
   }, [channel.id])
+
+  // Share who's typing here so avatars everywhere can switch to their typing expression.
+  useEffect(() => { setTypingIn(channel.id, Object.keys(typers)) }, [typers, channel.id])
+  useEffect(() => () => setTypingIn(channel.id, []), [channel.id])
 
   // Expire typing indicators.
   useEffect(() => {
@@ -167,7 +172,13 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
   }, [msgs, userId])
 
   const lastTyping = useRef(0)
+  const selfTyping = useRef(0)
+  useEffect(() => () => { clearTimeout(selfTyping.current); setTypingIn('self', []) }, [])
   const onTyping = useCallback(() => {
+    // your own avatar shows its typing face too (broadcasts don't echo back to you)
+    setTypingIn('self', [userId])
+    clearTimeout(selfTyping.current)
+    selfTyping.current = setTimeout(() => setTypingIn('self', []), 3000)
     if (Date.now() - lastTyping.current < 2500) return
     lastTyping.current = Date.now()
     stadium?.onType(userId)
@@ -245,8 +256,8 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
   const pinKey = useMemo(() => (msgs || []).filter(m => m.pinned_at).map(m => m.id).join(), [msgs])
   const byId = useMemo(() => new Map((msgs || []).map(m => [m.id, m])), [msgs])
   const title = channel.kind === 'dm' ? dmTitle(channel, userId, profileMap) : channel.name
-  const typingNames = Object.keys(typers).filter(id => id !== userId)
-    .map(id => profileMap[id]?.display_name || profileMap[id]?.username || 'Someone')
+  const typingIds = Object.keys(typers).filter(id => id !== userId)
+  const typingNames = typingIds.map(id => profileMap[id]?.display_name || profileMap[id]?.username || 'Someone')
 
   return (
     <div className="chat" ref={rootRef}>
@@ -303,7 +314,8 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
       )}
 
       <div className="typing-line" aria-live="polite">
-        {typingNames.length > 0 && <><span className="dots"><i /><i /><i /></span>
+        {typingNames.length > 0 && <><span className="typing-avs">{typingIds.slice(0, 3).map(id => <Avatar key={id} id={id} size={20} />)}</span>
+          <span className="dots"><i /><i /><i /></span>
           <b>{typingNames.slice(0, 3).join(', ')}</b> {typingNames.length > 1 ? 'are' : 'is'} typing…</>}
       </div>
 
