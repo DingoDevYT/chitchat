@@ -1,0 +1,532 @@
+// The 3D game table (lazy chunk: three.js loads only when a game opens). WebGL draws the cozy room, table, lamp,
+// cards, chips, dice and board; the people are real DOM <Avatar>s (talking, expressions, GIFs, webcams) projected onto
+// their seats every frame, so PNGtubers look exactly like they do in the crowd.
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import * as THREE from 'three'
+import { BASE, Person } from './People'
+import { card as playCard } from './highcard/rules.js'
+import { CARDS, FLAVOURS } from './snack/rules.js'
+import { BOARD, GROUPS } from './property/rules.js'
+import { snackFace } from './Card'
+import { cell } from './property/ui.jsx'
+
+const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+const CW = 0.56, CH = 0.8 // card size in world units
+
+// ── per-game framing ──
+const LAYOUT = {
+  snack: { shape: 'round', R: 2.35, felt: '#c7836a', seatR: 3.2, cam: [0, 5.4, 6.9], look: [0, -0.2, 0.5], H: 2.0 },
+  highcard: { shape: 'round', R: 2.2, felt: '#3f6b5c', seatR: 3.0, cam: [0, 5.0, 6.4], look: [0, -0.2, 0.5], H: 1.9 },
+  poker: { shape: 'round', R: 2.5, felt: '#2f6b4f', seatR: 3.3, cam: [0, 4.6, 6.6], look: [0, -0.1, 0.4], H: 2.1 },
+  property: { shape: 'square', R: 3.1, felt: '#d9c7a3', seatR: 4.0, cam: [0, 8.4, 6.4], look: [0, 0, 0.5], H: 2.3 },
+}
+
+// ── canvas textures (cached) ──
+const texCache = new Map()
+function canvasTex(key, w, h, draw) {
+  if (texCache.has(key)) return texCache.get(key)
+  const c = document.createElement('canvas')
+  c.width = w; c.height = h
+  draw(c.getContext('2d'), w, h)
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  t.anisotropy = 4
+  texCache.set(key, t)
+  return t
+}
+const FONT = '"Baloo 2", "Nunito", "Trebuchet MS", system-ui, sans-serif'
+function rrect(g, x, y, w, h, r) { g.beginPath(); g.roundRect(x, y, w, h, r) }
+function acorn(g, x, y, s, cap = '#7a4a2b', nut = '#c98a4b') {
+  g.fillStyle = nut; g.beginPath(); g.ellipse(x, y + s * 0.15, s * 0.42, s * 0.5, 0, 0, Math.PI * 2); g.fill()
+  g.fillStyle = cap; g.beginPath(); g.ellipse(x, y - s * 0.22, s * 0.55, s * 0.28, 0, Math.PI, 0); g.lineTo(x + s * 0.55, y - s * 0.18); g.lineTo(x - s * 0.55, y - s * 0.18); g.fill()
+  g.fillRect(x - s * 0.06, y - s * 0.62, s * 0.12, s * 0.2)
+}
+const backTex = kind => canvasTex('back-' + kind, 256, 366, (g, w, h) => {
+  g.fillStyle = '#fbf3e4'; rrect(g, 0, 0, w, h, 26); g.fill()
+  g.fillStyle = kind === 'snack' ? '#ff9f6b' : '#7a3b46'; rrect(g, 12, 12, w - 24, h - 24, 18); g.fill()
+  g.strokeStyle = '#fbf3e480'; g.lineWidth = 6
+  for (let i = -h; i < w + h; i += 34) { g.beginPath(); g.moveTo(i, 12); g.lineTo(i + h * 0.5, h - 12); g.stroke() }
+  if (kind === 'snack') {
+    g.fillStyle = '#fbf3e4'; g.beginPath(); g.ellipse(w / 2, h / 2, 82, 58, -0.3, 0, Math.PI * 2); g.fill()
+    g.fillStyle = '#e0607e'; g.font = `900 40px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'
+    g.save(); g.translate(w / 2, h / 2); g.rotate(-0.3); g.fillText('SNACK', 0, -14); g.fillStyle = '#5b8de0'; g.fillText('STACK', 0, 24); g.restore()
+  } else {
+    g.fillStyle = '#fbf3e4'; g.beginPath(); g.arc(w / 2, h / 2, 62, 0, Math.PI * 2); g.fill()
+    acorn(g, w / 2, h / 2, 70)
+  }
+})
+const snackTex = id => canvasTex('s' + id, 256, 366, (g, w, h) => {
+  const f = snackFace(id), col = f.color || '#3a2f3f'
+  g.fillStyle = '#fbf3e4'; rrect(g, 0, 0, w, h, 26); g.fill()
+  g.fillStyle = col; rrect(g, 12, 12, w - 24, h - 24, 18); g.fill()
+  if (f.wild) FLAVOURS.forEach((fl, i) => { g.fillStyle = fl.color; g.beginPath(); g.moveTo(w / 2, h / 2); g.arc(w / 2, h / 2, 96, i * Math.PI / 2 - 0.6, (i + 1) * Math.PI / 2 - 0.6); g.fill() })
+  else { g.fillStyle = '#fbf3e4'; g.beginPath(); g.ellipse(w / 2, h / 2, 86, 120, 0.45, 0, Math.PI * 2); g.fill() }
+  g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.font = `900 ${f.big.length > 1 ? 96 : 140}px ${FONT}`
+  g.lineWidth = 10; g.strokeStyle = '#2b2230'; g.strokeText(f.big, w / 2, h / 2 + 8)
+  g.fillStyle = f.wild ? '#fbf3e4' : col; g.fillText(f.big, w / 2, h / 2 + 8)
+  g.font = `900 40px ${FONT}`; g.fillStyle = '#fbf3e4'
+  g.fillText(f.big, 40, 44)
+  g.save(); g.translate(w - 40, h - 44); g.rotate(Math.PI); g.fillText(f.big, 0, 0); g.restore()
+})
+const playTex = id => canvasTex('p' + id, 256, 366, (g, w, h) => {
+  const c = playCard(id), ink = c.suit.red ? '#c8414f' : '#2b2230'
+  g.fillStyle = '#fbf3e4'; rrect(g, 0, 0, w, h, 26); g.fill()
+  g.strokeStyle = '#e4d6bd'; g.lineWidth = 4; rrect(g, 10, 10, w - 20, h - 20, 18); g.stroke()
+  g.fillStyle = ink; g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.font = `800 58px ${FONT}`; g.fillText(c.rank, 44, 52)
+  g.font = `48px ${FONT}`; g.fillText(c.suit.glyph, 44, 104)
+  g.font = `150px ${FONT}`; g.fillText(c.suit.glyph, w / 2, h / 2 + 14)
+  g.save(); g.translate(w - 44, h - 52); g.rotate(Math.PI); g.font = `800 58px ${FONT}`; g.fillText(c.rank, 0, 0); g.restore()
+})
+const edgeMat = new THREE.MeshStandardMaterial({ color: '#efe3cc', roughness: 0.8 })
+const matCache = new Map()
+const mat = (key, make) => { if (!matCache.has(key)) matCache.set(key, make()); return matCache.get(key) }
+const cardMats = (kind, id) => mat(`${kind}:${id}`, () => {
+  const front = new THREE.MeshStandardMaterial({ map: id == null ? backTex(kind) : kind === 'snack' ? snackTex(id) : playTex(id), roughness: 0.65 })
+  const back = new THREE.MeshStandardMaterial({ map: backTex(kind), roughness: 0.65 })
+  return [edgeMat, edgeMat, front, back, edgeMat, edgeMat]
+})
+const cardGeo = new THREE.BoxGeometry(CW, 0.012, CH)
+
+// ── tweening: anything wrapped in <Tw> eases toward its target, arcing up while it travels (deal, fly, flip) ──
+function Tw({ pos, rot = [0, 0, 0], from, speed = 6, lift = 0.5, children, scale = 1 }) {
+  const ref = useRef()
+  const base = useRef(new THREE.Vector3(...(from || pos)))
+  const target = useMemo(() => new THREE.Vector3(...pos), [pos[0], pos[1], pos[2]]) // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => { ref.current.position.copy(base.current); if (from) ref.current.rotation.set(rot[0], rot[1] + 1.5, rot[2]) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useFrame((_, dt) => {
+    const o = ref.current
+    const k = reduced ? 1 : 1 - Math.exp(-Math.min(dt, 0.05) * speed)
+    base.current.lerp(target, k)
+    const d = base.current.distanceTo(target)
+    o.position.set(base.current.x, base.current.y + (reduced ? 0 : Math.min(lift, d * 0.4)), base.current.z)
+    o.rotation.x += (rot[0] - o.rotation.x) * k
+    o.rotation.y += (rot[1] - o.rotation.y) * k
+    o.rotation.z += (rot[2] - o.rotation.z) * k
+  })
+  return <group ref={ref} scale={scale}>{children}</group>
+}
+
+function CardMesh({ kind, id, up, pos, rot = 0, tilt = 0, from, speed }) {
+  // Face up: the front (+y) on top. Face down: flipped over the long edge.
+  return (
+    <Tw pos={pos} rot={[tilt, rot, up ? 0 : Math.PI]} from={from} speed={speed}>
+      <mesh geometry={cardGeo} material={cardMats(kind, up ? id : null)} castShadow receiveShadow />
+    </Tw>
+  )
+}
+
+// ── the room ──
+function Room({ layout }) {
+  const wall = useMemo(() => canvasTex('wall', 256, 256, (g, w, h) => {
+    g.fillStyle = '#6b4c58'; g.fillRect(0, 0, w, h)
+    g.fillStyle = '#7a5866'; for (let x = 0; x < w; x += 64) g.fillRect(x, 0, 30, h)
+    g.fillStyle = '#e8b86b55'; for (let y = 32; y < h; y += 64) for (let x = 47; x < w; x += 64) { g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill() }
+  }), [])
+  wall.wrapS = wall.wrapT = THREE.RepeatWrapping; wall.repeat.set(8, 3)
+  const floor = useMemo(() => canvasTex('floor', 256, 256, (g, w, h) => {
+    for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#6e4b35' : '#7a553c'; g.fillRect(0, i * 32, w, 32); g.fillStyle = '#00000022'; g.fillRect(((i * 97) % w), i * 32, 3, 32) }
+  }), [])
+  floor.wrapS = floor.wrapT = THREE.RepeatWrapping; floor.repeat.set(6, 6)
+  const sq = layout.shape === 'square'
+  return (
+    <group>
+      <mesh rotation-x={-Math.PI / 2} position={[0, -1.7, 0]} receiveShadow><planeGeometry args={[40, 40]} /><meshStandardMaterial map={floor} roughness={0.9} /></mesh>
+      <mesh rotation-x={-Math.PI / 2} position={[0, -1.69, 0]} receiveShadow><circleGeometry args={[sq ? 6.2 : 5.2, 48]} /><meshStandardMaterial color="#a44f4f" roughness={1} /></mesh>
+      <mesh rotation-x={-Math.PI / 2} position={[0, -1.685, 0]} receiveShadow><ringGeometry args={[sq ? 5.6 : 4.6, sq ? 5.85 : 4.85, 48]} /><meshStandardMaterial color="#f2c98a" roughness={1} /></mesh>
+      <mesh position={[0, 3, -9]} receiveShadow><planeGeometry args={[40, 10]} /><meshStandardMaterial map={wall} roughness={0.95} /></mesh>
+      <mesh position={[-11, 3, 0]} rotation-y={Math.PI / 2} receiveShadow><planeGeometry args={[40, 10]} /><meshStandardMaterial map={wall} roughness={0.95} /></mesh>
+      <mesh position={[11, 3, 0]} rotation-y={-Math.PI / 2} receiveShadow><planeGeometry args={[40, 10]} /><meshStandardMaterial map={wall} roughness={0.95} /></mesh>
+      {/* night window with a moon */}
+      <group position={[3.6, 2.6, -8.95]}>
+        <mesh><planeGeometry args={[3.2, 2.4]} /><meshBasicMaterial color="#1d2b4f" /></mesh>
+        <mesh position={[0.8, 0.5, 0.01]}><circleGeometry args={[0.32, 24]} /><meshBasicMaterial color="#f6e7b0" /></mesh>
+        {[[-1.65, 0, 0.12, 2.6], [1.65, 0, 0.12, 2.6], [0, 0, 0.1, 2.4]].map(([x, , w, h], i) => <mesh key={i} position={[x, 0, 0.02]}><boxGeometry args={[w, h, 0.08]} /><meshStandardMaterial color="#e9dcc2" /></mesh>)}
+        {[1.25, -1.25, 0].map((y, i) => <mesh key={i} position={[0, y, 0.02]}><boxGeometry args={[3.4, 0.1, 0.08]} /><meshStandardMaterial color="#e9dcc2" /></mesh>)}
+      </group>
+      {/* bookshelf */}
+      <group position={[-5.2, -0.2, -8.6]}>
+        <mesh castShadow receiveShadow><boxGeometry args={[3, 3, 0.6]} /><meshStandardMaterial color="#5a3c2a" /></mesh>
+        {[0.9, -0.1, -1.1].map((y, r) => Array.from({ length: 7 }, (_, i) => (
+          <mesh key={`${r}${i}`} position={[-1.2 + i * 0.36 + (r % 2) * 0.1, y + 0.2, 0.32]} castShadow>
+            <boxGeometry args={[0.26, 0.62 - ((i * 7 + r) % 3) * 0.08, 0.3]} /><meshStandardMaterial color={['#c8414f', '#e8b86b', '#5b8de0', '#7cc46a', '#a98bd6', '#f0a050', '#6fc3d6'][(i + r * 2) % 7]} />
+          </mesh>)))}
+      </group>
+      {/* plant */}
+      <group position={[7.2, -1.7, -6.5]}>
+        <mesh position={[0, 0.45, 0]} castShadow><cylinderGeometry args={[0.45, 0.35, 0.9, 16]} /><meshStandardMaterial color="#c9714f" /></mesh>
+        {[[0, 1.5, 0, 0.75], [0.45, 1.25, 0.2, 0.55], [-0.4, 1.3, -0.1, 0.6], [0.1, 2.0, -0.2, 0.5]].map(([x, y, z, r], i) =>
+          <mesh key={i} position={[x, y, z]} castShadow><sphereGeometry args={[r, 12, 10]} /><meshStandardMaterial color={i % 2 ? '#5f9a58' : '#6fb06a'} roughness={1} /></mesh>)}
+      </group>
+      {/* hanging lamp over the table */}
+      <group position={[0, 5.4, 0]}>
+        <mesh position={[0, 1.6, 0]}><cylinderGeometry args={[0.02, 0.02, 3.2, 6]} /><meshStandardMaterial color="#2b2230" /></mesh>
+        <mesh><coneGeometry args={[1.0, 0.8, 32, 1, true]} /><meshStandardMaterial color="#e8b86b" side={THREE.DoubleSide} roughness={0.7} emissive="#7a4a10" emissiveIntensity={0.4} /></mesh>
+        <mesh position={[0, -0.25, 0]}><sphereGeometry args={[0.22, 16, 12]} /><meshBasicMaterial color="#fff1cf" /></mesh>
+      </group>
+    </group>
+  )
+}
+
+function Lights({ layout }) {
+  const spot = useRef()
+  useEffect(() => { spot.current.target.position.set(0, 0, 0); spot.current.target.updateMatrixWorld() }, [])
+  return (
+    <>
+      <ambientLight intensity={0.35} color="#ffe2c4" />
+      <hemisphereLight args={['#8fa2d8', '#4a3226', 0.45]} />
+      <spotLight ref={spot} position={[0, 5.1, 0]} angle={layout.shape === 'square' ? 0.95 : 0.85} penumbra={0.55} intensity={3.2} decay={0} color="#ffd9a8"
+        castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} shadow-bias={-0.0004} />
+      <pointLight position={[3.6, 2.6, -7.5]} intensity={0.6} decay={0} distance={8} color="#7f9be0" />
+    </>
+  )
+}
+
+function TableMesh({ layout }) {
+  const { R, felt, shape } = layout
+  const wood = '#8a5a3b'
+  if (shape === 'square') return (
+    <group>
+      <mesh position={[0, -0.12, 0]} receiveShadow castShadow><boxGeometry args={[R * 2 + 0.5, 0.24, R * 2 + 0.5]} /><meshStandardMaterial color={wood} roughness={0.6} /></mesh>
+      {[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, z], i) => <mesh key={i} position={[x * R, -0.95, z * R]} castShadow><boxGeometry args={[0.3, 1.5, 0.3]} /><meshStandardMaterial color={wood} /></mesh>)}
+    </group>
+  )
+  return (
+    <group>
+      <mesh position={[0, -0.1, 0]} receiveShadow castShadow><cylinderGeometry args={[R + 0.25, R + 0.2, 0.2, 64]} /><meshStandardMaterial color={wood} roughness={0.55} /></mesh>
+      <mesh position={[0, 0.005, 0]} receiveShadow><cylinderGeometry args={[R, R, 0.02, 64]} /><meshStandardMaterial color={felt} roughness={0.95} /></mesh>
+      <mesh position={[0, 0.02, 0]} rotation-x={Math.PI / 2}><torusGeometry args={[R + 0.12, 0.09, 12, 64]} /><meshStandardMaterial color="#6e432b" roughness={0.5} /></mesh>
+      <mesh position={[0, -0.95, 0]} castShadow><cylinderGeometry args={[0.35, 0.6, 1.5, 24]} /><meshStandardMaterial color={wood} /></mesh>
+    </group>
+  )
+}
+
+// Where seat i of n sits (you, meIdx, nearest the camera). Returns [x, z, angle].
+function seatAt(i, n, meIdx, r) {
+  const a = Math.PI / 2 + (2 * Math.PI * ((i - meIdx + n) % n)) / n
+  return [r * Math.cos(a), r * Math.sin(a), a]
+}
+
+// A soft glowing ring on the table in front of whoever's turn it is.
+function TurnGlow({ x, z, color }) {
+  const ref = useRef()
+  useFrame(({ clock }) => { if (ref.current && !reduced) ref.current.material.opacity = 0.55 + Math.sin(clock.elapsedTime * 4) * 0.25 })
+  return (
+    <Tw pos={[x, 0.03, z]} lift={0} speed={8}>
+      <mesh ref={ref} rotation-x={-Math.PI / 2}><ringGeometry args={[0.5, 0.68, 40]} /><meshBasicMaterial color={color} transparent opacity={0.7} /></mesh>
+    </Tw>
+  )
+}
+
+function Chair({ x, z, a }) {
+  return (
+    <group position={[x, -1.7, z]} rotation-y={-a + Math.PI / 2}>
+      <mesh position={[0, 0.85, 0]} castShadow receiveShadow><boxGeometry args={[0.9, 0.12, 0.8]} /><meshStandardMaterial color="#9a6a48" /></mesh>
+      <mesh position={[0, 1.55, 0.36]} castShadow><boxGeometry args={[0.9, 1.3, 0.1]} /><meshStandardMaterial color="#8a5a3b" /></mesh>
+      <mesh position={[0, 0.98, 0]}><boxGeometry args={[0.82, 0.12, 0.72]} /><meshStandardMaterial color="#c86f5a" roughness={1} /></mesh>
+    </group>
+  )
+}
+
+// ── Snack Stack ──
+const hashRot = id => (((id * 2654435761) >>> 0) % 1000) / 1000 - 0.5
+function SnackScene({ v, seats, meId }) {
+  const [pile, setPile] = useState([])
+  useEffect(() => { setPile(p => (p.at(-1)?.id === v.top ? p : [...p.slice(-5), { id: v.top, from: v.last?.type === 'play' ? v.last.pid : null }])) }, [v.top]) // eslint-disable-line react-hooks/exhaustive-deps
+  const deckPos = [-1.0, 0.03 + Math.min(v.deck, 60) * 0.004, -0.35]
+  const seatOf = pid => seats.find(s => s.pid === pid)
+  const ring = useRef()
+  useFrame((_, dt) => { if (ring.current && !reduced) ring.current.rotation.y -= v.dir * dt * 0.6 })
+  const col = FLAVOURS[v.flavour].color
+  return (
+    <group>
+      <mesh position={[deckPos[0], deckPos[1] / 2, deckPos[2]]} castShadow><boxGeometry args={[CW, Math.max(0.02, deckPos[1]), CH]} /><meshStandardMaterial color="#efe3cc" /></mesh>
+      <CardMesh kind="snack" id={null} up={false} pos={[deckPos[0], deckPos[1] + 0.01, deckPos[2]]} />
+      {pile.map((p, i) => {
+        const s = p.from && seatOf(p.from)
+        return <CardMesh key={p.id + '-' + i} kind="snack" id={p.id} up pos={[0.2 + hashRot(p.id) * 0.2, 0.03 + i * 0.013, 0.1 + hashRot(p.id + 7) * 0.2]} rot={hashRot(p.id) * 1.2}
+          from={s ? [s.x * 0.6, 0.6, s.z * 0.6] : deckPos} speed={5} />
+      })}
+      <group ref={ring} position={[0.1, 0.04, 0.05]}>
+        <mesh rotation-x={-Math.PI / 2}><ringGeometry args={[1.3, 1.42, 64]} /><meshBasicMaterial color={col} transparent opacity={0.75} /></mesh>
+        {[0, 1, 2].map(k => {
+          const a = (k * 2 * Math.PI) / 3
+          return <mesh key={k} position={[1.36 * Math.cos(a), 0.02, 1.36 * Math.sin(a)]} rotation={[-Math.PI / 2, 0, -a + (v.dir > 0 ? Math.PI : 0)]}>
+            <coneGeometry args={[0.13, 0.32, 3]} /><meshBasicMaterial color={col} /></mesh>
+        })}
+      </group>
+      {seats.filter(s => s.pid !== meId).map(s => {
+        const n = Math.min(v.counts[s.pid] || 0, 14)
+        return Array.from({ length: n }, (_, k) => {
+          const spread = (k - (n - 1) / 2) * 0.17
+          const ax = -s.z / s.r, az = s.x / s.r // along the table edge
+          return <CardMesh key={`${s.pid}-${k}`} kind="snack" id={null} up={false} from={deckPos}
+            pos={[s.x * 0.72 + ax * spread, 0.35 + Math.abs(spread) * -0.12, s.z * 0.72 + az * spread]} rot={-s.a + Math.PI / 2} tilt={-1.1} />
+        })
+      })}
+    </group>
+  )
+}
+
+// ── High card ──
+function HighScene({ v, seats, meId }) {
+  const deck = [-0.4, 0.05, 0]
+  return (
+    <group>
+      <CardMesh kind="play" id={null} up={false} pos={deck} />
+      {v.discards.map((c, i) => <CardMesh key={'d' + c} kind="play" id={c} up pos={[0.5 + i * 0.05, 0.03 + i * 0.013, 0]} rot={hashRot(c)} from={deck} />)}
+      {seats.map(s => {
+        const id = v.reveal?.[s.pid] ?? (s.pid === meId ? v.me?.card : null)
+        return <CardMesh key={s.pid + (v.acted?.[s.pid] === 'swap' ? 'b' : 'a')} kind="play" id={id} up={id != null} from={deck} pos={[s.x * 0.62, 0.04, s.z * 0.62]} rot={-s.a + Math.PI / 2} />
+      })}
+    </group>
+  )
+}
+
+// ── Acorn Hold'em ──
+const CHIP = ['#c8414f', '#fbf3e4', '#5b8de0', '#2f2a35', '#e8b86b']
+const chipGeo = new THREE.CylinderGeometry(0.11, 0.11, 0.04, 20)
+function Chips({ amount, pos, from }) {
+  const n = Math.min(14, Math.ceil(Math.log2(amount / 5 + 1) * 1.6))
+  if (!amount) return null
+  const stacks = Math.ceil(n / 7)
+  return (
+    <Tw pos={pos} from={from} speed={5}>
+      {Array.from({ length: n }, (_, i) => {
+        const st = i % stacks, h = Math.floor(i / stacks)
+        return <mesh key={i} geometry={chipGeo} position={[st * 0.24 - (stacks - 1) * 0.12, 0.02 + h * 0.042, 0]} castShadow
+          material={mat('chip' + ((i + st) % 5), () => new THREE.MeshStandardMaterial({ color: CHIP[(i + st) % 5], roughness: 0.4 }))} />
+      })}
+    </Tw>
+  )
+}
+function PokerScene({ v, seats, meId }) {
+  const deck = [0, 0.4, -0.9]
+  const pot = v.pot + Object.values(v.bets || {}).reduce((a, b) => a + b, 0)
+  return (
+    <group>
+      {/* acorn emblem in the felt */}
+      <mesh position={[0, 0.02, 0]} rotation-x={-Math.PI / 2}><ringGeometry args={[0.95, 1.02, 48]} /><meshBasicMaterial color="#e8b86b" transparent opacity={0.6} /></mesh>
+      {[0, 1, 2, 3, 4].map(i => v.board[i] != null && <CardMesh key={'b' + v.board[i]} kind="play" id={v.board[i]} up pos={[(i - 2) * 0.66, 0.03, -0.05]} from={deck} />)}
+      <Chips amount={v.pot} pos={[0, 0.02, 0.75]} />
+      {seats.map(s => {
+        if (v.out[s.pid]) return null
+        const shown = v.shown?.[s.pid]
+        const mine = s.pid === meId ? v.me?.cards : null
+        const ax = -s.z / s.r, az = s.x / s.r
+        const folded = v.folded?.[s.pid]
+        return (
+          <group key={s.pid}>
+            {!folded && [0, 1].map(k => {
+              const id = shown?.[k] ?? mine?.[k] ?? null
+              return <CardMesh key={`${v.hand}-${k}`} kind="play" id={id} up={id != null} from={deck}
+                pos={[s.x * 0.66 + ax * (k - 0.5) * 0.36, 0.03 + k * 0.013, s.z * 0.66 + az * (k - 0.5) * 0.36]} rot={-s.a + Math.PI / 2 + (k - 0.5) * 0.2} />
+            })}
+            <Chips amount={v.stacks[s.pid]} pos={[s.x * 0.8 + ax * 0.55, 0.02, s.z * 0.8 + az * 0.55]} />
+            <Chips key={`${v.hand}-${v.phase}`} amount={v.bets?.[s.pid] || 0} pos={[s.x * 0.45, 0.02, s.z * 0.45]} from={[s.x * 0.8, 0.3, s.z * 0.8]} />
+            {v.players[v.button] === s.pid && <Tw pos={[s.x * 0.6 - ax * 0.55, 0.03, s.z * 0.6 - az * 0.55]}>
+              <mesh castShadow><cylinderGeometry args={[0.16, 0.16, 0.05, 24]} /><meshStandardMaterial color="#fbf3e4" /></mesh>
+            </Tw>}
+          </group>
+        )
+      })}
+    </group>
+  )
+}
+
+// ── Teacup Town ──
+const BOARD_SIZE = 5.6, CELL = BOARD_SIZE / 7
+const tilePos = i => { const [c, r] = cell(i); return [(c - 3) * CELL, (r - 3) * CELL] }
+const boardTex = () => canvasTex('board', 2048, 2048, (g, W) => {
+  const C = W / 7
+  g.fillStyle = '#cfe0c3'; g.fillRect(0, 0, W, W)
+  g.fillStyle = '#e9f0dc'; g.fillRect(C, C, W - 2 * C, W - 2 * C)
+  // centre: title and a teacup doodle
+  g.save(); g.translate(W / 2, W / 2); g.rotate(-0.12)
+  g.fillStyle = '#c86f5a'; g.font = `900 150px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.fillText('Teacup', 0, -90); g.fillStyle = '#5b8de0'; g.fillText('Town', 0, 70)
+  g.strokeStyle = '#7a4a2b'; g.lineWidth = 14; g.fillStyle = '#fbf3e4'
+  g.beginPath(); g.moveTo(-120, 190); g.quadraticCurveTo(-110, 330, 0, 330); g.quadraticCurveTo(110, 330, 120, 190); g.closePath(); g.fill(); g.stroke()
+  g.beginPath(); g.arc(150, 245, 40, -1.2, 1.4); g.stroke()
+  g.beginPath(); g.moveTo(-40, 160); g.quadraticCurveTo(-60, 120, -30, 90); g.moveTo(30, 160); g.quadraticCurveTo(10, 110, 40, 80); g.stroke()
+  g.restore()
+  BOARD.forEach((b, i) => {
+    const [c, r] = cell(i)
+    const side = i < 6 ? 0 : i < 12 ? 1 : i < 18 ? 2 : 3
+    const corner = i % 6 === 0
+    g.save(); g.translate(c * C + C / 2, r * C + C / 2); g.rotate([0, Math.PI / 2, Math.PI, -Math.PI / 2][side])
+    g.fillStyle = '#fbf3e4'; g.fillRect(-C / 2 + 4, -C / 2 + 4, C - 8, C - 8)
+    if (b.g != null) { g.fillStyle = GROUPS[b.g].color; g.fillRect(-C / 2 + 4, -C / 2 + 4, C - 8, C * 0.24) }
+    g.fillStyle = '#2b2230'; g.textAlign = 'center'; g.textBaseline = 'middle'
+    const words = b.name.split(' ')
+    g.font = `800 ${corner ? 40 : 34}px ${FONT}`
+    words.forEach((w, k) => g.fillText(w, 0, (b.g != null ? -C * 0.06 : -C * 0.16) + k * 38))
+    g.font = `700 30px ${FONT}`
+    const sub = b.price ? `${b.price}` : b.amt ? `Pay ${b.amt}` : b.sub || ''
+    g.fillStyle = '#6b5a4c'; g.fillText(sub, 0, C * 0.34)
+    if (b.k === 'fortune') { g.fillStyle = '#e8b86b'; g.beginPath(); g.moveTo(-40, 30); g.quadraticCurveTo(0, -30, 40, 30); g.quadraticCurveTo(0, 10, -40, 30); g.fill() }
+    if (b.k === 'trolley') { g.fillStyle = '#c86f5a'; rrect(g, -50, 0, 100, 50, 12); g.fill(); g.fillStyle = '#fbf3e4'; g.fillRect(-38, 10, 30, 20); g.fillRect(8, 10, 30, 20) }
+    if (b.k === 'oven') { g.fillStyle = '#e8b86b'; g.beginPath(); g.arc(0, 30, 34, Math.PI, 0); g.fill() }
+    g.restore()
+  })
+})
+function DieMesh({ value, pos, roll, idx }) {
+  const mats = useMemo(() => [3, 4, 1, 6, 2, 5].map(n => mat('die' + n, () => new THREE.MeshStandardMaterial({ roughness: 0.45, map: canvasTex('die' + n, 128, 128, (g, w) => {
+    g.fillStyle = '#fbf3e4'; rrect(g, 0, 0, w, w, 22); g.fill(); g.fillStyle = '#2b2230'
+    const P = { 1: [[2, 2]], 2: [[1, 1], [3, 3]], 3: [[1, 1], [2, 2], [3, 3]], 4: [[1, 1], [3, 1], [1, 3], [3, 3]], 5: [[1, 1], [3, 1], [2, 2], [1, 3], [3, 3]], 6: [[1, 1], [3, 1], [1, 2], [3, 2], [1, 3], [3, 3]] }[n]
+    for (const [x, y] of P) { g.beginPath(); g.arc(x * 32, y * 32, 11, 0, 7); g.fill() }
+  }) }))), [])
+  const ref = useRef()
+  const t0 = useRef(-1)
+  const fin = { 1: [0, 0], 6: [Math.PI, 0], 2: [-Math.PI / 2, 0], 5: [Math.PI / 2, 0], 3: [0, Math.PI / 2], 4: [0, -Math.PI / 2] }[value] || [0, 0]
+  const yaw = 0.4 + idx * 0.7
+  useEffect(() => { t0.current = -1 }, [roll])
+  useFrame(({ clock }) => {
+    const o = ref.current
+    if (t0.current < 0) t0.current = clock.elapsedTime
+    const t = reduced ? 1 : Math.min(1, (clock.elapsedTime - t0.current) / 0.9)
+    const e = 1 - (1 - t) ** 3, spin = (1 - e) * 9
+    o.position.set(pos[0] - (1 - e) * 1.2, 0.18 + Math.abs(Math.sin(t * Math.PI * 2.5)) * (1 - t) * 1.1, pos[2] + (1 - e) * 1.0)
+    o.rotation.set(fin[0] + spin, yaw + spin * 0.6, fin[1] + spin * 0.8, 'YXZ')
+  })
+  return <mesh ref={ref} material={mats} castShadow><boxGeometry args={[0.34, 0.34, 0.34]} /></mesh>
+}
+function Token({ color, space, slot, hop }) {
+  // Walks tile by tile toward `space`, hopping on each step.
+  const ref = useRef()
+  const at = useRef(space)
+  const prog = useRef(1)
+  const from = useRef(tilePos(space))
+  useFrame((_, dt) => {
+    const o = ref.current
+    if (prog.current >= 1 && at.current !== space) {
+      const next = hop ? (at.current + 1) % 24 : space
+      from.current = tilePos(at.current); at.current = next; prog.current = 0
+    }
+    prog.current = reduced ? 1 : Math.min(1, prog.current + dt * 5)
+    const [ax, az] = from.current, [bx, bz] = tilePos(at.current)
+    const t = prog.current
+    const off = [(slot % 3 - 1) * 0.2, (Math.floor(slot / 3) - 0.5) * 0.2]
+    o.position.set(ax + (bx - ax) * t + off[0], 0.02 + Math.sin(t * Math.PI) * 0.35, az + (bz - az) * t + off[1] + 0.05)
+  })
+  const m = mat('tok' + color, () => new THREE.MeshStandardMaterial({ color, roughness: 0.35 }))
+  return (
+    <group ref={ref}>
+      <mesh position={[0, 0.08, 0]} material={m} castShadow><cylinderGeometry args={[0.13, 0.16, 0.12, 20]} /></mesh>
+      <mesh position={[0, 0.25, 0]} material={m} castShadow><cylinderGeometry args={[0.05, 0.1, 0.22, 16]} /></mesh>
+      <mesh position={[0, 0.42, 0]} material={m} castShadow><sphereGeometry args={[0.1, 16, 12]} /></mesh>
+    </group>
+  )
+}
+function Cottage({ color, pos }) {
+  return (
+    <group position={pos}>
+      <mesh position={[0, 0.06, 0]} castShadow><boxGeometry args={[0.13, 0.12, 0.13]} /><meshStandardMaterial color="#fbf3e4" /></mesh>
+      <mesh position={[0, 0.17, 0]} rotation-y={Math.PI / 4} castShadow><coneGeometry args={[0.12, 0.11, 4]} /><meshStandardMaterial color={color} /></mesh>
+    </group>
+  )
+}
+function PropertyScene({ v, seats }) {
+  const board = useMemo(boardTex, [])
+  const slots = {}
+  return (
+    <group>
+      <mesh position={[0, 0.01, 0]} rotation-x={-Math.PI / 2} receiveShadow><planeGeometry args={[BOARD_SIZE, BOARD_SIZE]} /><meshStandardMaterial map={board} roughness={0.8} /></mesh>
+      {Object.entries(v.owner).map(([sp, o]) => {
+        const [x, z] = tilePos(+sp), s = seats.find(p => p.pid === o)
+        const n = v.cottages[sp] || 0
+        const inward = [-x, -z].map(c => Math.sign(Math.round(c * 10)) * CELL * 0.3)
+        return (
+          <group key={sp}>
+            <mesh position={[x - inward[0] * 0.9, 0.02, z - inward[1] * 0.9]} rotation-x={-Math.PI / 2}><circleGeometry args={[0.09, 16]} /><meshBasicMaterial color={s?.color || '#999'} /></mesh>
+            {Array.from({ length: n }, (_, k) => <Cottage key={k} color={s?.color || '#c86f5a'} pos={[x + inward[0] + (inward[1] ? (k - 1.5) * 0.15 : 0), 0.01, z + inward[1] + (inward[0] ? (k - 1.5) * 0.15 : 0)]} />)}
+          </group>
+        )
+      })}
+      {seats.filter(s => !v.broke[s.pid]).map(s => {
+        const sp = v.pos[s.pid]
+        slots[sp] = (slots[sp] || 0) + 1
+        return <Token key={s.pid} color={s.color} space={sp} slot={slots[sp] - 1} hop={!(v.last?.napped || v.napping[s.pid] === 1)} />
+      })}
+      <DieMesh value={v.dice[0]} pos={[-0.3, 0, 0.6]} roll={v.rolls} idx={0} />
+      <DieMesh value={v.dice[1]} pos={[0.3, 0, 0.7]} roll={v.rolls} idx={1} />
+    </group>
+  )
+}
+
+const SCENES = { snack: SnackScene, highcard: HighScene, poker: PokerScene, property: PropertyScene }
+
+// Puts the camera where this game looks best, pulled back on narrow (phone) screens.
+function Rig({ layout }) {
+  const { camera, size } = useThree()
+  useEffect(() => {
+    const aspect = size.width / Math.max(1, size.height)
+    const k = aspect < 1.25 ? Math.min(1.9, Math.pow(1.25 / aspect, 0.85)) : 1
+    camera.position.set(layout.cam[0], layout.cam[1] * (1 + (k - 1) * 0.9), layout.cam[2] * k)
+    camera.lookAt(...layout.look)
+    camera.updateProjectionMatrix()
+  }, [camera, size.width, size.height, layout])
+  return null
+}
+
+// Moves each DOM person onto their seat: projected feet, scaled by distance, stacked by depth.
+const _v = new THREE.Vector3()
+function Projector({ seats, els, H }) {
+  const { camera, size } = useThree()
+  useFrame(() => {
+    seats.forEach((s, i) => {
+      const el = els.current[i]
+      if (!el) return
+      _v.set(s.x, -0.35, s.z).project(camera)
+      const x = (_v.x + 1) / 2 * size.width, y = (1 - _v.y) / 2 * size.height
+      _v.set(s.x, -0.35 + H, s.z).project(camera)
+      const k = Math.max(0.22, Math.min(0.95, (y - (1 - _v.y) / 2 * size.height) / BASE))
+      const tf = `translate(${(x - BASE / 2).toFixed(1)}px, ${(y - BASE).toFixed(1)}px) scale(${k.toFixed(3)})`
+      if (el.style.transform !== tf) { el.style.transform = tf; el.style.zIndex = String(Math.round(100 + s.z * 10)); el.style.setProperty('--k', k.toFixed(3)) }
+    })
+  })
+  return null
+}
+
+export default function Table3D({ game, v, people, meIdx, me, turnPid, info, winners }) {
+  const layout = LAYOUT[game]
+  const [hidden, setHidden] = useState(typeof document !== 'undefined' && document.hidden)
+  useEffect(() => {
+    const f = () => setHidden(document.hidden)
+    document.addEventListener('visibilitychange', f)
+    return () => document.removeEventListener('visibilitychange', f)
+  }, [])
+  const n = people.length
+  const seats = people.map((p, i) => {
+    let [x, z, a] = seatAt(i, Math.max(n, 2), meIdx, layout.seatR)
+    // You stand at the front-left corner (like your corner in the crowd), leaving the middle clear for your hand.
+    if (p.pid === me) { x = -layout.seatR * 0.62; z = layout.seatR * 0.82; a = Math.atan2(z, x) }
+    return { ...p, x, z, a, r: layout.seatR }
+  })
+  const els = useRef([])
+  const Scene = SCENES[game]
+  const turnSeat = seats.find(s => s.pid === turnPid)
+  return (
+    <div className="g3d">
+      <Canvas shadows dpr={[1, 1.5]} frameloop={hidden ? 'never' : 'always'} camera={{ fov: 42, near: 0.1, far: 60, position: layout.cam }}
+        gl={{ antialias: true, powerPreference: 'low-power' }} onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.05 }}>
+        <color attach="background" args={['#2a1f2b']} />
+        <fog attach="fog" args={['#2a1f2b', 12, 26]} />
+        <Rig layout={layout} />
+        <Lights layout={layout} />
+        <Room layout={layout} />
+        <TableMesh layout={layout} />
+        {seats.map(s => <Chair key={s.pid} x={s.x * 1.08} z={s.z * 1.08} a={s.a} />)}
+        {turnSeat && <TurnGlow x={turnSeat.x * 0.78} z={turnSeat.z * 0.78} color={turnSeat.color} />}
+        {v && <Scene v={v} seats={seats} meId={me} />}
+        <Projector seats={seats} els={els} H={layout.H} />
+      </Canvas>
+      {seats.map((p, i) => (
+        <Person key={p.pid} p={p} elRef={el => { els.current[i] = el }} turn={p.pid === turnPid} info={info(p.pid)} me={p.pid === me} won={winners?.includes(p.pid)} />
+      ))}
+    </div>
+  )
+}
+

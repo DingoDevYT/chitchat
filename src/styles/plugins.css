@@ -7,6 +7,10 @@ body .bot-badge {
   font: 700 10px/1.5 var(--font-head); letter-spacing: .06em; background: var(--accent); color: var(--accent-ink); flex: none;
 }
 
+/* name + badge stay on one line wherever names show (messages, member list, popovers) */
+body .named { display: inline-flex; align-items: center; min-width: 0; max-width: 100%; vertical-align: bottom; }
+body .named .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ── embeds ── */
 body .embeds { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; max-width: 520px; }
 body .embed {
@@ -145,7 +149,7 @@ body .docs-top {
   position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 10px 20px;
   background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px dashed var(--stitch);
 }
-body .docs-top .btn { text-decoration: none; }
+body .docs-top .btn { text-decoration: none; white-space: nowrap; flex: none; }
 body .docs-brand { display: flex; align-items: center; gap: 8px; color: var(--text); text-decoration: none; font: 500 17px var(--font-head); }
 body .docs-brand b { color: var(--accent); font-weight: 600; }
 body .docs-menu-btn { display: none; }
@@ -197,7 +201,8 @@ body .docs-toc a:hover { color: var(--accent); }
 @media (max-width: 760px) {
   body .docs-top { padding: 8px 16px; }
   body .docs-menu-btn { display: inline-grid; }
-  body .docs-brand span { font-size: 15px; }
+  body .docs-brand span { font-size: 15px; white-space: nowrap; }
+  body .docs-hide-sm { display: none; }
   body .docs-wrap { grid-template-columns: minmax(0, 1fr); padding: 16px 16px 48px; gap: 0; }
   body .docs-nav { display: none; position: fixed; inset: 57px 0 auto 0; max-height: calc(100vh - 57px); padding: 12px 16px 16px; background: var(--bg); box-shadow: var(--shadow); z-index: 4; }
   body .docs-nav.open { display: flex; }

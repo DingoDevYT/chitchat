@@ -162,13 +162,15 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
       const onProgress = i => (l, t) => { done[i] = (size[i] * l) / t; mark({ _progress: done.reduce((a, b) => a + b, 0) / all }) }
       const uploaded = await Promise.all(m._files.map((f, i) => uploadFile(f, userId, { signal: ctl.signal, onProgress: onProgress(i) }).then(a => ({ ...a, ...f.meta }))))
       const attachments = [...m._ready, ...uploaded]
-      const { data, error } = await supabase.from('messages')
-        .insert({ channel_id: channel.id, author_id: userId, content: m.content, reply_to: m.reply_to, attachments, ...(m.tts && { tts: true }) }).select().single()
+      // no .single(): an empty result must not roll back, so Automod's strike and reason are kept
+      const { data: rows, error } = await supabase.from('messages')
+        .insert({ channel_id: channel.id, author_id: userId, content: m.content, reply_to: m.reply_to, attachments, ...(m.tts && { tts: true }) }).select()
       if (error) throw error
-      setMsgs(l => mergeIncoming(l, data))
+      if (!rows.length) throw Object.assign(new Error('held back'), { code: 'HELD_BACK' })
+      setMsgs(l => mergeIncoming(l, rows[0]))
     } catch (e) {
       if (e.name === 'AbortError') return setMsgs(l => l && l.filter(x => x.id !== m.id)) // cancelled from the upload bar
-      if (e.code === 'PGRST116') { // the insert came back empty: Automod held it back (public.plugins_before_message)
+      if (e.code === 'HELD_BACK') { // the insert came back empty: Automod held it back (public.plugins_before_message)
         const why = await heldBackReason(channel.id, userId) || 'Automod held that message back.'
         toast(why)
         return mark({ pending: false, failed: true, queued: false, blocked: why })
@@ -445,7 +447,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
               <div key={m.key}>
                 {newDay && <div className="day-sep"><span>{new Date(m.created_at).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</span></div>}
                 {m.id === firstUnread && <div className="new-divider" ref={dividerRef} role="separator" aria-label="New messages"><span>New messages</span></div>}
-                {m.call ? <CallLine m={m} me={userId} /> : <Message m={m} onRetry={retry} head={newDay || startsGroup(prev, m) || !!prev?.call} me={userId} myName={me.username} serverId={server?.id} canDelete={canModerate} canPin={canPin}
+                {m.call ? <CallLine m={m} me={userId} /> : <Message m={m} onRetry={retry} head={newDay || startsGroup(prev, m) || !!prev?.call || !!m.interaction} me={userId} myName={me.username} serverId={server?.id} canDelete={canModerate} canPin={canPin}
                   replied={m.reply_to ? byId.get(m.reply_to) || refs[m.reply_to] : null} editing={editing === m.id}
                   onReply={setReplyTo} onEdit={startEdit} onDelete={remove} onReact={react} onPin={togglePin} onSaveEdit={saveEdit} onCancelEdit={cancelEdit} />}
               </div>

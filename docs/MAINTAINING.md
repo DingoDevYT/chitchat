@@ -29,7 +29,7 @@ The project URL is hard-coded in `plugin_dispatch`. If Chitchat ever runs in mor
 
 ## Automod
 
-Enforced by `plugins_before_message` (BEFORE INSERT on messages). A held-back message returns `NULL` (so it's silently not inserted) instead of raising, which keeps the strike (`automod_hits`), the audit entry and any timeout. The client notices the empty insert (`PGRST116`) and reads the reason from `automod_hits`.
+Enforced by `plugins_before_message` (BEFORE INSERT on messages). A held-back message returns `NULL` (so it's silently not inserted) instead of raising, which keeps the strike (`automod_hits`), the audit entry and any timeout. The client notices the empty insert result and reads the reason from `automod_hits`. Don't insert messages with `.single()`: PostgREST rolls the whole transaction back when a single-object response has zero rows, which would throw away the strike, the reason and the audit entry (the message stays blocked either way).
 
 `automod_norm`, `automod_words_rx` and `automod_rule` are mirrored in `src/lib/automod.js` for the preview. **Change both together.** The test "automod mirror matches the database rules" and the SQL block in the RLS tests use the same cases.
 

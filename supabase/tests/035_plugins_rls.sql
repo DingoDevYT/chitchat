@@ -158,8 +158,8 @@ begin
   perform pg_temp.ok(public.bot_auth('nope') is null, 'an unknown token gives null');
   perform pg_temp.ok(pg_temp.fails(format('do $x$ begin for i in 1..125 loop perform public.bot_auth(%L); end loop; end $x$',
     encode(extensions.digest(wh->>'token', 'sha256'), 'hex')), 'Too many'), 'rate limited after 120 calls a minute');
-  perform pg_temp.ok(public.bot_interaction_reply(chef_iid, ix, 'only you', '[]', true)->>'ephemeral' = 'true'
-    and (select response->>'content' from public.plugin_interactions where id = ix) = 'only you', 'late ephemeral reply lands on the interaction');
+  perform pg_temp.ok(public.bot_interaction_reply(chef_iid, ix, 'only you', '[]', true)->>'ephemeral' = 'true', 'late ephemeral reply accepted');
+  perform pg_temp.ok((select response->>'content' from public.plugin_interactions where id = ix) = 'only you', 'late ephemeral reply lands on the interaction');
   for i in 1..10 loop perform public.plugin_result(wh_iid, 'HTTP 500'); end loop;
   select * into r from public.server_plugins where id = wh_iid;
   perform pg_temp.ok(not r.enabled and r.failures = 10 and jsonb_array_length(r.last_errors) = 5, 'switched off after 10 failures; 5 errors kept');

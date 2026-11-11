@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { online, setVoiceTalking, streams, cams, dropStream, toast, prefs, setPref, micLevel, pttDown, peerState, setPeerState, isDND } from './lib/store'
 import { peerStatus, diffMembers, playChime } from './lib/voicecues'
@@ -17,6 +17,9 @@ import { RoomTitle, roomVars } from './Rooms'
 import ThemeBackdrop, { useRoomTheme } from './themes/ThemeBackdrop'
 import { fitCrowd, ROW } from './lib/crowd'
 import './styles/stadium-crowd.css'
+import { GAMES_ON, GAME_LIST, useTable, create as createGame } from './games/useGame'
+
+const GameScreen = lazy(() => import('./games/GameScreen')) // games (and three.js) load only when a table opens
 
 // shortcut: STUN only, no TURN relay. ~10-20% of strict NAT / mobile networks won't connect; add a TURN server (e.g. Cloudflare Calls TURN) when someone reports it.
 const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }]
@@ -444,7 +447,7 @@ export function Screen({ stream }) {
 }
 
 // Speech bubble over a seat: typing dots, then their latest stadium-chat message for a few seconds.
-function Bubble({ id }) {
+export function Bubble({ id }) {
   const b = bubbles.use(s => s[id])
   if (!b) return null
   return <div key={b.key || 'typing'} className={`stage-bubble${b.typing ? ' typing' : ''}`} aria-hidden="true">
@@ -505,17 +508,29 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   const crowd = view !== 'list' && box.w ? fitCrowd(others.length, box.w, box.h * 0.5, list.includes(meId)) : null
   const seat = id => ({ id, live: lives.includes(id), face: joined && faces[id] })
   const theme = useRoomTheme(channel, app.ctx?.server)
+  const gamesOn = GAMES_ON && channel.games_enabled !== false
+  const table = useTable(channel.id, meId, gamesOn)
+  const g = gamesOn && table.game
+  const gameFull = prefs.use(s => !!g && s.gameView?.[g.game] === 'full') // screen or full view, per person per game
+  const pickGame = e => openMenu(e, GAME_LIST.map(([id, label]) => ({ label, icon: 'cards', onClick: () => createGame(channel.id, id).then(r => r && table.refresh()) })))
 
   return (
-    <div className={`stage view-${view === 'list' ? 'list' : 'crowd'}`} onContextMenu={e => openMenu(e, viewItems)}>
+    <div className={`stage view-${view === 'list' ? 'list' : 'crowd'}${gameFull ? ' game-full' : ''}`} onContextMenu={e => openMenu(e, viewItems)}>
       <ThemeBackdrop theme={theme} variant="stadium" />
       <header className="chat-head room-head" style={roomVars(channel, app.ctx?.server)}>
         <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu"><Icon name="menu" /></button>
         <RoomTitle c={channel} />
       </header>
       <div className="stadium" ref={boxRef} style={crowd ? { '--floor': `${crowd.floor}px`, '--s': `${crowd.s}px` } : undefined}>
-        <div className={`stage-screen${main ? ' on' : ''}`} onContextMenu={main && !tiles ? streamMenu(main) : undefined}>
-          {tiles ? (
+        <div className={`stage-screen${main || g ? ' on' : ''}${g ? ' game' : ''}`} onContextMenu={main && !tiles && !g ? streamMenu(main) : undefined}>
+          {g ? (
+            <>
+              <Suspense fallback={null}>
+                <GameScreen table={table} meId={meId} joined={joined} full={gameFull} onFull={() => setPref('gameView', { ...prefs.get().gameView, [g.game]: gameFull ? 'screen' : 'full' })} />
+              </Suspense>
+              {shown.length > 0 && !gameFull && <div className="stage-thumbs game-thumbs">{shown.map(id => <div key={id} className="stage-thumb" onContextMenu={streamMenu(id)} title="Live"><Screen stream={all[id]} /></div>)}</div>}
+            </>
+          ) : tiles ? (
             <div className={`stage-tiles ${layout}`}>
               {shown.map(id => (
                 <div key={id} className="stage-tile" onContextMenu={streamMenu(id)}>
@@ -569,6 +584,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
         {joined && hidden.length > 0 && <button className="btn ghost" onClick={() => setHidden([])}><Icon name="eye" size={18} /> Show {hidden.length} hidden</button>}
         {joined && canShare && <button className={`btn ${live ? 'danger' : 'primary'}`} onClick={onLive}><Icon name={live ? 'stop' : 'screen'} size={18} /> {live ? 'Stop sharing' : 'Go live'}</button>}
         {joined && canCam && <button className={`btn ${cam ? 'danger' : 'primary'}`} onClick={onCam}><Icon name={cam ? 'camera-off' : 'camera'} size={18} /> {cam ? 'Camera off' : 'Camera'}</button>}
+        {joined && gamesOn && !g && <button className="btn primary" onClick={pickGame}><Icon name="cards" size={18} /> Games</button>}
       </div>
     </div>
   )

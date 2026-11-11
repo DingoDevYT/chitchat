@@ -75,7 +75,7 @@ export function useSlashCommands(ref, text, setText, channelId, serverId) {
   const [sel, setSel] = useState(0)
   const [closedFor, setClosedFor] = useState(null) // Escape hides it until the text changes
   const typing = !!serverId && text.startsWith('/')
-  useEffect(() => { if (typing) loadCommands(serverId) }, [typing, serverId])
+  useEffect(() => { if (serverId) loadCommands(serverId) }, [typing, serverId]) // on open (so a quick "/cmd" + Enter works), and each new "/"
   const s = typing && text !== closedFor ? suggest(text, list) : null
   const items = s?.items || EMPTY
   const cur = Math.min(sel, items.length - 1)
@@ -103,7 +103,8 @@ export function useSlashCommands(ref, text, setText, channelId, serverId) {
     },
     // Enter on a whole command runs it instead of sending. true = ran (clear the box), 'keep' = show the problem, false = send normally.
     submit(t) {
-      if (!serverId) return false
+      if (!serverId || !t.trim().startsWith('/')) return false
+      if (!registry.get()[serverId]) { loadCommands(serverId); toast('Loading commands… press Enter again in a moment.'); return 'keep' }
       const c = findCommand(t.trim(), list)
       if (!c) return false
       const r = parseCommand(t, c)

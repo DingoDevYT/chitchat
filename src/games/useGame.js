@@ -4,6 +4,8 @@ import { toast } from '../lib/store'
 
 // Feature flag: stadium games show only in dev builds until the owner has tried them. Flip to `true` to ship.
 export const GAMES_ON = import.meta.env.DEV
+// The Games picker (names match each rules module's meta.name; kept here so the picker doesn't load the rules).
+export const GAME_LIST = [['snack', 'Snack Stack'], ['property', 'Teacup Town'], ['poker', "Acorn Hold'em"], ['highcard', 'High card']]
 
 // Calls the `game` edge function (the referee). Resolves to its JSON, or null after toasting why it said no.
 export async function callGame(body, quiet = false) {

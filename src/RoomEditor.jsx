@@ -17,6 +17,7 @@ import ImageCropper from './ImageCropper'
 import ThemePicker from './themes/ThemePicker'
 import { RoomIcon, RoomName, RoomTint, RoomTitle, ensureFont, fontFamily, roomVars } from './Rooms'
 import Icon from './icons/Icon'
+import { GAMES_ON } from './games/useGame'
 
 const TOPIC_MAX = 200, WELCOME_MAX = 500
 
@@ -116,6 +117,7 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
   const [slow, setSlow] = useState(c0.slowmode_sec || 0)
   const [theme, setTheme] = useState(c0.theme ?? null)
   const [priv, setPriv] = useState(c0.private || false)
+  const [games, setGames] = useState(c0.games_enabled ?? true)
   const [allowed, setAllowed] = useState(new Set(c0.channel_members?.map(m => m.user_id) || []))
   const [busy, setBusy] = useState(false)
   const img = useImagePick(ctx.userId)
@@ -138,6 +140,7 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
     const look = {
       icon, topic: draft.topic, font: draft.font, accent: draft.accent, banner_url: banner.url, banner_crop: banner.url ? banner.crop : null,
       background_url: bg, background_dim: dim, welcome: welcome.trim() || null, slowmode_sec: slow, ...(themes && { theme }),
+      ...(GAMES_ON && kind === 'voice' && { games_enabled: games }),
     }
     let id = channel?.id
     if (!editing) {
@@ -211,6 +214,8 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
               {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select></label>
           )}
+          {GAMES_ON && kind === 'voice' && <label className="toggle"><input type="checkbox" checked={games} onChange={e => setGames(e.target.checked)} />
+            <span><Icon name="cards" size={14} /> Games: anyone here can open a game table</span></label>}
         </div>}
 
         {tab === 'look' && <div className="col">

@@ -153,23 +153,21 @@ export function move(s, pid, a) {
     return deal(pub, s.secret)
   }
   const stack = pub.stacks[pid], mine = pub.bets[pid] || 0, owe = pub.bet - mine
-  let bets = { ...pub.bets }, stacks = { ...pub.stacks }, put = { ...pub.put }, allin = { ...pub.allin }, folded = { ...pub.folded }
+  const bets = { ...pub.bets }, stacks = { ...pub.stacks }, put = { ...pub.put }, allin = { ...pub.allin }, folded = { ...pub.folded }
   let bet = pub.bet, minRaise = pub.minRaise, acted = { ...pub.acted, [pid]: true }
   const pay = amt => { amt = Math.min(amt, stacks[pid]); stacks[pid] -= amt; bets[pid] = (bets[pid] || 0) + amt; put[pid] = (put[pid] || 0) + amt; if (!stacks[pid]) allin[pid] = true }
   if (type === 'fold') folded[pid] = true
   else if (type === 'check') { if (owe > 0) throw new Error('You need to call or fold.') }
   else if (type === 'call') { if (owe <= 0) throw new Error('Nothing to call.'); pay(owe) }
+  else if (type === 'allin' && mine + stack <= bet) pay(stack) // all in for less than the bet: just a short call
   else if (type === 'raise' || type === 'allin') {
     const to = type === 'allin' ? mine + stack : Math.floor(a.to)
-    if (type === 'allin' && to <= bet) pay(stack) // all in for less than the bet: just a short call
-    else {
     if (!(to > bet)) throw new Error('Raise above the current bet.')
     if (to > mine + stack) throw new Error("You don't have that many acorns.")
     if (to < bet + minRaise && to < mine + stack) throw new Error(`Raise to at least ${bet + minRaise}.`)
     pay(to - mine)
     if (to - bet >= minRaise) { minRaise = to - bet; acted = { [pid]: true } } // a full raise reopens the betting
-    bet = Math.max(bet, to)
-    }
+    bet = to
   } else throw new Error('Fold, check, call or raise.')
   const p = { ...pub, bets, stacks, put, allin, folded, bet, minRaise, acted, last: { pid, type, amt: bets[pid] || 0 } }
   const s2 = { ...s, pub: p }

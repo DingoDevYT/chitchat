@@ -49,7 +49,7 @@ export default function Docs() {
         <button className="icon-btn docs-menu-btn" onClick={() => setMenu(m => !m)} aria-label="Pages" aria-expanded={menu}><Icon name="menu" /></button>
         <a href="#/docs" className="docs-brand"><Critter size={30} color="#ff9f6b" /> <span>Chitchat <b>plugin docs</b></span></a>
         <span className="spacer" />
-        <a className="btn ghost small" href="#/">Back to Chitchat</a>
+        <a className="btn ghost small" href="#/">Back<span className="docs-hide-sm"> to Chitchat</span></a>
       </header>
       <div className="docs-wrap">
         <nav className={`docs-nav${menu ? ' open' : ''}`} aria-label="Docs pages">
