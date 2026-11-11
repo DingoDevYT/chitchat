@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { supabase } from './lib/supabase'
 import { createStore, prefs, profiles, refreshProfile, setPref, toast, useProfile } from './lib/store'
 import Avatar, { Name, CustomStatus } from './Avatar'
+import { LastSeen } from './ChatCues'
+import { InStadium, LiveTag } from './VoiceCues'
 import { acceptFriend, addFriend, friendships, friendStatus, removeFriend } from './Friends'
 import { RoleChips, useCanKick } from './Roles'
 import { block, unblock, useBlocked } from './lib/blocks'
@@ -83,11 +85,13 @@ function Card({ id, role, ctx, onClose }) {
   return (
     <>
       <div className="profile-banner" style={{ background: p?.color }} />
-      <div className="profile-av"><Avatar id={id} size={72} status /></div>
-      <h3><Name id={id} serverId={ctx.server?.id} /> {ROLE_BADGE[role]}</h3>
+      <div className="profile-av"><Avatar id={id} size={72} status vbadge /></div>
+      <h3><Name id={id} serverId={ctx.server?.id} /> {ROLE_BADGE[role]}<LiveTag id={id} /></h3>
+      <InStadium id={id} ctx={ctx} />
       <div className="muted small">@{p?.username}</div>
       {role && <RoleChips ctx={ctx} uid={id} />}
       <CustomStatus id={id} className="profile-cs" />
+      {!self && <LastSeen id={id} />}
       {p?.bio && <p className="bio">{p.bio}</p>}
       <div className="col">
         {self && <button className="btn ghost" onClick={() => { ctx.setModal({ type: 'settings' }); onClose() }}>Edit profile</button>}

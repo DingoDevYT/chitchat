@@ -5,6 +5,7 @@ import { channelMuted, isMuted, muteValue, MUTE_FOR } from './lib/mute'
 import { openProfile } from './ProfileCard'
 import { acceptFriend, addFriend, friendStatus, removeFriend } from './Friends'
 import { block, isBlocked, unblock } from './lib/blocks'
+import { canKickNow } from './Roles'
 
 // shortcut: Shell copies its ctx/members/channels here every render so menus opened deep in the tree
 // (messages, stadium seats, friends) need no prop drilling. Move to a context if it ever needs to re-render things.
@@ -82,7 +83,7 @@ export function personItems(id, el) {
     ctx.server && !self && my === 'owner' && role === 'member' && { label: 'Make admin', icon: '⭐', onClick: () => setRole('admin') },
     ctx.server && !self && my === 'owner' && role === 'admin' && { label: 'Remove admin', icon: '☆', onClick: () => setRole('member') },
     // the database enforces rank (no kicking people above you); this just hides the item when it can't work
-    ctx.server && role && !self && role !== 'owner' && (my === 'owner' || ctx.can?.('kick_members')) &&
+    canKickNow(ctx, id, role) &&
       { label: `Kick ${name}`, icon: '🚪', danger: true, onClick: kick },
     ...extras('person', id),
   ]

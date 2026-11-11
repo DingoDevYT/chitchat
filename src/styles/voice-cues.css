@@ -1,0 +1,48 @@
+/* Stadium cues: mute/deafen badges, speaking glow, peer connection state, live + "in a stadium" tags.
+   `body` prefix: the main styles.css loads after component CSS. */
+body { --warn: #f4b942; }
+@media (prefers-color-scheme: light) { body { --warn: #8a5a00; } }
+
+/* Muted / deafened: corner badge (top-right; the status dot owns bottom-right) and a dimmed face. */
+body .avatar .vbadge {
+  position: absolute; top: -3px; right: -3px; z-index: 1;
+  width: clamp(13px, 34%, 26px); aspect-ratio: 1; border-radius: 50%;
+  display: grid; place-items: center; font-style: normal; line-height: 1;
+  font-size: 10px; /* sized per context below */
+  border: 2px solid var(--bg-2);
+}
+body .avatar .vbadge.muted { background: color-mix(in srgb, var(--danger) 35%, var(--bg-3)); }
+body .avatar .vbadge.deaf { background: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+body .avatar.vdim > :not(.vbadge):not(.dot) { opacity: .55; filter: saturate(.6); transition: opacity .2s, filter .2s; }
+body .avatar.full .vbadge { top: 2px; right: 2px; }
+body .stage-seat .avatar .vbadge { width: 28px; font-size: 15px; }
+body .profile-av .avatar .vbadge { width: 24px; font-size: 13px; border-width: 3px; }
+body .voice-user .avatar .vbadge { width: 13px; font-size: 7px; border-width: 1px; top: -4px; right: -4px; }
+
+/* Sidebar roster: green ring while they talk (voice level, like the stage). */
+body .voice-user .avatar { transition: box-shadow .15s; }
+body .voice-user.speaking .avatar { box-shadow: 0 0 0 2px var(--mint), 0 0 8px 1px var(--mint); }
+body .voice-user .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .voice-user > :is(.live-tag, .peer-st) { flex: none; }
+
+/* Peer connection state */
+body .peer-st { font-size: 11px; color: var(--muted); white-space: nowrap; }
+body .peer-st.connecting { animation: peer-pulse 1.2s ease-in-out infinite; }
+body .peer-st.failed { color: var(--warn); font-weight: 700; cursor: help; }
+body .stage-seat .peer-st { padding: 1px 8px; border-radius: 999px; background: var(--bg-2); }
+@keyframes peer-pulse { 50% { opacity: .35; } }
+
+/* Small live tag beside names */
+body .live-tag { font-size: 9.5px; padding: 1px 6px; margin-left: 4px; vertical-align: middle; flex: none; }
+
+/* "🏟️ in Hangout" under names */
+body .in-stadium { color: var(--mint); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; text-align: left; }
+body .in-stadium.link { cursor: pointer; border-radius: 4px; }
+body .profile-card > .in-stadium { display: block; margin: 2px 0; }
+body .in-stadium.link:hover, body .in-stadium.link:focus-visible { text-decoration: underline; }
+body .in-stadium.link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  body .peer-st.connecting { animation: none; opacity: .7; }
+  body .voice-user .avatar, body .avatar.vdim > * { transition: none; }
+}

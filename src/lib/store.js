@@ -70,6 +70,11 @@ export const isDND = () => myStatus.get() === 'dnd'
 export const streams = createStore({})
 // ── webcams in the stadium you're in, same shape ──
 export const cams = createStore({})
+// ── WebRTC link to each peer in the stadium you joined: userId -> 'connecting' | 'connected' | 'failed' ──
+export const peerState = createStore({})
+export function setPeerState(id, st) {
+  if ((peerState.get()[id] || null) !== st) peerState.set(s => { const n = { ...s }; if (st) n[id] = st; else delete n[id]; return n })
+}
 export function dropStream(id, ms, store = streams) {
   if (store.get()[id] === ms) store.set(s => { const n = { ...s }; delete n[id]; return n })
 }
@@ -89,6 +94,7 @@ const defaults = {
   micId: '', speakerId: '', camId: '', inVol: 1, outVol: 1, peerVol: {},
   vadAuto: true, vadThreshold: 50, ptt: false, pttKey: 'Backquote', ns: true, ec: true, agc: true,
   normalise: true, ttsHear: true, // stadiums: level remote voices; read out others' 🔊 TTS messages
+  joinSounds: true, // soft chime when someone joins/leaves the stadium you're in
 }
 function loadPrefs() {
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(PREFS_KEY)) } } catch { return defaults }

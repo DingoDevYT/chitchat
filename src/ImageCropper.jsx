@@ -2,17 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Modal from './Modal'
 import { CropImg } from './Avatar'
-import { MAX_ZOOM, clampCrop, cropBox, isAnimatedWebp, zoomCrop } from './lib/crop'
+import { BANNER_FA, MAX_ZOOM, clampCrop, cropBox, isAnimatedWebp, zoomCrop } from './lib/crop'
 import './styles/cropper.css'
 
 const PREVIEWS = {
   circle: [[42, 'Chat', '50%'], [116, 'Stadium', '50%']],
   square: [[48, 'Server list', '16px'], [64, 'Settings', '18px']],
+  banner: [[200, 'Server card', '14px']],
 }
 
 // Crop popup for avatar-like images. Calls onApply({ file, crop, preview }):
-// static images come back as a cropped 512px square (crop null); animated ones as the original file plus CSS framing.
+// static images come back as a cropped 512px square (banner: 1000x400) with crop null; animated ones as the original file plus CSS framing.
 export default function ImageCropper({ file, shape = 'circle', title = 'Crop image', onCancel, onApply }) {
+  const fa = shape === 'banner' ? BANNER_FA : 1
   const [url] = useState(() => URL.createObjectURL(file))
   const [animated, setAnimated] = useState(file.type === 'image/gif')
   const [crop, setCrop] = useState(null)
@@ -64,12 +66,12 @@ export default function ImageCropper({ file, shape = 'circle', title = 'Crop ima
     setBusy(true)
     try {
       if (animated) { applied.current = true; return await onApply({ file, crop, preview: url }) }
-      const S = 512, cv = document.createElement('canvas'), g = cv.getContext('2d'), b = cropBox(crop)
-      cv.width = cv.height = S
+      const S = fa === 1 ? 512 : 1000, H = S / fa, cv = document.createElement('canvas'), g = cv.getContext('2d'), b = cropBox(crop)
+      cv.width = S; cv.height = H
       g.imageSmoothingQuality = 'high'
-      g.translate((b.left + b.w / 2) / 100 * S, (b.top + b.h / 2) / 100 * S)
+      g.translate((b.left + b.w / 2) / 100 * S, (b.top + b.h / 2) / 100 * H)
       g.rotate(b.rot * Math.PI / 180)
-      g.drawImage(img.current, -b.w / 200 * S, -b.h / 200 * S, b.w / 100 * S, b.h / 100 * S)
+      g.drawImage(img.current, -b.w / 200 * S, -b.h / 200 * H, b.w / 100 * S, b.h / 100 * H)
       const blob = await new Promise(r => cv.toBlob(r, 'image/webp', 0.9))
       const out = new File([blob], blob.type === 'image/webp' ? 'avatar.webp' : 'avatar.png', { type: blob.type })
       await onApply({ file: out, crop: null, preview: URL.createObjectURL(out) })
@@ -84,7 +86,7 @@ export default function ImageCropper({ file, shape = 'circle', title = 'Crop ima
           onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onKeyDown={key}>
           <img ref={img} src={url} alt="" draggable="false" style={b ? {
             width: b.w + '%', height: b.h + '%', left: b.left + '%', top: b.top + '%', transform: `rotate(${b.rot}deg)`,
-          } : { opacity: 0 }} onLoad={e => setCrop(clampCrop({ ar: e.currentTarget.naturalWidth / e.currentTarget.naturalHeight }))} />
+          } : { opacity: 0 }} onLoad={e => setCrop(clampCrop({ fa, ar: e.currentTarget.naturalWidth / e.currentTarget.naturalHeight }))} />
           <i className="crop-mask" />
         </div>
 
@@ -92,7 +94,7 @@ export default function ImageCropper({ file, shape = 'circle', title = 'Crop ima
           <div className="crop-previews">
             {crop && PREVIEWS[shape].map(([s, label, r]) => (
               <figure key={label}>
-                <span className="crop-prev" style={{ width: s, height: s, borderRadius: r }}><CropImg src={url} crop={crop} /></span>
+                <span className="crop-prev" style={{ width: s, height: s / fa, borderRadius: r }}><CropImg src={url} crop={crop} /></span>
                 <figcaption className="muted small">{label}</figcaption>
               </figure>
             ))}
@@ -102,7 +104,7 @@ export default function ImageCropper({ file, shape = 'circle', title = 'Crop ima
               onChange={e => setCrop(c => c && zoomCrop(c, +e.target.value))} /></label>
           <div className="row">
             <button type="button" className="btn ghost small" onClick={() => setCrop(c => c && clampCrop({ ...c, rot: c.rot + 90 }))}>↻ Rotate</button>
-            <button type="button" className="btn ghost small" onClick={() => setCrop(c => c && clampCrop({ ar: c.ar }))}>Reset</button>
+            <button type="button" className="btn ghost small" onClick={() => setCrop(c => c && clampCrop({ ar: c.ar, fa }))}>Reset</button>
           </div>
           {animated && <p className="muted small">Animated image: it stays animated, we just remember how it's framed.</p>}
         </div>

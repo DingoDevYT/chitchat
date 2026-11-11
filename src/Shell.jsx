@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { ensureProfiles, prefs, startProfileSync, toast, toasts, useProfile } from './lib/store'
 import { startPresence, trackVoice } from './lib/presence'
@@ -19,9 +19,12 @@ import QuickSwitch from './QuickSwitch'
 import { CreateJoinModal, ServerSettingsModal, ChannelModal, NewDMModal } from './Modals'
 import Settings from './Settings'
 import { ThreadPanel } from './Thread'
+import ServerRail from './ServerCards'
 import ContextMenuHost, { openMenu } from './ContextMenu'
 import { app, dmHidden, serverItems } from './menus'
-import { channelMuted, nextExpiry } from './lib/mute'
+import { blockedDM, channelMuted, nextExpiry } from './lib/mute'
+import { blocks } from './lib/blocks'
+import { ConnBanner, conn, reportRealtime, startConnWatch, startLastSeen } from './ChatCues'
 
 function parseHash() {
   const [, kind, a, b] = location.hash.split('/')
@@ -34,6 +37,8 @@ export default function Shell({ userId }) {
   const me = useProfile(userId)
   const [servers, setServers] = useState(null)
   const [channels, setChannels] = useState([])
+  const chRef = useRef(channels)
+  chRef.current = channels
   const [reads, setReads] = useState({})
   const [route, setRoute] = useState(parseHash)
   const [modal, setModal] = useState(null)
@@ -42,12 +47,15 @@ export default function Shell({ userId }) {
   const joinVoice = c => { setVoice(c); setVstate(v => ({ ...v, live: false, cam: false })) }
   // Others see your muted/deafened avatar expressions.
   useEffect(() => { trackVoice({ muted: !!voice && vstate.muted, deaf: !!voice && vstate.deafened }) }, [voice, vstate.muted, vstate.deafened])
+  // Hang up if the stadium goes away under you (deleted, kicked, server deleted).
+  useEffect(() => { if (voice && !channels.some(c => c.id === voice.id)) setVoice(null) }, [voice, channels])
   const [navOpen, setNavOpen] = useState(false)
   const [visible, setVisible] = useState(!document.hidden)
   const showMembers = prefs.use(s => s.showMembers)
   const toastList = toasts.use()
   const mutes = prefs.use(s => s.mutes)
   const closedDMs = prefs.use(s => s.closedDMs)
+  const blocked = blocks.use()
   const [hold, setHold] = useState(null) // channel marked unread by hand: don't auto-read it while it stays open
   const [tick, setTick] = useState(0) // re-renders when a timed mute runs out
   useEffect(() => {
@@ -93,6 +101,11 @@ export default function Shell({ userId }) {
   useEffect(() => startPresence(userId), [userId])
   useEffect(startProfileSync, [])
   useEffect(() => startFriends(userId), [userId])
+  useEffect(() => startLastSeen(userId), [userId])
+  useEffect(startConnWatch, [])
+  // Back from offline / a dropped socket: reload channels and unreads (the open Chat refetches its messages).
+  const epoch = conn.use(s => s.epoch)
+  useEffect(() => { if (epoch) load() }, [epoch, load])
   const incoming = useIncomingCount()
   const hasFriends = friendships.use(r => r.length > 0)
 
@@ -123,24 +136,32 @@ export default function Shell({ userId }) {
 
   // Live updates to the channel list, unread markers and server membership.
   useEffect(() => {
+    const add = async ({ new: row }) => {
+      const { data } = await supabase.from('channels').select('*, channel_members(user_id)').eq('id', row.id).maybeSingle()
+      if (!data) return
+      setChannels(cs => cs.some(c => c.id === data.id) ? cs : [...cs, data])
+      ensureProfiles(data.channel_members.map(m => m.user_id))
+    }
     const ch = supabase.channel('shell')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'channels' }, async ({ new: row }) => {
-        const { data } = await supabase.from('channels').select('*, channel_members(user_id)').eq('id', row.id).maybeSingle()
-        if (!data) return
-        setChannels(cs => cs.some(c => c.id === data.id) ? cs : [...cs, data])
-        ensureProfiles(data.channel_members.map(m => m.user_id))
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'channels' }, ({ new: row }) =>
-        setChannels(cs => cs.map(c => c.id === row.id ? { ...c, ...row } : c)))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'channels' }, add)
+      // an UPDATE for a channel we don't have yet means we were just given access to a private one
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'channels' }, e => chRef.current.some(c => c.id === e.new.id)
+        ? setChannels(cs => cs.map(c => c.id === e.new.id ? { ...c, ...e.new } : c)) : add(e))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'channels' }, ({ old }) =>
         setChannels(cs => cs.filter(c => c.id !== old.id)))
+      // removed from a private channel: drop it if we can't see it any more (admins still can)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'channel_members' }, async ({ old }) => {
+        if (old.user_id !== userId) return
+        const { data } = await supabase.from('channels').select('id').eq('id', old.channel_id).maybeSingle()
+        if (!data) setChannels(cs => cs.filter(c => c.id !== old.channel_id))
+      })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'servers' }, ({ new: row }) =>
         setServers(ss => ss && ss.map(s => s.id === row.id ? { ...s, ...row } : s)))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'members' }, ({ old }) => {
         if (old.user_id === userId) load()
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'members', filter: `user_id=eq.${userId}` }, () => load())
-      .subscribe()
+      .subscribe(reportRealtime)
     return () => { supabase.removeChannel(ch) }
   }, [userId, load])
 
@@ -214,15 +235,47 @@ export default function Shell({ userId }) {
 
   // Muted channels/servers/DMs never count as unread (no dot, badge or tab-title count).
   const isUnread = useCallback(c => c.kind !== 'voice' && (c.last_message_id || 0) > (reads[c.id] ?? 0) &&
-    !(c.id === channel?.id && visible && hold !== c.id) && !channelMuted(mutes, c),
-  [reads, channel?.id, visible, hold, mutes, tick]) // eslint-disable-line react-hooks/exhaustive-deps
-  const unreadServers = useMemo(() => new Set(channels.filter(c => c.server_id && c.kind !== 'thread' && isUnread(c)).map(c => c.server_id)), [channels, isUnread])
+    !(c.id === channel?.id && visible && hold !== c.id) && !channelMuted(mutes, c) && !blockedDM(blocked, c, userId),
+  [reads, channel?.id, visible, hold, mutes, tick, blocked, userId]) // eslint-disable-line react-hooks/exhaustive-deps
+  // server id -> number of unread channels (a Map, so .has/.size read like the old Set)
+  const unreadServers = useMemo(() => {
+    const m = new Map()
+    for (const c of channels) if (c.server_id && c.kind !== 'thread' && isUnread(c)) m.set(c.server_id, (m.get(c.server_id) || 0) + 1)
+    return m
+  }, [channels, isUnread])
   const unreadDMs = dms.filter(isUnread).length
 
+  // Red badges: @mentions of you (DMs: every unread message), from mention_counts(). Refetched (debounced) whenever
+  // any channel gets a new message or a read state changes, since Shell only sees channels.last_message_id move.
+  const [mentions, setMentions] = useState({})
+  const lastAny = useMemo(() => channels.reduce((m, c) => Math.max(m, c.last_message_id || 0), 0), [channels])
   useEffect(() => {
-    const n = unreadDMs + unreadServers.size
+    const t = setTimeout(() => supabase.rpc('mention_counts').then(({ data }) => {
+      if (data) setMentions(Object.fromEntries(data.map(r => [r.channel_id, Number(r.count)])))
+    }), 700)
+    return () => clearTimeout(t)
+  }, [lastAny, reads])
+  // Mutes hide the unread dot but not mentions (like Discord); muted/blocked DMs stay quiet (their count is every message).
+  const mentionOf = useCallback(c => {
+    const n = mentions[c.id] || 0
+    if (!n || (c.last_message_id || 0) <= (reads[c.id] ?? 0) || (c.id === channel?.id && visible && hold !== c.id)) return 0
+    if (c.kind === 'dm' && (channelMuted(mutes, c) || blockedDM(blocked, c, userId))) return 0
+    return n
+  }, [mentions, reads, channel?.id, visible, hold, mutes, tick, blocked, userId]) // eslint-disable-line react-hooks/exhaustive-deps
+  // server id -> mention count; the rail cards read it (prop), and ctx.serverMentions for anyone else
+  const serverMentions = useMemo(() => {
+    const m = new Map()
+    for (const c of channels) if (c.server_id && c.kind !== 'thread') { const n = mentionOf(c); if (n) m.set(c.server_id, (m.get(c.server_id) || 0) + n) }
+    return m
+  }, [channels, mentionOf])
+  const mentionTotal = [...serverMentions.values()].reduce((a, b) => a + b, 0)
+  // Unread DMs as rail cards (newest first, max 4); dms already drops closed ones, isUnread muted/blocked/open ones.
+  const dmCards = useMemo(() => dms.filter(isUnread).slice(0, 4).map(c => ({ c, count: Math.max(1, mentionOf(c)) })), [dms, isUnread, mentionOf])
+
+  useEffect(() => {
+    const n = unreadDMs + unreadServers.size + mentionTotal
     document.title = n ? `(${n}) Chitchat` : 'Chitchat'
-  }, [unreadDMs, unreadServers.size])
+  }, [unreadDMs, unreadServers.size, mentionTotal])
 
   // Server rail: everyone drags their own order; Ctrl+Alt+↑/↓ switches servers.
   const railDrag = useDrag({
@@ -256,25 +309,13 @@ export default function Shell({ userId }) {
   if (!me || !servers) return <Splash />
 
   const ctx = { me, userId, server, role, can: perm => !!server && hasPerm(roleData, role, userId, perm), go, openDM, setModal, load, setChannels, markRead, markUnread, joinVoice,
-    threads, threadsByMsg, startThread, openThread: setThreadId, channels }
+    threads, threadsByMsg, startThread, openThread: setThreadId, channels, reads, mentionOf, serverMentions }
   Object.assign(app, { ctx, members, channels })
 
   return (
     <div className={`app${navOpen ? ' nav-open' : ''}${server && showMembers ? ' with-members' : ''}`}>
-      <nav className="rail" aria-label="Servers">
-        <button className={`rail-btn home${!route.serverId ? ' active' : ''}`} onClick={() => go(null, dms[0]?.id)} title="Direct messages">
-          <span>💬</span>{unreadDMs + incoming > 0 && <b className="badge">{unreadDMs + incoming}</b>}
-        </button>
-        <hr />
-        {servers.map(s => (
-          <button key={s.id} className={`rail-btn${s.id === route.serverId ? ' active' : ''}${unreadServers.has(s.id) ? ' unread' : ''}${railDrag.cls('server', s.id)}`}
-            {...railDrag.item('server', s.id)} {...railDrag.zone('server', s.id)}
-            onClick={() => go(s.id)} onContextMenu={e => openMenu(e, () => serverItems(s))} title={s.name}>
-            {s.icon_url ? <CropImg src={s.icon_url} crop={s.icon_crop} /> :<span>{s.name.split(/\s+/).map(w => w[0]).join('').slice(0, 3)}</span>}
-          </button>
-        ))}
-        <button className="rail-btn add" onClick={() => setModal({ type: 'createJoin' })} title="Create or join a server">＋</button>
-      </nav>
+      <ServerRail servers={servers} serverId={route.serverId} go={go} dms={dms} dmBadge={unreadDMs + incoming} unread={unreadServers}
+        railDrag={railDrag} onAdd={() => setModal({ type: 'createJoin' })} channels={channels} mentions={serverMentions} dmCards={dmCards} userId={userId} />
 
       <Sidebar ctx={ctx} channels={server ? serverChannels : dms} current={channel} isUnread={isUnread}
         voice={voice} vstate={vstate} setVstate={setVstate} onLeaveVoice={() => joinVoice(null)} />
@@ -288,7 +329,7 @@ export default function Shell({ userId }) {
           </StadiumChat>
           : channel
             ? <Chat key={channel.id} channel={channel} ctx={ctx} members={members} onMenu={() => setNavOpen(true)} />
-            : !server && (servers.length > 0 || hasFriends)
+            : !server && (servers.length > 0 || hasFriends || location.hash.startsWith('#/dm')) // #/dm = picked Friends, even with none yet
               ? <FriendsHome ctx={ctx} onMenu={() => setNavOpen(true)} />
               : <Welcome ctx={ctx} onMenu={() => setNavOpen(true)} hasServers={servers.length > 0} />}
         {thread && channel?.kind !== 'voice' && <ThreadPanel key={thread.id} thread={thread} ctx={ctx} onClose={closeThread} />}
@@ -309,6 +350,7 @@ export default function Shell({ userId }) {
       {modal?.type === 'newDM' && <NewDMModal ctx={ctx} onClose={() => setModal(null)} />}
       {modal?.type === 'settings' && <Settings me={me} tab={modal.tab} onClose={() => setModal(null)} />}
 
+      <ConnBanner />
       <div className="toasts" aria-live="polite">
         {toastList.map(t => <div key={t.id} className="toast pop">{t.text}</div>)}
       </div>
@@ -328,6 +370,7 @@ function Welcome({ ctx, onMenu, hasServers }) {
         <div className="row">
           <button className="btn primary" onClick={() => ctx.setModal({ type: 'createJoin' })}>Create or join a server</button>
           <button className="btn ghost" onClick={() => ctx.setModal({ type: 'newDM' })}>Message a friend</button>
+          <button className="btn ghost" onClick={() => ctx.go(null)}>Add a friend</button>
         </div>
         <p className="muted small">Tip: press <kbd>Ctrl</kbd> + <kbd>K</kbd> to jump anywhere.</p>
       </div>

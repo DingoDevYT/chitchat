@@ -77,6 +77,8 @@ export default function VoiceSettings() {
           <span>Normalise voices <span className="muted small">· evens out quiet and loud people in stadiums</span></span></label>
         <label className="toggle"><input type="checkbox" checked={p.ttsHear} onChange={e => setPref('ttsHear', e.target.checked)} />
           <span>Read 🔊 TTS messages aloud in stadiums I've joined</span></label>
+        <label className="toggle"><input type="checkbox" checked={p.joinSounds} onChange={e => setPref('joinSounds', e.target.checked)} />
+          <span>Join/leave sounds <span className="muted small">· a soft chime when someone joins or leaves your stadium</span></span></label>
       </div>
 
       {canCam && (

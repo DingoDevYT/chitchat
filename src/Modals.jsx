@@ -10,6 +10,7 @@ import Avatar, { CropImg } from './Avatar'
 import ImageCropper from './ImageCropper'
 import EmojiSettings from './EmojiSettings'
 import { RolesTab } from './Roles'
+import { AppearanceTab } from './ServerCards'
 
 export function CreateJoinModal({ ctx, onClose, joinInvite }) {
   const [tab, setTab] = useState('create')
@@ -19,6 +20,7 @@ export function CreateJoinModal({ ctx, onClose, joinInvite }) {
 
   async function create(e) {
     e.preventDefault()
+    if (!name.trim()) return toast('Give your server a name.')
     setBusy(true)
     const { data, error } = await supabase.from('servers').insert({ name: name.trim(), owner_id: ctx.userId }).select().single()
     setBusy(false)
@@ -71,6 +73,7 @@ export function ServerSettingsModal({ ctx, onClose }) {
 
   async function save(e) {
     e.preventDefault()
+    if (!name.trim()) return toast('Give your server a name.')
     const { error } = await supabase.from('servers').update({ name: name.trim() }).eq('id', server.id)
     if (error) return toast(error.message)
     await ctx.load()
@@ -106,11 +109,14 @@ export function ServerSettingsModal({ ctx, onClose }) {
 
   return (
     <Modal title="Server settings" onClose={onClose}>
-      <div className="tabs">
+      {/* General and Emoji need manage_server; without it the database silently ignores the save */}
+      {ctx.can('manage_server') && <div className="tabs">
         <button className={tab === 'general' ? 'on' : ''} onClick={() => setTab('general')}>General</button>
+        <button className={tab === 'appearance' ? 'on' : ''} onClick={() => setTab('appearance')}>Appearance</button>
         <button className={tab === 'emoji' ? 'on' : ''} onClick={() => setTab('emoji')}>Emoji</button>
         <button className={tab === 'roles' ? 'on' : ''} onClick={() => setTab('roles')}>Roles</button>
-      </div>
+      </div>}
+      {tab === 'appearance' && <AppearanceTab ctx={ctx} />}
       {tab === 'emoji' && <EmojiSettings ctx={ctx} />}
       {tab === 'roles' && <RolesTab ctx={ctx} />}
       <form onSubmit={save} className="col" style={tab !== 'general' ? { display: 'none' } : undefined}>
@@ -137,28 +143,35 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
   const [kind, setKind] = useState(channel?.kind || 'text')
   const [priv, setPriv] = useState(channel?.private || false)
   const [allowed, setAllowed] = useState(new Set(channel?.channel_members?.map(m => m.user_id) || []))
+  const [busy, setBusy] = useState(false)
 
   const cleanName = n => kind === 'text' ? n.toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '') : n
 
   async function save(e) {
     e.preventDefault()
     const n = cleanName(name.trim())
-    if (!n) return
+    if (!n) return toast('Use at least one letter or number in the name.')
+    if (busy) return
+    setBusy(true)
+    const fail = msg => { setBusy(false); toast(msg) }
     let id = channel?.id
-    if (editing) {
-      const { error } = await supabase.from('channels').update({ name: n, private: priv, category_id: cat || null }).eq('id', id)
-      if (error) return toast(error.message)
-    } else {
+    if (!editing) {
       const { data, error } = await supabase.from('channels')
         .insert({ server_id: ctx.server.id, name: n, kind, private: priv, position: Date.now() % 1e9, category_id: cat || null }).select().single()
-      if (error) return toast(error.message)
+      if (error) return fail(error.message)
       id = data.id
     }
     if (priv) {
       const before = new Set(channel?.channel_members?.map(m => m.user_id) || [])
       const add = [...allowed].filter(u => !before.has(u)), drop = [...before].filter(u => !allowed.has(u))
-      if (add.length) await supabase.from('channel_members').insert(add.map(user_id => ({ channel_id: id, user_id })))
-      if (drop.length) await supabase.from('channel_members').delete().eq('channel_id', id).in('user_id', drop)
+      const r1 = add.length ? await supabase.from('channel_members').insert(add.map(user_id => ({ channel_id: id, user_id }))) : {}
+      const r2 = drop.length ? await supabase.from('channel_members').delete().eq('channel_id', id).in('user_id', drop) : {}
+      if (r1.error || r2.error) return fail((r1.error || r2.error).message)
+    }
+    // Update after access changes: the UPDATE event is what tells newly added people the channel exists (see Shell).
+    if (editing || (priv && allowed.size)) {
+      const { error } = await supabase.from('channels').update({ name: n, private: priv, category_id: cat || null }).eq('id', id)
+      if (error) return fail(error.message)
     }
     await ctx.load()
     if (!editing) ctx.go(ctx.server.id, id)
@@ -206,7 +219,7 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
             ))}
           </div>
         )}
-        <button className="btn primary">{editing ? 'Save' : 'Create channel'}</button>
+        <button className="btn primary" disabled={busy}>{editing ? 'Save' : 'Create channel'}</button>
         {editing && <button type="button" className="btn danger" onClick={destroy}>Delete channel</button>}
       </form>
     </Modal>

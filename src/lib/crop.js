@@ -1,6 +1,8 @@
 // Crop math shared by the cropper, canvas export and CSS framing of animated avatars.
 // crop = { x, y, zoom, rot, ar }: image centre offset from the frame centre in frame widths,
-// zoom >= 1 (1 = image just covers the frame), rot in 90° steps, ar = image width / height.
+// zoom >= 1 (1 = image just covers the frame), rot in 90° steps, ar = image width / height,
+// fa = frame width / height (omitted = 1, a square; server banners use BANNER_FA).
+export const BANNER_FA = 2.5
 
 export const MAX_BYTES = 8 * 1024 * 1024
 export const MAX_ZOOM = 5
@@ -23,7 +25,7 @@ const num = (v, d) => (Number.isFinite(+v) ? +v : d)
 // Displayed (rotated) image size in frame widths.
 function shown(c) {
   const [w, h] = c.rot % 180 ? [1, c.ar] : [c.ar, 1]
-  const k = c.zoom / Math.min(w, h)
+  const k = c.zoom * Math.max(1 / w, 1 / (c.fa || 1) / h) // cover a 1 x 1/fa frame
   return [w * k, h * k]
 }
 
@@ -31,8 +33,10 @@ function shown(c) {
 export function clampCrop(crop) {
   const c = { ar: Math.max(0.01, num(crop?.ar, 1)), zoom: Math.min(MAX_ZOOM, Math.max(1, num(crop?.zoom, 1))) }
   c.rot = ((Math.round(num(crop?.rot, 0) / 90) * 90) % 360 + 360) % 360
+  const fa = Math.min(5, Math.max(0.2, num(crop?.fa, 1)))
+  if (fa !== 1) c.fa = fa
   const [dw, dh] = shown(c)
-  const mx = (dw - 1) / 2, my = (dh - 1) / 2
+  const mx = (dw - 1) / 2, my = (dh - 1 / fa) / 2
   c.x = Math.min(mx, Math.max(-mx, num(crop?.x, 0)))
   c.y = Math.min(my, Math.max(-my, num(crop?.y, 0)))
   return c
@@ -48,5 +52,6 @@ export function cropBox(crop) {
   const c = clampCrop(crop)
   const [dw, dh] = shown(c)
   const [ew, eh] = c.rot % 180 ? [dh, dw] : [dw, dh]
-  return { w: ew * 100, h: eh * 100, left: (0.5 + c.x - ew / 2) * 100, top: (0.5 + c.y - eh / 2) * 100, rot: c.rot }
+  const fa = c.fa || 1 // vertical values are in frame widths: scale them to % of the frame height
+  return { w: ew * 100, h: eh * fa * 100, left: (0.5 + c.x - ew / 2) * 100, top: (0.5 + (c.y - eh / 2) * fa) * 100, rot: c.rot }
 }

@@ -11,6 +11,8 @@
 .crop-mask { position: absolute; inset: 0; pointer-events: none; border: 2px solid #fff8; }
 .crop-frame.circle .crop-mask { border-radius: 50%; box-shadow: 0 0 0 200px #0008; }
 .crop-frame.square .crop-mask { border-radius: var(--r-lg); }
+.crop-frame.banner { width: min(420px, 100%); aspect-ratio: 2.5; }
+.crop-frame.banner .crop-mask { border-radius: var(--r); }
 .crop-side { flex: 1 1 180px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .crop-previews { display: flex; gap: 16px; align-items: flex-end; justify-content: center; min-height: 140px; }
 .crop-previews figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }

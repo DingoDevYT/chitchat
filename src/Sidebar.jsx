@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { online, prefs, pttDown, setPref, toast, useProfile } from './lib/store'
+import { online, prefs, pttDown, setPref, talking, toast, useProfile } from './lib/store'
 import { setCategories, useCategories } from './lib/categories'
 import { applyItems, byPosition, groupChannels, moveCategory, moveChannel, step } from './lib/reorder'
 import { useDrag } from './lib/useDrag'
@@ -9,16 +9,18 @@ import { keyLabel } from './lib/voice'
 import Avatar, { Name, CustomStatus } from './Avatar'
 import MeStatus, { MeSub } from './StatusPicker'
 import { canShare, canCam } from './Voice'
+import { InStadium, LiveTag, PeerState } from './VoiceCues'
 import { useIncomingCount } from './Friends'
 import { openMenu } from './ContextMenu'
 import { channelItems, chanMuted, dmItems, personMenu, serverItems } from './menus'
+import { MentionBadge } from './ChatCues'
 
 export function dmTitle(channel, meId, profileMap) {
   const others = channel.channel_members.map(m => m.user_id).filter(id => id !== meId)
   return others.map(id => profileMap[id]?.display_name || profileMap[id]?.username || '…').join(', ') || 'Just you'
 }
 
-function DMItem({ c, meId, active, unread, onClick }) {
+function DMItem({ c, meId, active, unread, onClick, ctx }) {
   const others = c.channel_members.map(m => m.user_id).filter(id => id !== meId)
   return (
     <button className={`ch-item dm${active ? ' active' : ''}${unread ? ' unread' : ''}${chanMuted(c) ? ' ch-muted' : ''}`} onClick={onClick}
@@ -29,8 +31,10 @@ function DMItem({ c, meId, active, unread, onClick }) {
           {others.length ? others.map((id, i) => <span key={id}>{i > 0 && ', '}<NameText id={id} /></span>) : 'Just you'}
         </span>
         {others.length === 1 && <CustomStatus id={others[0]} />}
+        {others.length === 1 && <InStadium id={others[0]} ctx={ctx} />}
       </span>
       {others.length > 1 && <span className="muted small">{others.length + 1}</span>}
+      <MentionBadge n={ctx?.mentionOf?.(c)} />
     </button>
   )
 }
@@ -45,7 +49,16 @@ function VoiceRoster({ channelId }) {
   if (!ids) return null
   return (
     <div className="voice-roster">
-      {ids.split(',').map(id => <div key={id} className="voice-user" {...personMenu(id)}><Avatar id={id} size={22} /><Name id={id} /><CamOn id={id} /></div>)}
+      {ids.split(',').map(id => <VoiceUser key={id} id={id} />)}
+    </div>
+  )
+}
+
+function VoiceUser({ id }) {
+  const speaking = talking.use(s => !!s['v:' + id])
+  return (
+    <div className={`voice-user${speaking ? ' speaking' : ''}`} {...personMenu(id)}>
+      <Avatar id={id} size={22} vbadge mode="voice" /><Name id={id} /><LiveTag id={id} /><CamOn id={id} /><PeerState id={id} />
     </div>
   )
 }
@@ -157,6 +170,7 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
           <span className="ch-icon">{c.kind === 'voice' ? '🏟️' : '#'}</span>
           <span className="ch-name">{c.name}</span>
           {c.private && <span className="lock" title="Private">🔒</span>}
+          <MentionBadge n={ctx.mentionOf?.(c)} />
         </button>
         {isAdmin && <button className="ch-gear" onClick={() => setModal({ type: 'channel', channel: c })} aria-label={`Edit ${c.name}`}>⚙</button>}
       </div>
@@ -196,7 +210,7 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
           <button className="ch-item new-dm" onClick={() => setModal({ type: 'newDM' })}>✏️ <span className="ch-name">New message</span></button>
         </>}
         {!server && channels.map(c =>
-          <DMItem key={c.id} c={c} meId={userId} active={current?.id === c.id} unread={isUnread(c)} onClick={() => go(null, c.id)} />)}
+          <DMItem key={c.id} c={c} meId={userId} active={current?.id === c.id} unread={isUnread(c)} onClick={() => go(null, c.id)} ctx={ctx} />)}
         {server && drag.dragging?.type === 'channel' && !groups[0].channels.length && (
           <div className={`cat-drop-top${drag.cls('cat', '')}`} {...drag.zone('cat', '')}>No category</div>
         )}

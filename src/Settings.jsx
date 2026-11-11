@@ -62,6 +62,7 @@ export default function Settings({ me, onClose, tab: firstTab }) {
   const setVoice = (k, v) => setForm(f => ({ ...f, voice: { ...f.voice, [k]: v } }))
 
   async function save() {
+    if (!/^[a-z0-9_.]{2,32}$/.test(form.username)) return toast('Usernames need 2 to 32 letters, numbers, _ or .')
     const { data, error } = await supabase.from('profiles').update({
       ...form, username: form.username.toLowerCase(), display_name: form.display_name.trim() || null, bio: form.bio.trim() || null,
     }).eq('id', me.id).select().single()
@@ -126,10 +127,12 @@ export default function Settings({ me, onClose, tab: firstTab }) {
   }
 
   function testTalk() {
-    primeProfiles([{ ...me, ...form }]) // preview unsaved look on your own avatar
+    const prev = profiles.get()[me.id], preview = { ...prev, ...form }
+    primeProfiles([preview]) // preview unsaved look on your own avatar
     setTalking(me.id, true)
     sayPreview('Hiya! This is how I sound!', form.voice)
-    setTimeout(() => { setTalking(me.id, false); primeProfiles([me]) }, 1600)
+    // only undo the preview if nothing (a save, an upload) replaced it meanwhile
+    setTimeout(() => { setTalking(me.id, false); if (profiles.get()[me.id] === preview) primeProfiles([prev]) }, 1600)
   }
 
   return (
@@ -206,7 +209,7 @@ export default function Settings({ me, onClose, tab: firstTab }) {
           </div>
           <label>Pitch <input type="range" min="0.5" max="2" step="0.05" value={form.voice.pitch} onChange={e => setVoice('pitch', +e.target.value)} /></label>
           <label>Speed <input type="range" min="0.5" max="2" step="0.05" value={form.voice.speed} onChange={e => setVoice('speed', +e.target.value)} /></label>
-          <button className="btn ghost test-voice" onClick={testTalk}><Avatar id={me.id} size={28} /> Test my voice</button>
+          <button className="btn ghost test-voice" onClick={testTalk}><Avatar id={me.id} size={28} mode="voice" /> Test my voice</button>
           <div>Speak my TTS messages as
             <div className="tabs small">{[['animalese', 'Animalese'], ['real', 'Real voice']].map(([v, l]) =>
               <button key={v} className={(form.voice.tts || 'animalese') === v ? 'on' : ''} onClick={() => setVoice('tts', v)}>{l}</button>)}</div>

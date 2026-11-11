@@ -7,7 +7,7 @@ const RX = new RegExp([
   /~~([\s\S]+?)~~/.source,                            // 5 strike
   /\*([^*\n]+)\*/.source,                             // 6 italic
   /(?<!\w)_([^_\n]+)_(?!\w)/.source,                  // 7 italic, not inside snake_case
-  /(https?:\/\/[^\s<>]*[^\s<>().,!?:;'"])/.source,    // 8 url
+  /(https?:\/\/(?:\([^\s<>()]*\)|[^\s<>()])*(?:\([^\s<>()]*\)|[^\s<>().,!?:;'"()]))/.source, // 8 url; balanced (…) kept, as in wiki links
   /(?<![\w@])@([a-z0-9_.]{2,32})/.source,             // 9 mention, not inside emails
   /<(a?):([a-z0-9_]{2,32}):([0-9a-f-]{36})>/.source,  // 10-12 custom emoji <:name:id> / <a:name:id>
 ].join('|'), 'gi')

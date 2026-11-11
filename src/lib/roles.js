@@ -33,6 +33,14 @@ export function rank(data, legacy, uid) {
   return top ? top.position : -Infinity
 }
 
+// Mirrors the "leave or kick" policy: owner kicks anyone; admins and role kickers only plain members, role kickers only ranked below them.
+export function canKick(data, myRole, me, uid, targetRole) {
+  if (!myRole || !targetRole || uid === me || targetRole === 'owner') return false
+  if (myRole === 'owner') return true
+  return targetRole === 'member' && hasPerm(data, myRole, me, 'kick_members')
+    && (myRole === 'admin' || rank(data, 'member', uid) < rank(data, myRole, me))
+}
+
 export function canSetRole(data, legacy, uid, role) {
   if (legacy === 'owner') return true
   const mine = myPerms(data, legacy, uid)

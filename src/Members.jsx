@@ -3,6 +3,7 @@ import { supabase } from './lib/supabase'
 import { ensureProfiles, online } from './lib/store'
 import { openProfile, ROLE_BADGE } from './ProfileCard'
 import Avatar, { Name, CustomStatus } from './Avatar'
+import { InStadium, LiveTag } from './VoiceCues'
 import { statusOf } from './lib/status'
 import { personMenu } from './menus'
 import { useMemberRoles } from './Roles'
@@ -44,7 +45,8 @@ export default function Members({ members, ctx }) {
             <button key={m.user_id} data-profile {...personMenu(m.user_id)} className={`member${key === 'offline' ? ' offline' : ''}`}
               onClick={e => openProfile(m.user_id, e.currentTarget)}>
               <Avatar id={m.user_id} size={32} status />
-              <span className="who"><Name id={m.user_id} serverId={sid} /><CustomStatus id={m.user_id} /></span>
+              <span className="who"><Name id={m.user_id} serverId={sid} /><CustomStatus id={m.user_id} /><InStadium id={m.user_id} ctx={ctx} /></span>
+              <LiveTag id={m.user_id} />
               <span className="role-badge">{ROLE_BADGE[m.role]}</span>
             </button>
           ))}

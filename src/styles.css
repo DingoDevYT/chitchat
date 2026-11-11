@@ -22,7 +22,8 @@
 @media (prefers-color-scheme: light) {
   :root {
     --bg: #fbf3ea; --bg-2: #f5e9dc; --bg-3: #efdfcf; --bg-4: #e5d1bd; --line: #3a2a1a14;
-    --text: #3a2a24; --muted: #8a7468; --accent: #f07a3e; --accent-2: #ff9f6b; --accent-ink: #fff;
+    --text: #3a2a24; --muted: #8a7468; --accent: #f07a3e; --accent-2: #c2541c; --accent-ink: #fff;
+    --mint: #1a7a52; --danger: #c42a50; /* darker so text in these colours stays readable on cream */
     --mention: #ffd16655; --shadow: 0 10px 40px #5a3a2030, 0 2px 6px #5a3a2018;
     color-scheme: light;
   }
@@ -233,7 +234,7 @@ label.btn { flex-direction: row; color: var(--text); font-size: 14px; cursor: po
 .msg:hover .hover-time { opacity: 1; }
 .msg-body { flex: 1; min-width: 0; }
 .msg-meta { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
-.msg-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg-text { white-space: pre-wrap; overflow-wrap: anywhere; overflow: clip; overflow-clip-margin: 6px; } /* clip: zalgo marks can't spill over other messages */
 .msg-text code { background: var(--bg-3); padding: 1px 5px; border-radius: 6px; font-size: 13.5px; font-family: ui-monospace, Consolas, monospace; }
 .msg-text pre { background: var(--bg-2); border: 2px solid var(--line); padding: 10px 12px; border-radius: var(--r); overflow-x: auto; margin: 4px 0; }
 .msg-text pre code { background: none; padding: 0; }

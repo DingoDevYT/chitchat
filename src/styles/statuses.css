@@ -41,6 +41,8 @@
 .status-pop .cs-emoji .emoji { width: 22px; height: 22px; margin: 0; }
 .status-pop .emoji-picker { left: 0; right: auto; bottom: calc(100% + 6px); }
 @media (max-width: 480px) { .status-pop .emoji-picker { right: 0; width: auto; height: 360px; } }
+/* phone drawer: pin to the screen edges so it never hangs off the right, whatever the rail/sidebar widths */
+@media (max-width: 720px) { .status-pop { position: fixed; left: 8px; right: 8px; width: auto; bottom: 72px; } }
 /* A status dot shown big in the picker, no avatar behind it. */
 .status-swatch { position: relative; width: 14px; height: 14px; flex: none; }
 .avatar.status-swatch .dot { right: 0; bottom: 0; width: 14px; height: 14px; max-width: none; max-height: none; border-width: 0; overflow: hidden; }

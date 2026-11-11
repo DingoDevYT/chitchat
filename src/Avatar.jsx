@@ -9,6 +9,7 @@ import './styles/avatar-shape.css'
 import { statusOf, activeCustom } from './lib/status'
 import { Emoji } from './Markdown'
 import './styles/statuses.css'
+import './styles/voice-cues.css'
 
 const STATUS_LABEL = { online: 'Online', idle: 'Idle', dnd: 'Do Not Disturb', offline: 'Offline' }
 export const useStatus = id => online.use(s => statusOf(s[id]))
@@ -37,9 +38,9 @@ export function CustomStatus({ id, className = '' }) {
 }
 
 // Default avatar: a little critter whose mouth flaps when its owner talks.
-export function Critter({ size = 40, color = '#f4a261', talk = false }) {
+export function Critter({ size = 40, color = '#f4a261', talk = false, blink = false }) {
   return (
-    <svg className={`critter${talk ? ' talk' : ''}`} width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
+    <svg className={`critter${talk ? ' talk' : ''}${blink ? ' blinky' : ''}`} width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
       <g className="critter-body">
         <circle cx="16" cy="16" r="9" fill={color} />
         <circle cx="48" cy="16" r="9" fill={color} />
@@ -132,22 +133,36 @@ function useBlink(on) {
 }
 
 // full: the whole uncropped image with no rounding (stadium audience: real PNGtuber style).
-export default function Avatar({ id, size = 40, status = false, children, full = false }) {
+// vbadge: corner 🔇/🙉 badge and a dim while they're muted/deafened in a stadium (presence only sets these in voice).
+// mode: how alive the avatar is. Outside stadiums avatars stay calm so lists don't flicker.
+//   'stage'  stadium seat: talking, every expression, blinking
+//   'voice'  sidebar stadium roster: talking + muted/deafened
+//   'typing' typing row: their typing face
+//   'still'  everywhere else: idle image, no motion (pass `talk` to animate one specific spot, e.g. a message typing out)
+export default function Avatar({ id, size = 40, status = false, children, full = false, vbadge = false, mode = full ? 'stage' : 'still', talk: talkProp }) {
   const p = useProfile(id)
-  const blink = useBlink(hasBlink(p))
-  const talk = talking.use(s => (s[id] || 0) > 0 || !!s['v:' + id])
+  const stage = mode === 'stage', voice = mode === 'voice'
+  const blink = useBlink(stage && hasBlink(p))
+  const talkLive = talking.use(s => (stage || voice) && ((s[id] || 0) > 0 || !!s['v:' + id]))
+  const talk = talkProp ?? talkLive
   const st = useStatus(id)
-  const typing = typingNow.use(s => Object.values(s).some(ids => ids.includes(id)))
+  const typing = typingNow.use(s => stage && Object.values(s).some(ids => ids.includes(id)))
   const muted = online.use(s => !!s[id]?.muted)
   const deafened = online.use(s => !!s[id]?.deaf)
   const live = online.use(s => !!s[id]?.live)
-  const expr = pickExpression(p, { talk, typing, muted, deafened, live, away: st === 'idle', blink })
+  const expr = pickExpression(p,
+    stage ? { talk, typing, muted, deafened, live, away: st === 'idle', blink }
+      : voice ? { talk, muted, deafened }
+      : mode === 'typing' ? { typing: true }
+      : { talk })
   const isFull = full && !children && !!expr
+  const vb = vbadge && (deafened ? { k: 'deaf', e: '🙉', label: 'Deafened' } : muted ? { k: 'muted', e: '🔇', label: 'Muted' } : null)
   return (
-    <span className={`avatar${talk ? ' talking' : ''}${children ? ' cam' : ''}${expr ? ' expr-' + expr.key : ''}${isFull ? ' full' : ''}`} style={{ width: size, height: size, '--ring': p?.color }}>
+    <span className={`avatar${talk ? ' talking' : ''}${children ? ' cam' : ''}${expr ? ' expr-' + expr.key : ''}${isFull ? ' full' : ''}${vb ? ' vdim' : ''}`} style={{ width: size, height: size, '--ring': p?.color }}>
       {children || (expr
         ? <CropImg src={expr.src} crop={isFull ? null : expr.crop} />
-        : <Critter size={size} color={p?.color} talk={talk} />)}
+        : <Critter size={size} color={p?.color} talk={talk} blink={stage} />)}
+      {vb && <i className={`vbadge ${vb.k}`} role="img" aria-label={vb.label} title={vb.label}>{vb.e}</i>}
       {status && <i className={`dot st-${st}${st === 'online' ? ' on' : ''}`} role="img" aria-label={STATUS_LABEL[st]} title={STATUS_LABEL[st]} />}
     </span>
   )

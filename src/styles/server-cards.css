@@ -1,0 +1,145 @@
+/* Server rail cards (ServerCards.jsx). styles.css loads after this file, so overrides of .rail* / .app rules start with `body`. */
+
+/* ── grid: the rail column follows the mode ── */
+body .app { --rail-w: 72px; grid-template-columns: var(--rail-w) 248px minmax(0, 1fr); }
+body .app.with-members { grid-template-columns: var(--rail-w) 248px minmax(0, 1fr) 240px; }
+body .app:has(> .rail.cards) { --rail-w: 240px; }
+@media (max-width: 1279px) { body .app:has(> .rail.cards) { --rail-w: 212px; } }
+@media (max-width: 900px) { body .app.with-members { grid-template-columns: var(--rail-w) 248px minmax(0, 1fr); } }
+@media (max-width: 720px) {
+  body .app, body .app.with-members { grid-template-columns: minmax(0, 1fr); }
+  body .app:has(> .rail.cards) { --rail-w: 176px; }
+  body .rail { width: var(--rail-w); }
+  body .sidebar { left: var(--rail-w); width: min(280px, calc(100vw - var(--rail-w) - 16px)); transform: translateX(calc(-100% - var(--rail-w))); }
+}
+
+/* ── rail in card mode ── */
+body .rail.cards { align-items: stretch; padding: 12px 12px 8px; gap: 10px; }
+body .rail.cards hr { width: auto; margin: 0 10px; }
+body .rail.cards .rail-btn { width: auto; height: auto; border-radius: var(--r); }
+body .rail.cards .rail-btn::before, body .cards .rail-btn.srv::before { display: none; }
+
+/* Home and add: compact pills */
+body .rail.cards .home, body .rail.cards .add {
+  display: flex; align-items: center; justify-content: flex-start; gap: 10px; height: 42px; padding: 0 14px;
+  border-radius: 999px; background: var(--bg-2); color: var(--text); font-size: 18px;
+}
+body .rail.cards .pill-label { font-size: 13.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body .rail.cards .home:hover { background: var(--bg-3); }
+body .rail.cards .home.active { background: var(--accent); color: var(--accent-ink); }
+body .rail.cards .home .badge { top: 50%; right: 10px; bottom: auto; transform: translateY(-50%); border: 0; }
+body .rail.cards .add { color: var(--mint); background: transparent; box-shadow: inset 0 0 0 2px var(--line); border: 0; }
+body .rail.cards .add .pill-label { color: var(--muted); }
+body .rail.cards .add:hover { background: var(--mint); color: var(--accent-ink); box-shadow: none; }
+body .rail.cards .add:hover .pill-label { color: inherit; }
+
+/* ── the card ── */
+body .cards .rail-btn.srv {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: auto; aspect-ratio: 2.5; padding: 0 12px 0 10px; flex: none;
+  text-align: left; font-size: 13px; font-weight: 400; color: var(--text); background: var(--bg-2); border-radius: var(--r);
+  box-shadow: 0 2px 8px -2px #0003, inset 0 0 0 1px var(--line);
+  transition: transform .4s var(--spring), box-shadow .3s var(--ease);
+}
+body .cards .rail-btn.srv:hover { transform: translateY(-3px); box-shadow: 0 10px 22px -10px #0007, inset 0 0 0 1px var(--line); }
+body .cards .rail-btn.srv:active { transform: translateY(-1px) scale(.97); transition-duration: .12s; }
+body .cards .rail-btn.srv.active {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 2px var(--accent), 0 10px 22px -10px #0008;
+}
+
+/* background: accent gradient, or the banner fading out toward the text */
+.srv-bg {
+  position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: auto;
+  background:
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--acc) 55%, transparent) 0 18%, transparent 46%),
+    linear-gradient(125deg, color-mix(in srgb, var(--acc) 42%, var(--bg-2)), color-mix(in srgb, var(--acc) 14%, var(--bg-2)) 70%);
+}
+.srv-bg > img, .srv-bg > .cimg {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0;
+  transition: transform 1.8s var(--ease);
+}
+.rail-btn.srv:hover .srv-bg > img, .rail-btn.srv:hover .srv-bg > .cimg { transform: scale(1.08); }
+.srv-bg.has-banner::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--bg) 86%, transparent) 0%, color-mix(in srgb, var(--bg) 58%, transparent) 55%, color-mix(in srgb, var(--bg) 8%, transparent) 100%);
+}
+.srv-bg.has-banner ~ .srv-text { text-shadow: 0 1px 3px color-mix(in srgb, var(--bg) 85%, transparent), 0 0 1px var(--bg); }
+
+.srv-icon {
+  position: relative; flex: none; width: 42px; height: 42px; border-radius: 14px; overflow: hidden;
+  display: grid; place-items: center; font-weight: 900; font-size: 14px; color: #2a1a10;
+  background: color-mix(in srgb, var(--acc) 75%, #fff); box-shadow: 0 4px 10px -3px #0005;
+  transition: transform .4s var(--spring);
+}
+.rail-btn.srv:hover .srv-icon { transform: rotate(-4deg) scale(1.05); }
+.srv-icon img, .srv-icon .cimg { width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
+
+.srv-text { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
+.srv-name { font-weight: 900; font-size: 14px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.srv-motd {
+  font-size: 12px; line-height: 1.3; color: color-mix(in srgb, var(--text) 78%, transparent);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.srv-motd .emoji { width: 14px; height: 14px; margin: 0 1px; vertical-align: -2px; }
+.srv-chips { display: flex; gap: 4px; min-width: 0; margin-top: 2px; }
+.srv-chips .chip {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 800; line-height: 1.5; white-space: nowrap;
+  background: color-mix(in srgb, var(--bg) 60%, transparent); color: var(--text);
+}
+.srv-chips .chip.stadium { flex: 0 1 auto; min-width: 0; display: block; overflow: hidden; text-overflow: ellipsis; }
+.chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 2px color-mix(in srgb, var(--mint) 30%, transparent); }
+
+/* unread: glowing accent edge + count badge */
+body .cards .rail-btn.srv.unread::before {
+  display: block; content: ''; position: absolute; left: -9px; top: 22%; bottom: 22%; width: 4px; height: auto; border-radius: 4px;
+  background: var(--accent); box-shadow: 0 0 10px 1px var(--accent); /* steady glow: unread shouldn't pulse forever in your peripheral vision */
+}
+body .cards .rail-btn.srv.unread:not(.active) { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), 0 0 18px -6px var(--accent); }
+body .cards .rail-btn.srv .badge { top: -6px; right: -6px; bottom: auto; z-index: 1; animation: pop .32s var(--spring) both; }
+@keyframes srv-glow { from { opacity: .65; } to { opacity: 1; box-shadow: 0 0 16px 3px var(--accent); } }
+
+/* compact / cards toggle */
+.rail-toggle {
+  margin-top: auto; align-self: center; flex: none; width: 36px; height: 24px; border-radius: 999px;
+  color: var(--muted); font-weight: 900; font-size: 15px; line-height: 1; transition: background .2s, color .2s, transform .3s var(--spring);
+}
+.rail-toggle:hover { background: var(--bg-3); color: var(--text); transform: scale(1.1); }
+
+/* mobile drawer: narrower cards */
+@media (max-width: 720px) {
+  body .rail.cards { padding: 12px 10px 8px; }
+  body .rail.cards .home, body .rail.cards .add { padding: 0 10px; gap: 7px; }
+  body .rail.cards .pill-label { font-size: 12.5px; }
+  body .cards .rail-btn.srv { gap: 8px; padding: 0 8px; }
+  body .rail .srv-icon { width: 36px; height: 36px; border-radius: 12px; }
+  body .rail .srv-name { font-size: 13px; }
+  body .rail .srv-motd { font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-btn.srv:hover .srv-bg > img, .rail-btn.srv:hover .srv-bg > .cimg, .rail-btn.srv:hover .srv-icon { transform: none; }
+  body .cards .rail-btn.srv.unread::before { animation: none; }
+}
+
+/* ── Server settings → Appearance ── */
+.srv-preview { display: flex; justify-content: center; padding: 18px; background: var(--bg); border-radius: var(--r-lg); }
+body .srv-preview .rail-btn.srv { width: 232px; cursor: default; }
+.srv-field { display: flex; flex-direction: column; gap: 8px; }
+.srv-label { display: flex; justify-content: space-between; font-weight: 700; font-size: 13px; color: var(--muted); }
+.srv-count { font-variant-numeric: tabular-nums; }
+.srv-count.near { color: var(--danger); }
+.srv-swatches { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+.srv-swatch {
+  width: 25px; height: 25px; border-radius: 50%; background: var(--sw); box-shadow: inset 0 0 0 2px #0002;
+  transition: transform .25s var(--spring), box-shadow .2s;
+}
+.srv-swatch:hover { transform: scale(1.15); }
+.srv-swatch.on { box-shadow: 0 0 0 3px var(--bg-2), 0 0 0 5px var(--sw); }
+.srv-swatch.auto { font-size: 11px; font-weight: 900; color: #2a1a10; }
+.srv-swatches input[type=color] { width: 27px; height: 27px; padding: 0; border: 2px dashed var(--muted); cursor: pointer; }
+.srv-swatches input[type=color]::-webkit-color-swatch-wrapper { padding: 2px; }
+.srv-swatches input[type=color]::-webkit-color-swatch { border: 0; border-radius: 50%; }
+.srv-swatches input[type=color]::-moz-color-swatch { border: 0; border-radius: 50%; }
+.srv-motd-row { position: relative; display: flex; gap: 8px; align-items: center; }
+.srv-motd-row .emoji-picker { height: min(380px, 60vh); }

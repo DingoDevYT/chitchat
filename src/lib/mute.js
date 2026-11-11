@@ -5,6 +5,11 @@ export const muteValue = (minutes, now = Date.now()) => minutes ? now + minutes 
 export const isMuted = (mutes, id, now = Date.now()) => !!id && (mutes?.[id] === true || mutes?.[id] > now)
 // A channel is quiet if it, or its server, is muted.
 export const channelMuted = (mutes, c, now = Date.now()) => !!c && (isMuted(mutes, c.id, now) || isMuted(mutes, c.server_id, now))
+// A 1:1 DM with someone you've blocked stays quiet too (their messages are hidden anyway).
+export const blockedDM = (blocked, c, meId) => {
+  const others = c?.kind === 'dm' ? (c.channel_members || []).filter(m => m.user_id !== meId) : []
+  return others.length === 1 && !!blocked?.[others[0].user_id]
+}
 // Soonest timed mute still ahead, so the UI can re-check when it runs out.
 export function nextExpiry(mutes, now = Date.now()) {
   const t = Object.values(mutes || {}).filter(v => typeof v === 'number' && v > now)

@@ -2,9 +2,11 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { prefs, profiles, setTalking, useProfile } from './lib/store'
 import { blip } from './lib/animalese'
 import { mediaLinks, summarizeReactions } from './lib/chat'
+import { mentionsMe } from './lib/cues'
 import Avatar, { Name } from './Avatar'
 import Markdown, { Emoji, emojify } from './Markdown'
 import { openProfile } from './ProfileCard'
+import Reveal from './Reveal'
 import EmojiPicker from './EmojiPicker'
 import Attachments from './Media'
 import { openMenu } from './ContextMenu'
@@ -43,9 +45,15 @@ function useTypewriter(m) {
       i = Math.min(text.length, i + step)
       if (!muted) blip(text[i - 1], voice())
       setN(i)
-      if (i >= text.length) { clearInterval(t); done = true; setTalking(id, false) }
+      if (i >= text.length) {
+        clearInterval(t); done = true; setTalking(id, false)
+        // let the last letters finish floating in, then hand over to full markdown.
+        // Infinity, so an edit that makes the text longer isn't cut off at the old length.
+        settle = setTimeout(() => setN(Infinity), 260)
+      }
     }, 32 / speed)
-    return () => { clearInterval(t); if (!done) setTalking(id, false) }
+    let settle
+    return () => { clearInterval(t); clearTimeout(settle); if (!done) setTalking(id, false) }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   return n
 }
@@ -86,17 +94,17 @@ function ReplyPreview({ m }) {
   )
 }
 
-function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, editing, onReply, onEdit, onDelete, onReact, onPin, onSaveEdit, onCancelEdit, thread, onThread }) {
+function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, editing, onReply, onEdit, onDelete, onReact, onPin, onSaveEdit, onCancelEdit, thread, onThread, onRetry }) {
   const n = useTypewriter(m)
   const blocked = useBlocked(m.author_id)
   const [reveal, setReveal] = useState(false)
   const [picker, setPicker] = useState(false)
-  const typing = n < m.content.length
+  const typing = n !== Infinity
   const mine = m.author_id === me
   const reactions = summarizeReactions(m.reactions || [], me)
   const allProfiles = profiles.get()
   const media = useMemo(() => [...(m.attachments || []), ...(typing ? [] : mediaLinks(m.content))], [m.attachments, m.content, typing])
-  const mentionsMe = myName && new RegExp(`(^|[^\\w@])@${myName.replace(/\./g, '\\.')}\\b`, 'i').test(m.content)
+  const mentioned = mentionsMe(m.content, myName) // same rule as the mention badges
   const menu = e => !m.pending && !m.failed && !editing && openMenu(e, () => messageItems(m, {
     mine, canDelete, canPin, onReply, onEdit, onDelete, onReact, onPin, onThread, thread,
     quick: [...new Set([...(prefs.get().recentEmoji || []), ...QUICK_EMOJI, '😮', '😢', '🎉'])].slice(0, 6),
@@ -110,11 +118,11 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
   )
 
   return (
-    <div id={`msg-${m.id}`} onContextMenu={menu} className={`msg${head ? ' head' : ''}${m.pending ? ' pending' : ''}${m.failed ? ' failed' : ''}${mentionsMe ? ' mentioned' : ''}${typing ? ' typing' : ''}`}>
+    <div id={`msg-${m.id}`} onContextMenu={menu} className={`msg${head ? ' head' : ''}${m.pending ? ' pending' : ''}${m.failed ? ' failed' : ''}${m.queued ? ' queued' : ''}${mentioned ? ' mentioned' : ''}${typing ? ' typing' : ''}`}>
       {m.reply_to && <ReplyPreview m={replied} />}
       <div className="msg-row">
         <div className="msg-gutter">
-          {head ? <button className="av-btn" data-profile {...personMenu(m.author_id)} onClick={e => openProfile(m.author_id, e.currentTarget)} aria-label="View profile"><Avatar id={m.author_id} size={42} /></button> : <time className="hover-time">{fmtTime(new Date(m.created_at))}</time>}
+          {head ? <button className="av-btn" data-profile {...personMenu(m.author_id)} onClick={e => openProfile(m.author_id, e.currentTarget)} aria-label="View profile"><Avatar id={m.author_id} size={42} talk={typing} /></button> : <time className="hover-time">{fmtTime(new Date(m.created_at))}</time>}
         </div>
         <div className="msg-body">
           {head && <div className="msg-meta"><button className="name-btn" data-profile {...personMenu(m.author_id)} onClick={e => openProfile(m.author_id, e.currentTarget)}><Name id={m.author_id} serverId={serverId} /></button><time className="muted small">{fmtStamp(m.created_at)}</time></div>}
@@ -122,12 +130,15 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
             ? <EditBox initial={m.content} onSave={onSaveEdit} onCancel={onCancelEdit} />
             : m.content && (
               <div className="msg-text">
-                {typing ? emojify(m.content.slice(0, n)) : <Markdown text={m.content} me={myName} />}
-                {typing && <span className="caret" />}
+                {typing ? <Reveal text={m.content} n={n} /> : <Markdown text={m.content} me={myName} />}
                 {m.edited_at && !typing && <span className="muted small edited"> (edited)</span>}
               </div>
             )}
-          {m.failed && <div className="note err small">Didn't send. Check your connection and try again.</div>}
+          {(m.failed || m.queued) && <div className="msg-retry">
+            <span className={`note small${m.failed ? ' err' : ''}`}>{m.failed ? "Didn't send." : 'Waiting for connection… it sends when you\'re back online.'}</span>
+            {m.failed && onRetry && <button className="btn primary small" onClick={() => onRetry(m)}>Retry</button>}
+            <button className="btn ghost small" onClick={() => onDelete(m)}>Delete</button>
+          </div>}
           {m.pinned_at && <div className="pin-mark">📌 pinned</div>}
           <Attachments list={media} />
           {!typing && !m.suppress_embeds && <LinkPreviews m={m} mine={mine} />}

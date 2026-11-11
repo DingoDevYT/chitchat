@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { sortRoles, topColor, hasPerm, rank, canSetRole, groupMembers } from './roles.js'
+import { sortRoles, topColor, hasPerm, rank, canSetRole, canKick, groupMembers } from './roles.js'
 
 const roles = sortRoles([
   { id: 'low', position: 1, color: null, permissions: ['pin_messages'], hoist: false, created_at: '1' },
@@ -28,6 +28,18 @@ test('permissions and hierarchy', () => {
   assert.equal(canSetRole(data, 'member', 'a', { position: 0, permissions: ['manage_server'] }), false) // perm a lacks
   assert.equal(canSetRole(data, 'admin', 'z', roles[2]), false) // legacy admin without roles: nothing below
   assert.equal(canSetRole(data, 'owner', 'z', roles[0]), true)
+})
+
+test('kick follows the "leave or kick" policy', () => {
+  assert.equal(canKick(data, 'member', 'a', 'b', 'member'), true) // mod kicks lower member
+  assert.equal(canKick(data, 'member', 'a', 'a2', 'admin'), false) // role kickers never kick admins
+  assert.equal(canKick({ roles, byUser: { a: ['mod'], e: ['mod'] } }, 'member', 'a', 'e', 'member'), false) // equal rank
+  assert.equal(canKick(data, 'member', 'b', 'c', 'member'), false) // no kick perm
+  assert.equal(canKick(data, 'admin', 'z', 'a', 'member'), true) // admins kick any plain member
+  assert.equal(canKick(data, 'admin', 'z', 'y', 'admin'), false)
+  assert.equal(canKick(data, 'owner', 'z', 'y', 'admin'), true)
+  assert.equal(canKick(data, 'owner', 'z', 'z', 'owner'), false)
+  assert.equal(canKick(data, 'member', 'a', 'b', undefined), false) // not a member (yet)
 })
 
 test('member groups', () => {

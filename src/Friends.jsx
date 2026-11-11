@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { supabase } from './lib/supabase'
 import { createStore, ensureProfiles, online, toast, profiles } from './lib/store'
 import Avatar, { Name, CustomStatus } from './Avatar'
+import { LastSeen } from './ChatCues'
+import { InStadium } from './VoiceCues'
 import { statusOf } from './lib/status'
 import { openProfile } from './ProfileCard'
 import { personMenu } from './menus'
@@ -66,12 +68,12 @@ export async function removeFriend(id, ask) {
   reload()
 }
 
-function Row({ id, children }) {
+function Row({ id, children, ctx }) {
   return (
     <div className="friend-row pop">
       <button className="friend-who" data-profile {...personMenu(id)} onClick={e => openProfile(id, e.currentTarget)}>
         <Avatar id={id} size={36} status />
-        <span className="who"><span><Name id={id} /><span className="muted small"> @{profiles.get()[id]?.username}</span></span><CustomStatus id={id} /></span>
+        <span className="who"><span><Name id={id} /><span className="muted small"> @{profiles.get()[id]?.username}</span></span><CustomStatus id={id} />{ctx && <InStadium id={id} ctx={ctx} />}<LastSeen id={id} /></span>
       </button>
       <div className="row">{children}</div>
     </div>
@@ -157,7 +159,7 @@ export default function FriendsHome({ ctx, onMenu }) {
               </div>
             )}
             {shown.map(id => (
-              <Row key={id} id={id}>
+              <Row key={id} id={id} ctx={ctx}>
                 {msg(id)}
                 <button className="icon-btn" title="Remove friend" aria-label="Remove friend"
                   onClick={() => removeFriend(id, `Remove ${profiles.get()[id]?.username} as a friend?`)}>✕</button>

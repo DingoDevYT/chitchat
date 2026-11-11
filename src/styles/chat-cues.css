@@ -1,0 +1,73 @@
+/* Chat cues (ChatCues.jsx, Chat.jsx): unread divider, jump pill, mention badges, retry, connection banner, DM cards, last seen.
+   styles.css loads after this file, so rules start with `body`. */
+
+/* ── "New messages" divider ── */
+body .new-divider { display: flex; align-items: center; gap: 8px; margin: 10px 16px 4px 20px; color: var(--danger); font-size: 11.5px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+body .new-divider::before { content: ''; flex: 1; height: 2px; border-radius: 2px; background: var(--danger); opacity: .8; }
+body .new-divider span { padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--danger) 16%, transparent); }
+
+/* ── jump to first unread ── */
+body .jump-unread {
+  position: absolute; top: 64px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 2px;
+  background: var(--danger); color: #fff; border-radius: 999px; box-shadow: var(--shadow); font-weight: 800; font-size: 13px; max-width: calc(100% - 32px);
+}
+body .jump-unread button { padding: 7px 12px; border-radius: 999px; white-space: nowrap; }
+body .jump-unread button:hover { background: #fff2; }
+body .jump-unread .x { padding: 7px 10px 7px 4px; opacity: .85; }
+
+/* ── mention badges ── */
+body .mention-badge {
+  flex: none; margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-grid; place-items: center;
+  background: var(--danger); color: #fff; font-size: 11px; font-weight: 900; line-height: 1;
+}
+body .rail-btn .badge.at-badge { display: inline-flex; align-items: center; justify-content: center; gap: 1px; background: var(--danger); color: #fff; font-weight: 900; line-height: 1; }
+body .rail-btn .badge.at-badge::before { content: '@'; display: inline; position: static; width: auto; height: auto; background: none; box-shadow: none; animation: none; font-size: 10px; opacity: .9; }
+
+/* ── failed / queued sends ── */
+body .msg-retry { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+body .msg-retry .btn { padding: 3px 10px; font-size: 12.5px; }
+body .msg.queued .msg-text { opacity: .55; }
+
+/* ── connection banner ── */
+body .conn-banner {
+  position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 210; display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 800; white-space: nowrap;
+  background: var(--bg-4); color: var(--text); box-shadow: var(--shadow); animation: cue-drop .35s var(--spring) both;
+}
+body .conn-banner.ok { background: var(--mint); color: var(--accent-ink); }
+body .conn-spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--muted); border-top-color: transparent; animation: cue-spin .8s linear infinite; }
+@keyframes cue-spin { to { transform: rotate(360deg); } }
+@keyframes cue-drop { from { opacity: 0; transform: translate(-50%, -12px); } }
+
+/* ── unread DM cards (rail) ── */
+body .dm-cards { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+body .rail.cards .dm-cards { align-items: stretch; }
+body .rail .dm-card { animation: pop .32s var(--spring) both; }
+body .rail .dm-card .av, body .rail .dm-card-av { flex: none; display: grid; }
+/* card mode: borrows the server card look (.rail-btn.srv) at a slimmer height */
+body .cards .rail-btn.srv.dm-card {
+  aspect-ratio: auto; height: 56px; padding: 0 30px 0 10px; gap: 10px;
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-2));
+  box-shadow: 0 2px 8px -2px #0003, inset 0 0 0 1px color-mix(in srgb, var(--danger) 30%, var(--line));
+}
+body .cards .rail-btn.srv.dm-card .badge { top: 50%; right: 8px; transform: translateY(-50%); border: 0; animation: none; }
+body .dm-card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+body .dm-card-name { font-weight: 900; font-size: 13.5px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body .dm-card-preview { font-size: 12px; line-height: 1.3; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* compact rail: just the avatar with its count */
+body .rail:not(.cards) .dm-card { background: transparent; }
+body .rail:not(.cards) .dm-card:hover { background: transparent; }
+body .rail:not(.cards) .dm-card-av { width: 48px; height: 48px; place-items: center; }
+
+/* ── last seen ── */
+body .last-seen { display: block; font-size: 12px; }
+body .profile-card .last-seen { margin-top: 2px; }
+
+@media (max-width: 720px) {
+  body .jump-unread { top: 60px; font-size: 12.5px; }
+  body .conn-banner { top: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body .conn-banner, body .rail .dm-card { animation: none; }
+  body .conn-spin { animation-duration: 2.4s; }
+}

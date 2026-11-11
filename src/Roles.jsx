@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { createStore, toast } from './lib/store'
-import { PERMS, canSetRole, hasPerm, rank, sortRoles, topColor, userRoles } from './lib/roles'
+import { PERMS, canKick, canSetRole, hasPerm, sortRoles, topColor, userRoles } from './lib/roles'
 import './styles/roles.css'
 
 // ── per-server roles cache: serverId -> { roles (highest first), byUser: { userId: [roleId] } } ──
@@ -48,11 +48,11 @@ export const useMemberColor = (serverId, userId) => roleStore.use(s => serverId 
 // Can the signed-in user kick this member? Mirrors the "leave or kick" policy.
 export function useCanKick(ctx, uid, targetRole) {
   const data = useMemberRoles(ctx.server?.id)
-  if (!ctx.server || uid === ctx.userId || targetRole === 'owner' || !targetRole) return false
-  if (ctx.role === 'owner') return true
-  return targetRole === 'member' && hasPerm(data, ctx.role, ctx.userId, 'kick_members')
-    && (ctx.role === 'admin' || rank(data, 'member', uid) < rank(data, ctx.role, ctx.userId))
+  return !!ctx.server && canKick(data, ctx.role, ctx.userId, uid, targetRole)
 }
+// Same check for non-hook callers (right-click menus).
+export const canKickNow = (ctx, uid, targetRole) =>
+  !!ctx.server && canKick(roleStore.get()[ctx.server.id] || EMPTY, ctx.role, ctx.userId, uid, targetRole)
 
 const SWATCHES = ['#ff9f6b', '#e76f51', '#ff6b8b', '#c77dff', '#7b9cff', '#4cc9f0', '#7ed6b1', '#b5e48c', '#ffd166']
 const err = ({ error }) => error && toast(error.message)

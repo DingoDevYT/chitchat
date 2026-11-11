@@ -1,0 +1,34 @@
+/* `body` prefix: main styles.css loads after component CSS. */
+body .typing-line { height: auto; min-height: 0; padding: 0 20px; transition: min-height .25s var(--ease); }
+body .typing-line:has(.typing-row) { min-height: 70px; }
+
+body .typing-row { display: flex; align-items: flex-end; gap: 12px; padding: 4px 0 6px; animation: rise .25s var(--spring); }
+body .typers { display: flex; align-items: flex-end; gap: 6px; }
+body .typing-text { font-size: 13px; color: var(--muted); font-weight: 700; padding-bottom: 6px; }
+
+/* square avatar with a laptop sat in front of it */
+body .typer { position: relative; width: 58px; height: 64px; display: grid; justify-items: center; align-items: start; }
+/* the paws do the moving; the avatar itself stays put */
+body .typer.me { opacity: .85; }
+body .typer .laptop { position: absolute; bottom: 0; left: 50%; width: 56px; transform: translateX(-50%); overflow: visible;
+  filter: drop-shadow(0 2px 2px #0005); }
+body .lt-screen { fill: var(--bg-4); }
+body .lt-glow { fill: color-mix(in srgb, var(--accent) 35%, var(--bg-3)); animation: lt-glow 1.6s ease-in-out infinite; }
+body .lt-base { fill: color-mix(in srgb, var(--bg-4) 70%, var(--text)); }
+body .lt-keys { fill: var(--bg-3); }
+body .paw { stroke: #0003; stroke-width: 1; transform-box: fill-box; transform-origin: center; }
+body .paw-l { animation: paw-tap .32s ease-in-out infinite; }
+body .paw-r { animation: paw-tap .32s ease-in-out infinite; animation-delay: .16s; }
+
+@keyframes paw-tap { 0%, 100% { transform: translateY(-3px); } 50% { transform: translateY(1px) scale(1.05, .9); } }
+@keyframes typer-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes lt-glow { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  body .paw, body .typer .avatar, body .lt-glow { animation: none; }
+}
+
+/* audio player volume row */
+body .m-audio-bottom { display: flex; align-items: center; gap: 8px; }
+body .m-audio-bottom .m-vol { flex: 0 1 110px; min-width: 60px; }
+body .m-audio-bottom .m-mute { font-size: 14px; padding: 0 2px; }

@@ -1,6 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { channelMuted, isMuted, muteValue, nextExpiry } from './mute.js'
+import { blockedDM, channelMuted, isMuted, muteValue, nextExpiry } from './mute.js'
+
+test('1:1 DM with a blocked person is quiet, group DMs are not', () => {
+  const dm = ids => ({ kind: 'dm', channel_members: ids.map(user_id => ({ user_id })) })
+  assert.equal(blockedDM({ b: true }, dm(['me', 'b']), 'me'), true)
+  assert.equal(blockedDM({ b: true }, dm(['me', 'c']), 'me'), false)
+  assert.equal(blockedDM({ b: true }, dm(['me', 'b', 'c']), 'me'), false)
+  assert.equal(blockedDM({ b: true }, { kind: 'text', channel_members: [] }, 'me'), false)
+  assert.equal(blockedDM({}, null, 'me'), false)
+})
 
 test('mute values and expiry', () => {
   assert.equal(muteValue(null, 1000), true)

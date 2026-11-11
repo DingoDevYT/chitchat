@@ -3,6 +3,10 @@ import { tokenize } from './markdown.js'
 
 const GROUP_GAP = 5 * 60 * 1000
 
+// messages.content has CHECK (char_length(content) <= 4000); char_length counts code points, not UTF-16 units.
+export const MAX_LEN = 4000
+export const overLimit = text => Math.max(0, [...text.trim()].length - MAX_LEN)
+
 export function startsGroup(prev, m) {
   return !prev || prev.author_id !== m.author_id || !!m.reply_to ||
     new Date(m.created_at) - new Date(prev.created_at) > GROUP_GAP

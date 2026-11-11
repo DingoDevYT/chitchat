@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { ensureProfiles, prefs, profiles, setPref, setTypingIn, toast } from './lib/store'
-import Avatar from './Avatar'
-import { applyReaction, mergeIncoming, startsGroup } from './lib/chat'
+import TypingRow from './Typing'
+import { applyReaction, mergeIncoming, overLimit, startsGroup, MAX_LEN } from './lib/chat'
 import { uploadFile } from './lib/upload'
 import Message, { flashTo } from './Message'
 import { PinsPanel, SearchPanel } from './PinsSearch'
@@ -12,6 +12,8 @@ import EmojiPicker from './EmojiPicker'
 import { useEmojiAutocomplete } from './EmojiAutocomplete'
 import GifPicker from './GifPicker'
 import { ThreadsButton } from './Thread'
+import { firstUnreadId, mergeRecent } from './lib/cues'
+import { conn } from './ChatCues'
 
 const PAGE = 50
 const msgCache = new Map() // channelId -> recent messages, so switching back is instant
@@ -38,22 +40,35 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
   const canModerate = ctx.can('manage_messages')
   const canPinPerm = ctx.can('pin_messages')
 
-  useEffect(() => { if (msgs) msgCache.set(channel.id, msgs.filter(m => !m.pending).slice(-150)) }, [msgs, channel.id])
+  // queued (offline) sends survive switching channels; they go out when the connection is back
+  useEffect(() => { if (msgs) msgCache.set(channel.id, msgs.filter(m => !m.pending || m.queued).slice(-150)) }, [msgs, channel.id])
+
+  // "New messages" divider: where you'd read up to when you opened the channel. Fixed while you read; cleared when you send.
+  const [lastRead, setLastRead] = useState(() => {
+    const r = ctx.reads?.[channel.id]
+    return r != null && (channel.last_message_id || 0) > r ? r : null
+  })
+  const [knownFirst, setKnownFirst] = useState(null) // first unread id, once looked up for the jump pill
+  const [seenDivider, setSeenDivider] = useState(false)
+
+  const loadRecent = useCallback(alive => supabase.from('messages').select('*, reactions(emoji,user_id)').eq('channel_id', channel.id)
+    .order('id', { ascending: false }).limit(PAGE)
+    .then(({ data, error }) => {
+      if (alive && !alive()) return
+      if (error) return toast('Could not load messages.')
+      const rows = data.reverse().map(r => ({ ...r, key: r.id }))
+      ensureProfiles(rows.map(r => r.author_id))
+      setMsgs(cur => mergeRecent(cur, rows))
+      setHasMore(data.length === PAGE)
+      setLoaded(true)
+    }), [channel.id])
+  // back online / socket restored: pick up anything missed
+  const epoch = conn.use(s => s.epoch)
+  useEffect(() => { if (epoch) loadRecent() }, [epoch]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let alive = true
-    supabase.from('messages').select('*, reactions(emoji,user_id)').eq('channel_id', channel.id)
-      .order('id', { ascending: false }).limit(PAGE)
-      .then(({ data, error }) => {
-        if (!alive) return
-        if (error) return toast('Could not load messages.')
-        const rows = data.reverse().map(r => ({ ...r, key: r.id }))
-        ensureProfiles(rows.map(r => r.author_id))
-        const lastId = rows.at(-1)?.id ?? 0
-        setMsgs(cur => [...rows, ...(cur || []).filter(m => m.pending || m.id > lastId)])
-        setHasMore(data.length === PAGE)
-        setLoaded(true)
-      })
+    loadRecent(() => alive)
 
     const filter = `channel_id=eq.${channel.id}`
     // A stadium's 'chan:' topic carries voice presence (VoiceConnection), and supabase-js shares one channel per topic.
@@ -99,7 +114,8 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
     const { data } = await supabase.from('messages').select('*, reactions(emoji,user_id)').eq('channel_id', channel.id)
       .lt('id', first).order('id', { ascending: false }).limit(PAGE)
     olderBusy.current = false
-    if (!data) return
+    // the list was replaced meanwhile (fresh page over a stale cache): this page no longer joins up, and its hasMore would be wrong
+    if (!data || msgsRef.current?.find(m => !m.pending)?.id !== first) return
     ensureProfiles(data.map(r => r.author_id))
     setMsgs(l => [...data.reverse().map(r => ({ ...r, key: r.id })), ...l])
     setHasMore(data.length === PAGE)
@@ -112,56 +128,91 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
     return () => io.disconnect()
   }, [loadOlder])
 
+  // Sends an optimistic row (its _files/_ready kept for retries). Offline: it waits as `queued` and goes out on reconnect.
+  const deliver = useCallback(async m => {
+    const mark = patch => setMsgs(l => l && l.map(x => x.id === m.id ? { ...x, ...patch } : x))
+    if (!navigator.onLine) return mark({ pending: true, failed: false, queued: true })
+    if (m.queued) mark({ queued: false }) // so a second flush doesn't send it twice
+    try {
+      const attachments = [...m._ready, ...await Promise.all(m._files.map(f => uploadFile(f, userId)))]
+      const { data, error } = await supabase.from('messages')
+        .insert({ channel_id: channel.id, author_id: userId, content: m.content, reply_to: m.reply_to, attachments, ...(m.tts && { tts: true }) }).select().single()
+      if (error) throw error
+      setMsgs(l => mergeIncoming(l, data))
+    } catch (e) {
+      const off = !navigator.onLine
+      mark({ pending: off, failed: !off, queued: off })
+      if (!off) toast('Message failed: ' + e.message)
+    }
+  }, [channel.id, userId])
+
   const send = useCallback(async (text, files, ready = [], tts = false) => {
     const content = text.trim()
     if (!content && !files.length && !ready.length) return
     const tmp = 'tmp-' + crypto.randomUUID()
-    const reply = replyTo?.id ?? null
-    setMsgs(l => [...(l || []), {
-      id: tmp, key: tmp, pending: true, _live: true, channel_id: channel.id, author_id: userId, content, reply_to: reply, tts: !!(tts && content),
+    const row = {
+      id: tmp, key: tmp, pending: true, _live: true, channel_id: channel.id, author_id: userId, content, reply_to: replyTo?.id ?? null, tts: !!(tts && content),
       attachments: [...ready, ...files.map(f => ({ name: f.name, type: f.type, url: URL.createObjectURL(f), uploading: true }))],
-      reactions: [], created_at: new Date().toISOString(),
-    }])
-    setReplyTo(null)
-    try {
-      const attachments = [...ready, ...await Promise.all(files.map(f => uploadFile(f, userId)))]
-      const { data, error } = await supabase.from('messages')
-        .insert({ channel_id: channel.id, author_id: userId, content, reply_to: reply, attachments, ...(tts && content && { tts: true }) }).select().single()
-      if (error) throw error
-      setMsgs(l => mergeIncoming(l, data))
-    } catch (e) {
-      setMsgs(l => l.map(m => m.id === tmp ? { ...m, pending: false, failed: true } : m))
-      toast('Message failed: ' + e.message)
+      reactions: [], created_at: new Date().toISOString(), _files: files, _ready: ready,
     }
-  }, [channel.id, userId, replyTo])
+    setMsgs(l => [...(l || []), row])
+    setReplyTo(null)
+    setLastRead(null)
+    scrollRef.current?.scrollTo({ top: 0 }) // column-reverse: 0 = latest, so you see your message (and its Retry if it fails)
+    deliver(row)
+  }, [channel.id, userId, replyTo, deliver])
 
-  const react = useCallback(async (m, emoji) => {
+  // Retry goes to the bottom, where the server will put it.
+  const retry = useCallback(m => {
+    const row = { ...m, pending: true, failed: false, queued: false, created_at: new Date().toISOString() }
+    setMsgs(l => [...l.filter(x => x.id !== m.id), row])
+    deliver(row)
+  }, [deliver])
+
+  // Requests for the same reaction run one after another, so fast toggling can't land out of order and leave the opposite state.
+  const reactQueue = useRef(new Map())
+  const react = useCallback((m, emoji) => {
     const mine = m.reactions.some(r => r.user_id === userId && r.emoji === emoji)
     const r = { message_id: m.id, user_id: userId, emoji }
     setMsgs(l => applyReaction(l, r, !mine))
-    const { error } = mine
-      ? await supabase.from('reactions').delete().match(r)
-      : await supabase.from('reactions').insert({ ...r, channel_id: channel.id })
-    if (error && error.code !== '23505') { setMsgs(l => applyReaction(l, r, mine)); toast(error.message) }
+    const k = m.id + ' ' + emoji
+    const job = (reactQueue.current.get(k) || Promise.resolve()).then(async () => {
+      const { error } = mine
+        ? await supabase.from('reactions').delete().match(r)
+        : await supabase.from('reactions').insert({ ...r, channel_id: channel.id })
+      if (error && error.code !== '23505') { setMsgs(l => applyReaction(l, r, mine)); toast(error.message) }
+    })
+    reactQueue.current.set(k, job)
+    job.finally(() => reactQueue.current.get(k) === job && reactQueue.current.delete(k))
   }, [userId, channel.id])
 
   const remove = useCallback(async (m, skipConfirm) => {
-    if (m.failed) return setMsgs(l => l.filter(x => x.id !== m.id))
+    if (m.failed || m.queued) return setMsgs(l => l.filter(x => x.id !== m.id))
     if (!skipConfirm && !confirm('Delete this message?')) return
     setMsgs(l => l.filter(x => x.id !== m.id))
     const { error } = await supabase.from('messages').delete().eq('id', m.id)
     if (error) toast(error.message)
   }, [])
 
+  const msgsRef = useRef(msgs)
+  msgsRef.current = msgs // read in saveEdit without re-rendering every memoised Message on each change
+  // Queued sends go out in order once we're back (and on open, for ones queued before a channel switch).
+  useEffect(() => {
+    if (!navigator.onLine) return
+    const queued = (msgsRef.current || []).filter(m => m.queued)
+    ;(async () => { for (const m of queued) await deliver(m) })()
+  }, [epoch, deliver])
   const saveEdit = useCallback(async v => {
     const id = editing
-    setEditing(null)
     const content = v.trim()
-    if (!content) return
+    if (overLimit(content)) return toast(`Messages can be up to ${MAX_LEN} characters. That's ${overLimit(content)} too many.`)
+    setEditing(null)
+    const old = msgsRef.current?.find(m => m.id === id)
+    if (!content || !old || content === old.content) return
     const edited_at = new Date().toISOString()
     setMsgs(l => l.map(m => m.id === id ? { ...m, content, edited_at } : m))
     const { error } = await supabase.from('messages').update({ content, edited_at }).eq('id', id)
-    if (error) toast(error.message)
+    if (error) { setMsgs(l => l.map(m => m.id === id ? { ...m, content: old.content, edited_at: old.edited_at } : m)); toast(error.message) }
   }, [editing])
 
   const startEdit = useCallback(m => setEditing(m.id), [])
@@ -173,12 +224,15 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
 
   const lastTyping = useRef(0)
   const selfTyping = useRef(0)
-  useEffect(() => () => { clearTimeout(selfTyping.current); setTypingIn('self', []) }, [])
+  const [meTyping, setMeTyping] = useState(false)
+  const stopMeTyping = useCallback(() => { clearTimeout(selfTyping.current); setMeTyping(false); setTypingIn('self', []) }, [])
+  useEffect(() => stopMeTyping, [stopMeTyping])
   const onTyping = useCallback(() => {
-    // your own avatar shows its typing face too (broadcasts don't echo back to you)
+    // you see yourself typing too (broadcasts don't echo back to you)
     setTypingIn('self', [userId])
+    setMeTyping(true)
     clearTimeout(selfTyping.current)
-    selfTyping.current = setTimeout(() => setTypingIn('self', []), 3000)
+    selfTyping.current = setTimeout(stopMeTyping, 3000)
     if (Date.now() - lastTyping.current < 2500) return
     lastTyping.current = Date.now()
     stadium?.onType(userId)
@@ -255,8 +309,43 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
 
   const pinKey = useMemo(() => (msgs || []).filter(m => m.pinned_at).map(m => m.id).join(), [msgs])
   const byId = useMemo(() => new Map((msgs || []).map(m => [m.id, m])), [msgs])
+  // Replies to messages older than the loaded page fetch their original (null = gone; deletes null out reply_to anyway).
+  const [refs, setRefs] = useState({})
+  const refsAsked = useRef(new Set())
+  useEffect(() => {
+    const want = [...new Set((msgs || []).map(m => m.reply_to).filter(id => id && !byId.has(id) && !refsAsked.current.has(id)))]
+    if (!want.length) return
+    want.forEach(id => refsAsked.current.add(id))
+    supabase.from('messages').select('id, author_id, content').in('id', want).then(({ data }) => {
+      if (!data?.length) return
+      ensureProfiles(data.map(r => r.author_id))
+      setRefs(r => ({ ...r, ...Object.fromEntries(data.map(x => [x.id, x])) }))
+    })
+  }, [byId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const firstUnread = useMemo(() => lastRead == null ? null : knownFirst ?? firstUnreadId(msgs, lastRead, userId, hasMore), [msgs, lastRead, knownFirst, userId, hasMore])
+  // The pill shows until the divider has been on screen once (or nothing unread from others turns out to be there).
+  const dividerRef = useRef(null)
+  useEffect(() => {
+    const el = dividerRef.current
+    if (!el || seenDivider) return
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && setSeenDivider(true), { root: scrollRef.current })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [firstUnread, seenDivider, msgs])
+  const showPill = loaded && lastRead != null && !seenDivider &&
+    (firstUnread != null || (hasMore && !(msgs?.find(m => typeof m.id === 'number')?.id <= lastRead))) // or not loaded back that far yet
+  const jumpUnread = useCallback(async () => {
+    if (firstUnread != null && flashTo(firstUnread)) return
+    const { data } = await supabase.from('messages').select('id').eq('channel_id', channel.id).gt('id', lastRead)
+      .neq('author_id', userId).order('id').limit(1).maybeSingle()
+    if (!data) return setSeenDivider(true)
+    setKnownFirst(data.id)
+    jumpTo(data.id)
+  }, [firstUnread, lastRead, channel.id, userId, jumpTo])
+
   const title = channel.kind === 'dm' ? dmTitle(channel, userId, profileMap) : channel.name
-  const typingIds = Object.keys(typers).filter(id => id !== userId)
+  const typingIds = [...Object.keys(typers).filter(id => id !== userId), ...(meTyping ? [userId] : [])]
   const typingNames = typingIds.map(id => profileMap[id]?.display_name || profileMap[id]?.username || 'Someone')
 
   return (
@@ -295,8 +384,9 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
             return (
               <div key={m.key}>
                 {newDay && <div className="day-sep"><span>{new Date(m.created_at).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</span></div>}
-                <Message m={m} head={newDay || startsGroup(prev, m)} me={userId} myName={me.username} serverId={server?.id} canDelete={canModerate} canPin={canPin}
-                  replied={m.reply_to ? byId.get(m.reply_to) : null} editing={editing === m.id}
+                {m.id === firstUnread && <div className="new-divider" ref={dividerRef} role="separator" aria-label="New messages"><span>New messages</span></div>}
+                <Message m={m} onRetry={retry} head={newDay || startsGroup(prev, m)} me={userId} myName={me.username} serverId={server?.id} canDelete={canModerate} canPin={canPin}
+                  replied={m.reply_to ? byId.get(m.reply_to) || refs[m.reply_to] : null} editing={editing === m.id}
                   onReply={setReplyTo} onEdit={startEdit} onDelete={remove} onReact={react} onPin={togglePin} onSaveEdit={saveEdit} onCancelEdit={cancelEdit}
                   thread={ctx.threadsByMsg?.get(m.id)} onThread={server && channel.kind === 'text' ? ctx.startThread : null} />
               </div>
@@ -309,18 +399,23 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
         onTogglePin={togglePin} onClose={() => setPanel(null)} />}
       {panel === 'search' && <SearchPanel ctx={ctx} channel={channel} onJump={openResult} onClose={() => setPanel(null)} />}
 
+      {showPill && (
+        <div className="jump-unread pop">
+          <button onClick={jumpUnread}>↑ Jump to first unread</button>
+          <button className="x" onClick={() => setSeenDivider(true)} aria-label="Dismiss" title="Dismiss">✕</button>
+        </div>
+      )}
+
       {!atBottom && (
         <button className="jump pop" onClick={() => scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })}>Jump to latest ↓</button>
       )}
 
       <div className="typing-line" aria-live="polite">
-        {typingNames.length > 0 && <><span className="typing-avs">{typingIds.slice(0, 3).map(id => <Avatar key={id} id={id} size={20} />)}</span>
-          <span className="dots"><i /><i /><i /></span>
-          <b>{typingNames.slice(0, 3).join(', ')}</b> {typingNames.length > 1 ? 'are' : 'is'} typing…</>}
+        <TypingRow ids={typingIds} names={typingNames} meId={userId} />
       </div>
 
-      <Composer key={channel.id} placeholder={`Message ${channel.kind === 'dm' ? title : '#' + channel.name}`}
-        onSend={send} onTyping={onTyping} onEditLast={editLast}
+      <Composer key={channel.id} draftKey={channel.id} placeholder={`Message ${channel.kind === 'dm' ? title : '#' + channel.name}`}
+        onSend={(...a) => { stopMeTyping(); return send(...a) }} onTyping={onTyping} onEditLast={editLast}
         replyTo={replyTo} onCancelReply={() => setReplyTo(null)} profileMap={profileMap} serverId={server?.id} canTTS={!!stadium} />
     </div>
   )
@@ -328,10 +423,9 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
 
 const DRAFTS = new Map() // channel drafts survive switching channels
 
-function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancelReply, profileMap, serverId, canTTS }) {
+function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, replyTo, onCancelReply, profileMap, serverId, canTTS }) {
   const ref = useRef(null)
   const [tts, setTTS] = useState(false)
-  const key = placeholder
   const [text, setText] = useState(() => DRAFTS.get(key) || '')
   const ac = useEmojiAutocomplete(ref, text, setText, serverId)
   const [files, setFiles] = useState([])
@@ -360,7 +454,9 @@ function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancel
 
   function submit() {
     if (!text.trim() && !files.length) return
-    onSend(ac.encode(text), files, [], canTTS && tts)
+    const out = ac.encode(text)
+    if (overLimit(out)) return toast(`Messages can be up to ${MAX_LEN} characters. That's ${overLimit(out)} too many.`)
+    onSend(out, files, [], canTTS && tts)
     setText('')
     setFiles([])
   }

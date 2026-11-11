@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { online, setVoiceTalking, streams, cams, dropStream, toast, prefs, setPref, micLevel, pttDown } from './lib/store'
+import { online, setVoiceTalking, streams, cams, dropStream, toast, prefs, setPref, micLevel, pttDown, peerState, setPeerState, isDND } from './lib/store'
+import { peerStatus, diffMembers, playChime } from './lib/voicecues'
+import { PeerState } from './VoiceCues'
 import { trackVoice } from './lib/presence'
 import { TALK, missingDevice, level, normGain } from './lib/voice'
 import { bubbles, speakTTS, stopTTS } from './lib/stadium'
@@ -188,6 +190,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
     let closed = false
     let ch = null
     let chain = Promise.resolve()
+    let seen = null // stadium member ids at the last presence sync, for join/leave chimes
     const audioCtx = new AudioContext()
     const out = outRef.current = makeOut(audioCtx, () => vstateRef.current.deafened)
     const stops = [out.stop]
@@ -205,6 +208,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       p.pc.close(); p.stop?.(); p.norm.stop(); p.vol.disconnect(); p.svol.disconnect()
       for (const a of p.media.values()) { a.remove(); dropStream(id, a.srcObject); dropStream(id, a.srcObject, cams) }
       peers.delete(id)
+      if (peerState.get()[id] !== 'failed') setPeerState(id, null) // "couldn't connect" stays until they leave or we retry
     }
 
     function makePeer(id) {
@@ -251,7 +255,10 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
           track.onunmute = track.onmute = track.onended = () => route(id, ms)
         } else if (!ms.getVideoTracks().length && !p.stop) p.stop = watchLevel(audioCtx, ms, id) // mic only
       }
-      pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') close(id) }
+      const showState = () => setPeerState(id, peerStatus(pc.connectionState, pc.iceConnectionState))
+      showState()
+      pc.oniceconnectionstatechange = showState
+      pc.onconnectionstatechange = () => { showState(); if (pc.connectionState === 'failed') close(id) }
       return p
     }
 
@@ -299,7 +306,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       const dest = audioCtx.createMediaStreamDestination()
       mic.node.connect(dest)
       streamRef.current = dest.stream
-      streamRef.current.getAudioTracks().forEach(t => { t.enabled = !vstateRef.current.muted && !vstateRef.current.deafened }) // deafened implies muted
+      streamRef.current.getAudioTracks().forEach(t => { t.enabled = !vstateRef.current.muted && !vstateRef.current.deafened })
       // Presence and media travel separately; re-sort video whenever someone's cam/live ids change.
       stops.push(online.subscribe(() => { for (const [id, p] of peers) for (const a of p.media.values()) route(id, a.srcObject) }))
 
@@ -312,6 +319,12 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       ch.on('presence', { event: 'sync' }, () => {
         const ids = Object.keys(ch.presenceState()).filter(id => id !== me.id)
         for (const id of peers.keys()) if (!ids.includes(id)) close(id)
+        for (const id of Object.keys(peerState.get())) if (!ids.includes(id)) setPeerState(id, null)
+        // Join/leave chimes into the call mix (output volume, device, deafen apply); first snapshot is silent.
+        const { joined, left } = diffMembers(seen, ids, me.id)
+        seen = ids
+        if (prefs.get().joinSounds && !isDND() && !vstateRef.current.deafened && (joined.length || left.length))
+          playChime(audioCtx, out.master, joined.length ? 'join' : 'leave')
         // The lower id opens the connection (fewer collisions); the other side creates its peer on the first offer.
         for (const id of ids) if (!peers.has(id) && me.id < id) makePeer(id)
       })
@@ -329,6 +342,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       closed = true
       trackVoice({ voice: null, live: false, cam: null })
       for (const id of [...peers.keys()]) close(id)
+      peerState.set({})
       stops.forEach(f => f())
       streamRef.current?.getTracks().forEach(t => t.stop())
       streamRef.current = null // tells the share cleanup below we've left
@@ -483,8 +497,9 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
             <div key={id} className={`stage-seat${id === meId ? ' me' : ''}`} {...personMenu(id)}>
               {lives.includes(id) && <b className="live-badge">🔴 LIVE</b>}
               <Bubble id={id} />
-              <Avatar id={id} size={size} full>{joined && faces[id] && <Screen stream={faces[id]} />}</Avatar>
+              <Avatar id={id} size={size} full vbadge>{joined && faces[id] && <Screen stream={faces[id]} />}</Avatar>
               <Name id={id} />
+              <PeerState id={id} />
             </div>
           ))}
         </div>

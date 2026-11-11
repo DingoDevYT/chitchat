@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Emoji } from './Markdown'
+import './styles/typing.css'
 
 const fmtSize = b => b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.ceil(b / 1e3)} KB`
 const fmtTime = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`
@@ -16,7 +17,7 @@ function claim(el) {
 
 function useMedia() {
   const ref = useRef(null)
-  const [s, setS] = useState({ t: 0, d: 0, buf: 0, paused: true, muted: false, vol: 1 })
+  const [s, setS] = useState({ t: 0, d: 0, buf: 0, paused: true, muted: false, vol: 0.5 })
   const sync = () => {
     const el = ref.current
     if (!el) return
@@ -83,7 +84,9 @@ function Audio({ a }) {
   const p = s.d ? s.t / s.d : 0
   return (
     <div className={`m-audio${a.uploading ? ' uploading' : ''}`}>
-      <audio ref={ref} src={a.url} preload="metadata" {...events} onLoadedMetadata={events.onDurationChange} />
+      {/* starts at half volume so a loud clip doesn't blast anyone */}
+      <audio ref={ref} src={a.url} preload="metadata" {...events}
+        onLoadedMetadata={e => { if (!e.currentTarget.dataset.v) { e.currentTarget.volume = 0.5; e.currentTarget.dataset.v = 1 } events.onDurationChange() }} />
       <button className="m-play" onClick={toggle} aria-label={s.paused ? 'Play' : 'Pause'}>{s.paused ? '▶' : '❚❚'}</button>
       <div className="m-audio-main">
         <div className="m-audio-top">
@@ -94,7 +97,14 @@ function Audio({ a }) {
           {bars.map((h, i) => <i key={i} className={i / bars.length < p ? 'on' : ''} style={{ height: h + '%' }} />)}
           <Seek s={s} seek={seek} label={`Seek ${a.name}`} />
         </div>
-        <span className="muted small">{fmtTime(s.t)} / {fmtTime(s.d)}</span>
+        <div className="m-audio-bottom">
+          <span className="muted small">{fmtTime(s.t)} / {fmtTime(s.d)}</span>
+          <button className="m-mute" onClick={() => { const el = ref.current; el.muted = !el.muted && el.volume > 0; if (!el.muted && !el.volume) el.volume = 0.5 }}
+            aria-label={s.muted || !s.vol ? 'Unmute' : 'Mute'}>{s.muted || !s.vol ? '🔇' : s.vol < 0.5 ? '🔉' : '🔊'}</button>
+          <input type="range" className="m-vol m-seek" min={0} max={1} step={0.05} value={s.muted ? 0 : s.vol} aria-label={`Volume for ${a.name}`}
+            aria-valuetext={`${Math.round((s.muted ? 0 : s.vol) * 100)}%`} style={{ '--p': (s.muted ? 0 : s.vol) * 100 + '%', '--b': '0%' }}
+            onChange={e => { const el = ref.current; el.volume = +e.target.value; el.muted = +e.target.value === 0 }} />
+        </div>
       </div>
     </div>
   )

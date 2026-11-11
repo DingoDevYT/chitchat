@@ -1,13 +1,23 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { tokenize, isJumbo } from './markdown.js'
-import { startsGroup, mergeIncoming, applyReaction, summarizeReactions } from './chat.js'
+import { startsGroup, mergeIncoming, applyReaction, summarizeReactions, overLimit } from './chat.js'
+
+test('overLimit counts code points after trimming, like the DB check', () => {
+  assert.equal(overLimit('a'.repeat(4000)), 0)
+  assert.equal(overLimit('  ' + 'a'.repeat(4000) + '\n'), 0)
+  assert.equal(overLimit('a'.repeat(4005)), 5)
+  assert.equal(overLimit('😀'.repeat(4000)), 0) // 8000 UTF-16 units, 4000 code points
+})
 
 test('markdown basics', () => {
   assert.deepEqual(tokenize('hi **there**'), [{ t: 'text', v: 'hi ' }, { t: 'b', c: [{ t: 'text', v: 'there' }] }])
   assert.deepEqual(tokenize('`a*b*`'), [{ t: 'code', v: 'a*b*' }])
   assert.deepEqual(tokenize('```js\nx()\n```'), [{ t: 'codeblock', v: 'x()' }])
   assert.equal(tokenize('see https://x.com/a_b, ok')[1].v, 'https://x.com/a_b')
+  assert.equal(tokenize('https://en.wikipedia.org/wiki/Foo_(bar)')[0].v, 'https://en.wikipedia.org/wiki/Foo_(bar)')
+  assert.equal(tokenize('(see https://x.com/a)')[1].v, 'https://x.com/a')
+  assert.equal(tokenize('https://x.com/(a)/b?q=1.')[0].v, 'https://x.com/(a)/b?q=1')
   assert.deepEqual(tokenize('snake_case_name'), [{ t: 'text', v: 'snake_case_name' }])
   assert.deepEqual(tokenize('mail a@b.com'), [{ t: 'text', v: 'mail a@b.com' }])
   assert.deepEqual(tokenize('yo @Sam!')[1], { t: 'mention', v: 'sam' })
