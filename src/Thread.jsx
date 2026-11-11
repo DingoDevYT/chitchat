@@ -6,6 +6,7 @@ import Avatar, { Name } from './Avatar'
 import Markdown from './Markdown'
 import Chat from './Chat'
 import './styles/threads.css'
+import Icon from './icons/Icon'
 
 // Right-hand panel (full-screen sheet on mobile) showing one thread, reusing Chat for the replies.
 export function ThreadPanel({ thread, ctx, onClose }) {
@@ -34,18 +35,18 @@ export function ThreadPanel({ thread, ctx, onClose }) {
   return (
     <aside className="thread-panel" aria-label={`Thread: ${thread.name}`}>
       <header className="chat-head">
-        <span className="ch-icon">🧵</span>
+        <span className="ch-icon"><Icon name="thread" size={18} /></span>
         <h2>{thread.name}</h2>
         {thread.archived && <span className="muted small">archived</span>}
         <span className="spacer" />
-        {isAdmin && <button className="icon-btn" onClick={toggleArchive} title={thread.archived ? 'Unarchive thread' : 'Archive thread'}>{thread.archived ? '📤' : '📥'}</button>}
-        <button className="icon-btn" onClick={onClose} aria-label="Close thread">✕</button>
+        {isAdmin && <button className="icon-btn" onClick={toggleArchive} title={thread.archived ? 'Unarchive thread' : 'Archive thread'} aria-label={thread.archived ? 'Unarchive thread' : 'Archive thread'}><Icon name={thread.archived ? 'unarchive' : 'archive'} /></button>}
+        <button className="icon-btn" onClick={onClose} aria-label="Close thread"><Icon name="close" /></button>
       </header>
       <div className="thread-parent">
         {parent === undefined ? <div className="skeleton" />
           : parent ? <>
             <div className="row"><Avatar id={parent.author_id} size={22} /><b><Name id={parent.author_id} /></b><span className="muted small">{timeAgo(parent.created_at)}</span></div>
-            <div className="thread-parent-text">{parent.content ? <Markdown text={parent.content} /> : <span className="muted">📎 attachment</span>}</div>
+            <div className="thread-parent-text">{parent.content ? <Markdown text={parent.content} /> : <span className="muted"><Icon name="paperclip" size={14} /> attachment</span>}</div>
           </>
           : <span className="muted small">Original message was deleted.</span>}
       </div>
@@ -66,7 +67,7 @@ export function ThreadsButton({ channel, ctx }) {
   }, [open])
   return (
     <span className="threads-wrap">
-      <button className={`icon-btn threads-btn${open ? ' on' : ''}`} onClick={() => setOpen(o => !o)} title="Threads" aria-expanded={open}>🧵</button>
+      <button className={`icon-btn threads-btn${open ? ' on' : ''}`} onClick={() => setOpen(o => !o)} title="Threads" aria-label="Threads" aria-expanded={open}><Icon name="thread" /></button>
       {open && (
         <div className="menu threads-menu pop" role="menu">
           <b className="small muted pad">Threads</b>
@@ -76,7 +77,7 @@ export function ThreadsButton({ channel, ctx }) {
               <span className="muted small">{replies(t.reply_count)} · {timeAgo(t.last_reply_at || t.created_at)}</span>
             </button>
           ))}
-          {list.length === 0 && <p className="muted small pad">No active threads. Hover a message and hit 🧵 to start one.</p>}
+          {list.length === 0 && <p className="muted small pad">No active threads. Hover a message and hit <Icon name="thread" size={14} /> to start one.</p>}
         </div>
       )}
     </span>
@@ -86,7 +87,7 @@ export function ThreadsButton({ channel, ctx }) {
 export function ThreadPill({ thread, onOpen }) {
   return (
     <button className="thread-pill" onClick={onOpen}>
-      🧵 <b>{thread.name}</b>
+      <Icon name="thread" size={14} /> <b>{thread.name}</b>
       <span className="muted">· {replies(thread.reply_count)}{thread.last_reply_at && ` · last reply ${timeAgo(thread.last_reply_at)}`}</span>
     </button>
   )

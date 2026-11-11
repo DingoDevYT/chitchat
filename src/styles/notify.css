@@ -1,1 +1,99 @@
-/* notify styles — filled in by its feature agent */
+/* Notifications: inbox panel, rail button, quiet rooms, mention/room autocomplete, room pills, big-ping note,
+   notification modal and the keyboard shortcut sheet. Nothing here animates at idle. */
+body .nf-ico { display: inline-block; vertical-align: -0.15em; flex: none; }
+
+/* rail button: a quiet circle in the compact rail, a pill like Home in card mode */
+body .rail-btn.inbox-btn { background: var(--bg-2); color: var(--muted); }
+body .rail-btn.inbox-btn:hover, body .rail-btn.inbox-btn.active { background: var(--accent); color: var(--accent-ink); }
+body .inbox-btn-ico { display: grid; place-items: center; }
+body .rail.cards .rail-btn.inbox-btn {
+  display: flex; align-items: center; justify-content: flex-start; gap: 9px; height: 38px; padding: 0 12px;
+  border-radius: 999px; color: var(--text);
+}
+body .rail.cards .rail-btn.inbox-btn:hover { background: var(--bg-3); color: var(--text); }
+body .rail.cards .rail-btn.inbox-btn.active { background: var(--accent); color: var(--accent-ink); }
+
+/* "Nothing" rooms and DMs: the unread dot stays, just dimmer */
+body .ch-item.ch-quiet.unread:not(.active) { color: var(--muted); }
+body .ch-item.ch-quiet.unread::before { opacity: .35; }
+
+/* ── inbox ── */
+body .inbox-scrim { position: fixed; inset: 0; z-index: 90; }
+body .inbox-panel {
+  position: fixed; top: 14px; right: 14px; z-index: 91; width: min(440px, calc(100vw - 28px)); max-height: calc(100dvh - 28px);
+  display: flex; flex-direction: column; background: var(--bubble); color: var(--text); border-radius: var(--r-lg);
+  box-shadow: var(--shadow), inset 0 0 0 1px var(--line); overflow: hidden;
+}
+body .inbox-head { display: flex; align-items: center; gap: 8px; padding: 12px 12px 10px 16px; border-bottom: 1px solid var(--line); }
+body .inbox-head h2 { margin: 0; font-size: 17px; }
+body .inbox-head .tabs { margin: 0 0 0 auto; }
+body .inbox-body { flex: 1; min-height: 120px; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+body .inbox-empty { text-align: center; padding: 32px 16px; margin: 0; }
+body .inbox-item {
+  display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: start; padding: 10px; border-radius: var(--r);
+  box-shadow: inset 3px 0 0 transparent;
+}
+body .inbox-item:hover { background: var(--bg-2); }
+body .inbox-item.unread { background: var(--mention); box-shadow: inset 3px 0 0 var(--accent); }
+body .inbox-main { min-width: 0; }
+body .inbox-meta { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 14px; }
+body .inbox-meta time { margin-left: auto; }
+body .inbox-where { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .inbox-text { margin-top: 3px; font-size: 14px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+body .inbox-acts { display: flex; flex-direction: column; gap: 4px; }
+body .inbox-allread { display: flex; justify-content: flex-end; padding: 0 4px 4px; }
+body .inbox-group { display: flex; flex-direction: column; gap: 2px; padding: 4px 0 8px; }
+body .inbox-group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 10px 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+body .inbox-group-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .inbox-group-head .link { text-transform: none; letter-spacing: 0; }
+body .inbox-room { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; border-radius: 10px; text-align: left; font-weight: 700; }
+body .inbox-room:hover { background: var(--bg-2); }
+body .inbox-room .unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text); flex: none; }
+body .inbox-room.quiet { color: var(--muted); }
+body .inbox-room.quiet .unread-dot { opacity: .35; }
+body .inbox-room-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .inbox-foot { padding: 8px 14px 10px; border-top: 1px solid var(--line); }
+
+/* ── room pills in messages ── */
+body .room-pill {
+  display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; border-radius: 6px; font: inherit; font-weight: 800;
+  background: color-mix(in srgb, var(--mint) 20%, transparent); color: var(--text); vertical-align: baseline;
+}
+body button.room-pill { cursor: pointer; }
+body button.room-pill:hover { background: color-mix(in srgb, var(--mint) 34%, transparent); }
+body .room-pill.gone { color: var(--muted); background: var(--bg-3); }
+body .room-pill .nf-ico { color: var(--mint); }
+
+/* ── composer: @ and ~ suggestions (shares .emoji-ac), big-ping note ── */
+body .mention-ac .ac-ico { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-3); flex: none; }
+body .mention-ac .ac-ico.at { font-weight: 900; font-size: 13px; color: var(--accent); }
+body .mention-ac .ac-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+body .ping-note { margin: 0 0 6px; padding: 6px 12px; border-radius: 10px; background: var(--bg-2); font-size: 13px; }
+body .ping-note.big { background: color-mix(in srgb, var(--danger) 16%, var(--bg-2)); }
+
+/* ── notification modal ── */
+body .notify-modal .tabs { margin-top: 6px; flex-wrap: wrap; }
+body .notify-overrides { display: flex; flex-direction: column; gap: 4px; max-height: 38vh; overflow-y: auto; padding-right: 2px; }
+body .notify-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 8px; border-radius: 10px; background: var(--bg-2); }
+body .notify-row-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+body .notify-row select { flex: none; width: auto; max-width: 55%; }
+body .notify-tab .btn .nf-ico { margin-right: 4px; }
+
+/* ── keyboard shortcut sheet ── */
+body .shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 28px; max-height: 70vh; overflow-y: auto; }
+body .shortcuts h3 { margin: 10px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+body .shortcut-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--stitch); }
+body .shortcut-keys { flex: none; white-space: nowrap; }
+body .shortcut-what { text-align: right; font-size: 14px; }
+body .keys { display: inline-flex; gap: 3px; }
+body .keys kbd { min-width: 22px; text-align: center; }
+
+@media (max-width: 720px) {
+  body .inbox-panel { top: 8px; right: 8px; left: 8px; width: auto; max-height: calc(100dvh - 16px); }
+  body .inbox-head { flex-wrap: wrap; }
+  body .inbox-item { grid-template-columns: 32px 1fr; }
+  body .inbox-acts { grid-column: 2; flex-direction: row; }
+  body .shortcuts { grid-template-columns: 1fr; }
+  body .shortcut-row { flex-wrap: wrap; }
+  body .shortcut-what { text-align: left; }
+}

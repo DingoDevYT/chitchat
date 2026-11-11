@@ -23,7 +23,7 @@ export function diffMembers(prev, next, meId) {
 export function stadiumLabel(voiceId, channels = []) {
   if (!voiceId || voiceId.startsWith('call:')) return null // DM calls stay private (the DM's own row shows them)
   const c = channels.find(x => x.id === voiceId)
-  return c ? { text: `🏟️ in ${c.name}`, serverId: c.server_id || null, channelId: c.id } : { text: '🏟️ in a stadium' }
+  return c ? { text: `in ${c.name}`, serverId: c.server_id || null, channelId: c.id } : { text: 'in a stadium' } // InStadium draws the icon
 }
 
 // Two soft notes: rising for a join, falling for a leave.

@@ -10,6 +10,7 @@ import ImageCropper from './ImageCropper'
 import { EXPRESSIONS, BLINKS } from './lib/expressions'
 import VoiceSettings from './VoiceSettings'
 import Privacy from './Privacy'
+import { NotificationsTab } from './Notify'
 
 const WAVES = [['square', 'Chirpy'], ['triangle', 'Soft'], ['sawtooth', 'Buzzy'], ['sine', 'Gentle']]
 const COLORS = ['#ff9f6b', '#f4a261', '#e76f51', '#ff6b8b', '#c77dff', '#7b9cff', '#4cc9f0', '#7ed6b1', '#b5e48c', '#ffd166']
@@ -138,7 +139,7 @@ export default function Settings({ me, onClose, tab: firstTab }) {
   return (
     <Modal title="Settings" onClose={onClose} wide>
       <div className="tabs">
-        {[['profile', 'Profile'], ['voice', 'Avatar & voice'], ['media', 'Voice & video'], ['app', 'App'], ['privacy', 'Privacy']].map(([k, l]) =>
+        {[['profile', 'Profile'], ['voice', 'Avatar & voice'], ['media', 'Voice & video'], ['notify', 'Notifications'], ['app', 'App'], ['privacy', 'Privacy']].map(([k, l]) =>
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
       </div>
 
@@ -221,9 +222,18 @@ export default function Settings({ me, onClose, tab: firstTab }) {
 
       {tab === 'media' && <VoiceSettings />}
       {tab === 'privacy' && <Privacy />}
+      {tab === 'notify' && <NotificationsTab />}
 
       {tab === 'app' && (
         <div className="col">
+          <div>Look
+            <div className="tabs small">{[['night', 'Night'], ['day', 'Day'], ['system', 'Match system']].map(([v, l]) =>
+              <button key={v} className={(p.look || 'night') === v ? 'on' : ''} onClick={() => setPref('look', v)}>{l}</button>)}</div>
+            <span className="muted small">A calm island evening, or warm paper by day.</span>
+          </div>
+          <label className="toggle"><input type="checkbox" checked={p.uiSounds} onChange={e => setPref('uiSounds', e.target.checked)} />
+            <span>UI sounds <span className="muted small">soft blips for menus, dialogs and sends (quiet in Do Not Disturb)</span></span></label>
+          {p.uiSounds && <label>UI sound volume <input type="range" min="0" max="1" step="0.05" value={p.uiVolume} onChange={e => setPref('uiVolume', +e.target.value)} /></label>}
           <label className="toggle"><input type="checkbox" checked={p.animalese} onChange={e => setPref('animalese', e.target.checked)} />
             <span>Animalese voices on new messages</span></label>
           <label>Typing voice volume <input type="range" min="0" max="1" step="0.05" value={p.volume} onChange={e => setPref('volume', +e.target.value)} /></label>

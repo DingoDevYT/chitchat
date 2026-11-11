@@ -1,0 +1,2 @@
+.icon { display: inline-block; vertical-align: -0.22em; flex: none; overflow: visible; }
+button > .icon:only-child, a > .icon:only-child { vertical-align: middle; }

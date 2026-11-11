@@ -52,6 +52,10 @@ export function useProfile(id) {
   return p
 }
 
+// ── server nicknames for the open server: { sid, map: { userId: nickname } }, filled by useMembers ──
+export const nicknames = createStore({ sid: null, map: {} })
+export const useNickname = (serverId, id) => nicknames.use(s => (serverId && s.sid === serverId ? s.map[id] : undefined))
+
 // ── who is talking (text typewriter counts, plus 'v:<id>' flags from voice) ──
 export const talking = createStore({})
 export function setTalking(id, on) {

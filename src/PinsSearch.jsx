@@ -5,6 +5,7 @@ import { hasFilters, highlightParts, parseSearch } from './lib/search'
 import Avatar, { Name } from './Avatar'
 import { emojify } from './Markdown'
 import './styles/pins-search.css'
+import Icon from './icons/Icon'
 
 const SEARCH_PAGE = 20
 const fmt = iso => new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -19,7 +20,7 @@ function Hit({ m, terms, channelName, onJump, children }) {
           <span className="ps-hit-meta"><Name id={m.author_id} />{channelName && <span className="muted small">{channelName}</span>}<time className="muted small">{fmt(m.created_at)}</time></span>
           <span className="ps-hit-text">
             {text ? highlightParts(text, terms).map((p, i) => p.hit ? <mark key={i}>{p.t}</mark> : <span key={i}>{emojify(p.t)}</span>) : null}
-            {m.attachments?.length > 0 && <span className="muted small"> 📎 {m.attachments.length}</span>}
+            {m.attachments?.length > 0 && <span className="muted small"> <Icon name="paperclip" size={13} /> {m.attachments.length}</span>}
           </span>
         </span>
       </button>
@@ -45,13 +46,13 @@ export function PinsPanel({ channel, canPin, pinKey, onJump, onTogglePin, onClos
 
   return (
     <aside className="ps-panel pop" aria-label="Pinned messages">
-      <div className="ps-head"><b>📌 Pinned messages</b><span className="spacer" /><button className="icon-btn" onClick={onClose} aria-label="Close pins">✕</button></div>
+      <div className="ps-head"><b><Icon name="pin" size={16} /> Pinned messages</b><span className="spacer" /><button className="icon-btn" onClick={onClose} aria-label="Close pins"><Icon name="close" /></button></div>
       <div className="ps-list">
         {!pins && <div className="skeleton" />}
-        {pins?.length === 0 && <p className="muted small ps-empty">Nothing pinned yet. {canPin ? 'Hover a message and hit 📌 to keep it here.' : ''}</p>}
+        {pins?.length === 0 && <p className="muted small ps-empty">Nothing pinned yet. {canPin && <>Hover a message and hit <Icon name="pin" size={14} /> to keep it here.</>}</p>}
         {pins?.map(m => (
           <Hit key={m.id} m={m} onJump={onJump}>
-            {canPin && <button className="icon-btn ps-unpin" onClick={() => { setPins(l => l.filter(x => x.id !== m.id)); onTogglePin(m) }} title="Unpin" aria-label="Unpin">✕</button>}
+            {canPin && <button className="icon-btn ps-unpin" onClick={() => { setPins(l => l.filter(x => x.id !== m.id)); onTogglePin(m) }} title="Unpin" aria-label="Unpin"><Icon name="close" size={16} /></button>}
           </Hit>
         ))}
       </div>
@@ -108,7 +109,7 @@ export function SearchPanel({ ctx, channel, onJump, onClose }) {
           <input ref={ref} value={input} onChange={e => setInput(e.target.value)} placeholder="Search…  from: in: has: before: after:"
             aria-label="Search messages" onKeyDown={e => e.key === 'Escape' && onClose()} />
         </form>
-        <button className="icon-btn" onClick={onClose} aria-label="Close search">✕</button>
+        <button className="icon-btn" onClick={onClose} aria-label="Close search"><Icon name="close" /></button>
       </div>
       <div className="tabs small ps-scope" role="tablist">
         <button className={scope === 'channel' ? 'on' : ''} onClick={() => setScope('channel')}>{channel.kind === 'dm' ? 'This chat' : channel.kind === 'voice' ? 'This stadium' : 'This room'}</button>

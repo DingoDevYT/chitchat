@@ -13,7 +13,9 @@ import { openMenu } from './ContextMenu'
 import { app, serverItems } from './menus'
 import './styles/server-cards.css'
 import { DMCards } from './ChatCues'
+import { InboxButton } from './Inbox'
 import ThemePicker from './themes/ThemePicker'
+import Icon from './icons/Icon'
 
 const useMedia = q => useSyncExternalStore(
   cb => { const m = matchMedia(q); m.addEventListener('change', cb); return () => m.removeEventListener('change', cb) },
@@ -57,7 +59,7 @@ export function CardBody({ s, chips }) {
       <b className="srv-name">{s.name}</b>
       {/* one line under the name, so the card stays icon-height: the MOTD, else who's in a stadium */}
       {s.motd ? <span className="srv-motd" title={s.motd}><Motd text={s.motd} /></span>
-        : chips.stadium && <span className="srv-motd">{chips.stadium}</span>}
+        : chips.stadium && <span className="srv-motd"><Icon name="stadium" size={13} /> {chips.stadium}</span>}
     </span>
   </>
 }
@@ -79,9 +81,10 @@ export default function ServerRail({ servers, serverId, go, dms, dmBadge, unread
   return (
     <nav className={`rail${cards ? ' cards' : ''}`} aria-label="Servers">
       <button className={`rail-btn home${!serverId ? ' active' : ''}`} onClick={() => go(null, dms[0]?.id)} title="Direct messages">
-        <span>💬</span>{cards && <span className="pill-label">Direct messages</span>}
+        <span><Icon name="chat" size={22} /></span>{cards && <span className="pill-label">Direct messages</span>}
         {dmBadge > 0 && <b className="badge">{dmBadge}</b>}
       </button>
+      <InboxButton cards={cards} />
       <DMCards list={dmCards} cards={cards} userId={userId} go={go} />
       <hr />
       {servers.map(s => {
@@ -101,11 +104,11 @@ export default function ServerRail({ servers, serverId, go, dms, dmBadge, unread
         )
       })}
       <button className="rail-btn add" onClick={onAdd} title="Create or join a server">
-        ＋{cards && <span className="pill-label">Add a server</span>}
+        <Icon name="plus" size={22} />{cards && <span className="pill-label">Add a server</span>}
       </button>
       {!mobile && <button className="rail-toggle" onClick={() => setPref('railCompact', !compact)}
         title={compact ? 'Show server cards' : 'Compact server list'} aria-label={compact ? 'Show server cards' : 'Compact server list'}>
-        {compact ? '»' : '«'}
+        <Icon name={compact ? 'chevron-right' : 'chevron-left'} size={16} />
       </button>}
     </nav>
   )
@@ -189,7 +192,7 @@ export function AppearanceTab({ ctx }) {
           <div className="srv-motd-row">
             <input value={motd} maxLength={MOTD_MAX} onChange={e => setMotd(e.target.value)} placeholder="Movie night Friday 🍿" aria-label="Message of the day" />
             <button type="button" className="icon-btn" title="Add emoji" aria-label="Add emoji"
-              onMouseDown={e => e.stopPropagation()} onClick={() => setEp(o => !o)}>🙂</button>
+              onMouseDown={e => e.stopPropagation()} onClick={() => setEp(o => !o)}><Icon name="smile" /></button>
             {ep && <EmojiPicker className="up" onPick={addEmoji} onClose={() => setEp(false)} />}
           </div>
         </div>

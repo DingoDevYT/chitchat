@@ -2,8 +2,10 @@ import { Fragment, useEffect, useState } from 'react'
 import { tokenize, isJumbo, splitEmoji, emojiUrl, fmtTimestamp, linkMismatch } from './lib/markdown'
 import { parseCustom } from './lib/customEmoji'
 import { emojiById, ensureEmoji } from './lib/emojiStore'
-import { createStore } from './lib/store'
+import { createStore, nicknames, profiles } from './lib/store'
 import { openProfileByUsername } from './ProfileCard'
+import { app } from './menus'
+import { ask } from './Dialog'
 import './styles/custom-emoji.css'
 import './styles/messaging-plus.css'
 
@@ -36,7 +38,7 @@ function Spoiler({ children }) {
 // One shared 1s clock for every relative <t:…:R> on screen; it only runs while one is mounted.
 const clock = createStore(Date.now())
 let tickers = 0, tickTimer
-function Stamp({ v, f }) {
+export function Stamp({ v, f }) {
   useEffect(() => {
     if (f !== 'R') return
     if (!tickers++) tickTimer = setInterval(() => clock.set(Date.now()), 1000)
@@ -50,11 +52,29 @@ function Stamp({ v, f }) {
 const plain = ts => ts.map(t => t.c ? plain(t.c) : t.t === 'text' || t.t === 'url' ? t.v : '').join('')
 function MaskedLink({ tk, children }) {
   // the real address shows on hover; text that names another site asks first
-  const open = e => {
+  const open = async e => {
     const real = linkMismatch(plain(tk.c), tk.v)
-    if (real && !confirm(`This link really goes to ${real}:\n\n${tk.v}\n\nOpen it?`)) e.preventDefault()
+    if (!real) return
+    e.preventDefault() // the bubble's "Open it" click is a fresh user gesture, so the new tab isn't blocked
+    if (await ask({ text: `This link really goes to ${real}:\n\n${tk.v}\n\nOpen it?`, confirm: 'Open it' })) window.open(tk.v, '_blank', 'noopener,noreferrer')
   }
   return <a href={tk.v} title={tk.v} target="_blank" rel="noopener noreferrer" onClick={open}>{children}</a>
+}
+
+export const RoomGlyph = () => <svg className="nf-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+  strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /></svg>
+
+// <~name:id> room link: a pill that opens the room; the stored name shows (unlinked) if it's gone or hidden from you.
+function RoomLink({ id, name }) {
+  const c = app.channels.find(x => x.id === id)
+  if (!c) return <span className="room-pill gone"><RoomGlyph />{name}</span>
+  return <button className="room-pill" onClick={() => app.ctx?.go(c.server_id || null, c.id)} title={`Open ${c.name}`}><RoomGlyph />{c.name}</button>
+}
+
+// @username shows their nickname in the open server, if they have one there.
+function MentionName({ v }) {
+  const id = profiles.use(s => Object.values(s).find(p => p.username === v)?.id)
+  return nicknames.use(s => (id && s.map[id]) || v)
 }
 
 function render(tokens, me, inLink) {
@@ -75,8 +95,10 @@ function render(tokens, me, inLink) {
       case 'quote': return <blockquote key={i} className="md-quote">{render(tk.c, me)}</blockquote>
       case 'ul': case 'ol': { const L = tk.t; return <L key={i} className="md-list" start={tk.start}>{render(tk.c, me)}</L> }
       case 'li': return <li key={i} style={tk.d ? { marginLeft: tk.d * 1.25 + 'em' } : undefined}>{render(tk.c, me)}</li>
-      case 'mention': return <button key={i} data-profile className={`mention${tk.v === me ? ' me' : ''}`}
-        onClick={e => openProfileByUsername(tk.v, e.currentTarget)}>@{tk.v}</button>
+      case 'mention': return tk.v === 'everyone' || tk.v === 'here' ? <span key={i} className="mention">@{tk.v}</span>
+        : <button key={i} data-profile className={`mention${tk.v === me ? ' me' : ''}`}
+          onClick={e => openProfileByUsername(tk.v, e.currentTarget)}>@<MentionName v={tk.v} /></button>
+      case 'room': return <RoomLink key={i} id={tk.id} name={tk.v} />
       case 'cemoji': return <CustomEmoji key={i} name={tk.name} id={tk.id} />
       default: return null
     }

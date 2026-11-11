@@ -1,7 +1,7 @@
 /* Stadium cues: mute/deafen badges, speaking glow, peer connection state, live + "in a stadium" tags.
    `body` prefix: the main styles.css loads after component CSS. */
 body { --warn: #f4b942; }
-@media (prefers-color-scheme: light) { body { --warn: #8a5a00; } }
+:root[data-theme="day"] body { --warn: #8a5a00; }
 
 /* Muted / deafened: corner badge (top-right; the status dot owns bottom-right) and a dimmed face. */
 body .avatar .vbadge {

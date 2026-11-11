@@ -3,7 +3,7 @@ import { prefs } from './lib/store'
 import { useMemberColor } from './Roles'
 import { cropBox } from './lib/crop'
 import './styles/avatar-crop.css'
-import { talking, online, typingNow, useProfile } from './lib/store'
+import { talking, online, typingNow, useProfile, useNickname } from './lib/store'
 import { pickExpression, hasBlink, nextBlink } from './lib/expressions'
 import './styles/avatar-shape.css'
 import { statusOf, activeCustom } from './lib/status'
@@ -172,5 +172,6 @@ export default function Avatar({ id, size = 40, status = false, children, full =
 export function Name({ id, serverId }) {
   const p = useProfile(id)
   const roleColor = useMemberColor(serverId, id)
-  return <span className="name" style={{ color: roleColor || p?.color }}>{p?.display_name || p?.username || '…'}</span>
+  const nick = useNickname(serverId, id) // per-server nickname wins (032_moderation)
+  return <span className="name" style={{ color: roleColor || p?.color }}>{nick || p?.display_name || p?.username || '…'}</span>
 }

@@ -21,10 +21,8 @@
 .tb-room .tb-scrim { background: color-mix(in srgb, var(--bg) var(--scrim), transparent); }
 .tb-room.tb-dark { --scrim: 52%; }
 .tb-room.tb-light { --scrim: 72%; }
-@media (prefers-color-scheme: light) {
-  .tb-room.tb-dark { --scrim: 74%; }
-  .tb-room.tb-light { --scrim: 48%; }
-}
+:root[data-theme="day"] .tb-room.tb-dark { --scrim: 74%; }
+:root[data-theme="day"] .tb-room.tb-light { --scrim: 48%; }
 .tb-room.tb-off { --scrim: 60%; }
 .tb-room { --sky: 96px; }
 .tb-stadium { --sky: 56px; }

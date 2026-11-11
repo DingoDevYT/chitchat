@@ -2,10 +2,15 @@
 // data = { roles: [...] highest first, byUser: { userId: [roleId] } }; legacy = members.role ('owner' | 'admin' | 'member').
 
 export const PERMS = [
-  ['manage_server', 'Manage server', 'Rename the server, change its icon and manage its emoji.'],
+  ['manage_server', 'Manage server', 'Rename the server, change its icon, rules and emoji.'],
+  ['view_audit_log', 'View audit log', 'See who changed settings and who moderated whom.'],
   ['manage_channels', 'Manage rooms', 'Create, edit and delete rooms and stadiums, and see every private one.'],
   ['manage_roles', 'Manage roles', 'Create and edit roles below their own, and hand them out.'],
+  ['manage_invites', 'Manage invites', "Make invite links even when members can't, and see or revoke everyone's."],
   ['kick_members', 'Kick members', 'Remove regular members ranked below them.'],
+  ['ban_members', 'Ban members', "Remove members ranked below them for good (they can't rejoin), and lift bans."],
+  ['timeout_members', 'Time out members', 'Pause members ranked below them from posting, reacting and joining stadiums for a while.'],
+  ['manage_nicknames', 'Manage nicknames', "Change the server nicknames of members ranked below them."],
   ['manage_messages', 'Manage messages', "Delete other people's messages."],
   ['pin_messages', 'Pin messages', 'Pin and unpin messages in rooms.'],
   ['mention_everyone', 'Mention @everyone', 'Ping the whole server at once.'],
@@ -33,13 +38,15 @@ export function rank(data, legacy, uid) {
   return top ? top.position : -Infinity
 }
 
-// Mirrors the "leave or kick" policy: owner kicks anyone; admins and role kickers only plain members, role kickers only ranked below them.
-export function canKick(data, myRole, me, uid, targetRole) {
-  if (!myRole || !targetRole || uid === me || targetRole === 'owner') return false
+// Mirrors the "leave or kick" policy and public.can_moderate(): owner acts on anyone; admins and role holders only on
+// plain members, role holders only on those ranked below them. A non-member (targetRole undefined) counts as a plain member.
+export function canModerate(data, myRole, me, uid, targetRole, perm) {
+  if (!myRole || !uid || uid === me || targetRole === 'owner') return false
   if (myRole === 'owner') return true
-  return targetRole === 'member' && hasPerm(data, myRole, me, 'kick_members')
+  return (targetRole || 'member') === 'member' && hasPerm(data, myRole, me, perm)
     && (myRole === 'admin' || rank(data, 'member', uid) < rank(data, myRole, me))
 }
+export const canKick = (data, myRole, me, uid, targetRole) => !!targetRole && canModerate(data, myRole, me, uid, targetRole, 'kick_members')
 
 export function canSetRole(data, legacy, uid, role) {
   if (legacy === 'owner') return true

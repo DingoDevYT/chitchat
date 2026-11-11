@@ -56,6 +56,8 @@ test('timestamps', () => {
   const now = 1700000000 * 1000
   assert.equal(fmtTimestamp(1700000000 + 300, 'R', now, 'en'), 'in 5 minutes')
   assert.equal(fmtTimestamp(1700000000 - 7200, 'R', now, 'en'), '2 hours ago')
+  assert.equal(fmtTimestamp(1700000000 + 3590, 'R', now, 'en'), 'in 1 hour')
+  assert.equal(fmtTimestamp(1700000000 + 30, 'R', now, 'en'), 'in 30 seconds')
   assert.equal(fmtTimestamp(1700000000 - 86400, 'R', now, 'en'), 'yesterday')
   assert.match(fmtTimestamp(1700000000, 'D', now, 'en'), /November 1[45], 2023/)
   assert.match(fmtTimestamp(1700000000, 'F', now, 'en'), /day, November 1[45], 2023/)

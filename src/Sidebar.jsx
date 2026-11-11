@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { online, prefs, profiles, pttDown, setPref, talking, toast, useProfile } from './lib/store'
+import { ask, askText } from './Dialog'
 import { setCategories, useCategories } from './lib/categories'
 import { applyItems, byPosition, groupChannels, moveCategory, moveChannel, step } from './lib/reorder'
 import { useDrag } from './lib/useDrag'
@@ -13,10 +14,11 @@ import { InStadium, LiveTag, PeerState } from './VoiceCues'
 import { CallTag } from './DMCalls'
 import { useIncomingCount } from './Friends'
 import { openMenu } from './ContextMenu'
-import { channelItems, chanMuted, dmItems, personMenu, serverItems } from './menus'
+import { channelItems, chanMuted, copyInvite as copyServerInvite, dmItems, personMenu, serverItems, SETTINGS_PERMS } from './menus'
 import { MentionBadge } from './ChatCues'
 import { RoomIcon, RoomName, RoomTint, roomVars } from './Rooms'
 import { CategoryModal } from './RoomEditor'
+import Icon from './icons/Icon'
 
 export function dmTitle(channel, meId, profileMap) {
   const others = channel.channel_members.map(m => m.user_id).filter(id => id !== meId)
@@ -26,7 +28,7 @@ export function dmTitle(channel, meId, profileMap) {
 function DMItem({ c, meId, active, unread, onClick, ctx }) {
   const others = c.channel_members.map(m => m.user_id).filter(id => id !== meId)
   return (
-    <button className={`ch-item dm${active ? ' active' : ''}${unread ? ' unread' : ''}${chanMuted(c) ? ' ch-muted' : ''}`} onClick={onClick}
+    <button className={`ch-item dm${active ? ' active' : ''}${unread ? ' unread' : ''}${chanMuted(c) ? ' ch-muted' : ''}${ctx?.quiet?.(c) ? ' ch-quiet' : ''}`} onClick={onClick}
       onContextMenu={e => openMenu(e, () => dmItems(c, e.currentTarget))}>
       <Avatar id={others[0] || meId} size={32} status={others.length === 1} />
       <span className="who">
@@ -50,18 +52,20 @@ function NameText({ id }) {
 
 function VoiceRoster({ channelId }) {
   const ids = online.use(s => Object.keys(s).filter(id => s[id].voice === channelId).join(','))
+  const there = useRef(null) // already seated when the roster appeared: only later joiners rise in
+  there.current ??= new Set(ids ? ids.split(',') : [])
   if (!ids) return null
   return (
     <div className="voice-roster">
-      {ids.split(',').map(id => <VoiceUser key={id} id={id} />)}
+      {ids.split(',').map(id => <VoiceUser key={id} id={id} joined={!there.current.has(id)} />)}
     </div>
   )
 }
 
-function VoiceUser({ id }) {
+function VoiceUser({ id, joined }) {
   const speaking = talking.use(s => !!s['v:' + id])
   return (
-    <div className={`voice-user${speaking ? ' speaking' : ''}`} {...personMenu(id)}>
+    <div className={`voice-user${joined ? ' joined' : ''}${speaking ? ' speaking' : ''}`} {...personMenu(id)}>
       <Avatar id={id} size={22} vbadge mode="voice" /><Name id={id} /><LiveTag id={id} /><CamOn id={id} /><PeerState id={id} />
     </div>
   )
@@ -71,11 +75,11 @@ function VoiceUser({ id }) {
 function Ptt() {
   const ptt = prefs.use(s => s.ptt), key = prefs.use(s => s.pttKey), on = pttDown.use()
   if (!ptt) return null
-  return <div className={`ptt small${on ? ' on' : ''}`}>{on ? '📡 Transmitting' : <>Hold <kbd>{keyLabel(key)}</kbd> to talk</>}</div>
+  return <div className={`ptt small${on ? ' on' : ''}`}>{on ? <><Icon name="live" size={14} /> Transmitting</> : <>Hold <kbd>{keyLabel(key)}</kbd> to talk</>}</div>
 }
 
 function CamOn({ id }) {
-  return online.use(s => !!s[id]?.cam) && <span title="Camera on" aria-label="Camera on">📷</span>
+  return online.use(s => !!s[id]?.cam) && <span title="Camera on" aria-label="Camera on" role="img"><Icon name="camera" size={15} /></span>
 }
 
 export default function Sidebar({ ctx, channels, current, isUnread, voice, vstate, setVstate, onLeaveVoice }) {
@@ -86,7 +90,7 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
 
   async function leave() {
     setMenu(false)
-    if (!confirm(`Leave ${server.name}?`)) return
+    if (!await ask({ text: `Leave ${server.name}?`, confirm: 'Leave', danger: true })) return
     const { error } = await supabase.from('members').delete().eq('server_id', server.id).eq('user_id', userId)
     if (error) return toast(error.message)
     await ctx.load()
@@ -95,8 +99,7 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
 
   function copyInvite() {
     setMenu(false)
-    const url = `${location.origin}${location.pathname}#/invite/${server.invite_code}`
-    navigator.clipboard.writeText(url).then(() => toast('Invite link copied!'), () => prompt('Copy this invite link:', url))
+    copyServerInvite(server.id)
   }
 
   // ── categories, drag to reorder ──
@@ -135,7 +138,7 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
     setCatEdit({})
   }
   async function deleteCat(cat) {
-    if (!confirm(`Delete the ${cat.name} category? Its rooms stay, without a category.`)) return
+    if (!await ask({ text: `Delete the ${cat.name} category? Its rooms stay, without a category.`, confirm: 'Delete', danger: true })) return
     const { error } = await supabase.from('categories').delete().eq('id', cat.id)
     if (error) return toast(error.message)
     setCategories(server.id, l => l.filter(c => c.id !== cat.id))
@@ -157,16 +160,16 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
 
   const chan = c => (
     <div key={c.id} className={`ch-drag${drag.cls('channel', c.id)}${moved === c.id ? ' just-moved' : ''}`} {...drag.item('channel', c.id, isAdmin)}>
-      <div className={`ch-item room-row${current?.id === c.id ? ' active' : ''}${isUnread(c) ? ' unread' : ''}${chanMuted(c) ? ' ch-muted' : ''}`}
+      <div className={`ch-item room-row${current?.id === c.id ? ' active' : ''}${isUnread(c) ? ' unread' : ''}${chanMuted(c) ? ' ch-muted' : ''}${ctx.quiet?.(c) ? ' ch-quiet' : ''}`}
         style={roomVars(c)} onContextMenu={e => openMenu(e, () => channelItems(c))} {...drag.zone('channel', c.id)}>
         <RoomTint c={c} />
         <button className="ch-main" onClick={() => go(server.id, c.id)} title={c.topic || undefined}>
           <RoomIcon c={c} />
           <RoomName c={c} className="ch-name" />
-          {c.private && <span className="lock" title="Private">🔒</span>}
+          {c.private && <span className="lock" title="Private"><Icon name="lock" size={13} /></span>}
           <MentionBadge n={ctx.mentionOf?.(c)} />
         </button>
-        {isAdmin && <button className="ch-gear" onClick={() => setModal({ type: 'channel', channel: c })} aria-label={`Edit ${c.name}`}>⚙</button>}
+        {isAdmin && <button className="ch-gear" onClick={() => setModal({ type: 'channel', channel: c })} aria-label={`Edit ${c.name}`}><Icon name="settings" size={15} /></button>}
       </div>
       {c.kind === 'voice' && <VoiceRoster channelId={c.id} />}
     </div>
@@ -178,15 +181,15 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
         <div className="side-head">
           <button className="side-title" onClick={() => setMenu(m => !m)} aria-expanded={menu}
             onContextMenu={e => openMenu(e, () => serverItems(server))}>
-            <span>{server.name}</span><span className={`chev${menu ? ' up' : ''}`}>▾</span>
+            <span>{server.name}</span><span className={`chev${menu ? ' up' : ''}`}><Icon name="chevron-down" size={16} /></span>
           </button>
           {menu && (
             <div className="menu pop" onMouseLeave={() => setMenu(false)}>
-              <button onClick={copyInvite}>💌 Copy invite link</button>
-              {isAdmin && <button onClick={() => { setMenu(false); setModal({ type: 'channel' }) }}>➕ New room</button>}
-              {isAdmin && <button onClick={newCat}>📁 New category</button>}
-              {(ctx.can('manage_server') || ctx.can('manage_roles')) && <button onClick={() => { setMenu(false); setModal({ type: 'serverSettings' }) }}>⚙️ Server settings</button>}
-              {role !== 'owner' && <button className="danger" onClick={leave}>🚪 Leave server</button>}
+              {(server.members_can_invite !== false || ctx.can('manage_invites')) && <button onClick={copyInvite}><Icon name="mail" size={16} /> Copy invite link</button>}
+              {isAdmin && <button onClick={() => { setMenu(false); setModal({ type: 'channel' }) }}><Icon name="plus" size={16} /> New room</button>}
+              {isAdmin && <button onClick={newCat}><Icon name="folder" size={16} /> New category</button>}
+              {SETTINGS_PERMS.some(ctx.can) && <button onClick={() => { setMenu(false); setModal({ type: 'serverSettings' }) }}><Icon name="settings" size={16} /> Server settings</button>}
+              {role !== 'owner' && <button className="danger" onClick={leave}><Icon name="door" size={16} /> Leave server</button>}
             </div>
           )}
         </div>
@@ -199,9 +202,9 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
       <div className="ch-list">
         {!server && <>
           <button className={`ch-item friends-btn${!current ? ' active' : ''}`} onClick={() => go(null)}>
-            👯 <span className="ch-name">Friends</span>{incoming > 0 && <b className="badge inline">{incoming}</b>}
+            <Icon name="friends" size={18} /> <span className="ch-name">Friends</span>{incoming > 0 && <b className="badge inline">{incoming}</b>}
           </button>
-          <button className="ch-item new-dm" onClick={() => setModal({ type: 'newDM' })}>✏️ <span className="ch-name">New message</span></button>
+          <button className="ch-item new-dm" onClick={() => setModal({ type: 'newDM' })}><Icon name="edit" size={18} /> <span className="ch-name">New message</span></button>
         </>}
         {!server && channels.map(c =>
           <DMItem key={c.id} c={c} meId={userId} active={current?.id === c.id} unread={isUnread(c)} onClick={() => go(null, c.id)} ctx={ctx} />)}
@@ -216,19 +219,19 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
               <RoomTint c={g.cat} />
               <button className="cat-toggle" onClick={() => setPref('collapsedCats', { ...collapsed, [g.cat.id]: !collapsed[g.cat.id] })}
                 aria-expanded={!collapsed[g.cat.id]}>
-                <span className={`cat-chev${collapsed[g.cat.id] ? ' shut' : ''}`}>▾</span>{g.cat.icon && <RoomIcon c={g.cat} />}<span className="cat-name">{g.cat.name}</span>
+                <span className={`cat-chev${collapsed[g.cat.id] ? ' shut' : ''}`}><Icon name="chevron-down" size={13} /></span>{g.cat.icon && <RoomIcon c={g.cat} />}<span className="cat-name">{g.cat.name}</span>
               </button>
               {isAdmin && <>
                 <button className="cat-act" onClick={() => setModal({ type: 'channel', categoryId: g.cat.id })}
-                  title="New room here" aria-label={`New room in ${g.cat.name}`}>＋</button>
-                <button className="cat-act" onClick={() => setCatEdit({ cat: g.cat })} title="Edit category" aria-label={`Edit ${g.cat.name}`}>✎</button>
-                <button className="cat-act" onClick={() => deleteCat(g.cat)} title="Delete category" aria-label={`Delete ${g.cat.name}`}>✕</button>
+                  title="New room here" aria-label={`New room in ${g.cat.name}`}><Icon name="plus" size={15} /></button>
+                <button className="cat-act" onClick={() => setCatEdit({ cat: g.cat })} title="Edit category" aria-label={`Edit ${g.cat.name}`}><Icon name="edit" size={14} /></button>
+                <button className="cat-act" onClick={() => deleteCat(g.cat)} title="Delete category" aria-label={`Delete ${g.cat.name}`}><Icon name="close" size={14} /></button>
               </>}
             </div>
             {g.channels.filter(c => !collapsed[g.cat.id] || c.id === current?.id).map(chan)}
           </div>
         ))}
-        {server && channels.length === 0 && <p className="muted small pad">No rooms yet.</p>}
+        {server && channels.length === 0 && <p className="muted small pad">No rooms yet.{isAdmin && ' Open the server menu above to make one.'}</p>}
       </div>
       {catEdit && server && <CategoryModal ctx={ctx} cat={catEdit.cat} onClose={() => setCatEdit(null)} />}
 
@@ -240,16 +243,16 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
             : <div><b className="ok">● Stadium connected</b><div className="muted small">{voice.name}</div><Ptt /></div>}
           <div className="row">
             {canShare && <button className={`icon-btn${vstate.live ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, live: !v.live }))}
-              title={vstate.live ? 'Stop sharing' : 'Go live'}>{vstate.live ? '⏹️' : '📺'}</button>}
+              title={vstate.live ? 'Stop sharing' : 'Go live'} aria-label={vstate.live ? 'Stop sharing' : 'Go live'}><Icon name={vstate.live ? 'stop' : 'screen'} /></button>}
             {canCam && <button className={`icon-btn${vstate.cam ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, cam: !v.cam }))}
-              title={vstate.cam ? 'Turn camera off' : 'Turn camera on'}>📷</button>}
+              title={vstate.cam ? 'Turn camera off' : 'Turn camera on'} aria-label={vstate.cam ? 'Turn camera off' : 'Turn camera on'}><Icon name="camera" /></button>}
             <button className={`icon-btn${vstate.muted ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, muted: !v.muted }))}
-              title={vstate.muted ? 'Unmute' : 'Mute'}>{vstate.muted ? '🔇' : '🎙️'}</button>
+              title={vstate.muted ? 'Unmute' : 'Mute'} aria-label={vstate.muted ? 'Unmute' : 'Mute'}><Icon name={vstate.muted ? 'mic-off' : 'mic'} /></button>
             <button className={`icon-btn${vstate.deafened ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, deafened: !v.deafened }))}
-              title={vstate.deafened ? 'Undeafen' : 'Deafen'}>{vstate.deafened ? '🙉' : '🎧'}</button>
+              title={vstate.deafened ? 'Undeafen' : 'Deafen'} aria-label={vstate.deafened ? 'Undeafen' : 'Deafen'}><Icon name={vstate.deafened ? 'headphones-off' : 'headphones'} /></button>
             <button className="icon-btn" onClick={() => setModal({ type: 'settings', tab: 'media' })} title="Voice & video settings"
-              aria-label="Voice & video settings">⚙️</button>
-            <button className="icon-btn danger" onClick={onLeaveVoice} title={voice.kind === 'dm' ? 'Hang up' : 'Leave stadium'}>📞</button>
+              aria-label="Voice & video settings"><Icon name="settings" /></button>
+            <button className="icon-btn danger" onClick={onLeaveVoice} title={voice.kind === 'dm' ? 'Hang up' : 'Leave stadium'} aria-label={voice.kind === 'dm' ? 'Hang up' : 'Leave stadium'}><Icon name="phone-off" /></button>
           </div>
         </div>
       )}
@@ -260,7 +263,7 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
           <Name id={userId} />
           <MeSub userId={userId} username={me.username} />
         </div>
-        <button className="icon-btn" onClick={() => setModal({ type: 'settings' })} title="Settings" aria-label="Settings">⚙️</button>
+        <button className="icon-btn" onClick={() => setModal({ type: 'settings' })} title="Settings" aria-label="Settings"><Icon name="settings" /></button>
       </div>
     </aside>
   )

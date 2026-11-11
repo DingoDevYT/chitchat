@@ -65,7 +65,7 @@ export default function Auth() {
             autoComplete={mode === 'in' ? 'current-password' : 'new-password'} />
         </label>
         {msg && <div className={msg.err ? 'note err' : 'note'} role="status">{msg.text}</div>}
-        <button className="btn primary big" disabled={busy}>{mode === 'in' ? 'Sign in' : 'Create account'}</button>
+        <button className="btn primary big" disabled={busy}>{busy ? (mode === 'in' ? 'Signing in…' : 'Creating account…') : mode === 'in' ? 'Sign in' : 'Create account'}</button>
         <div className="auth-links">
           <button type="button" className="link" onClick={() => { setMode(mode === 'in' ? 'up' : 'in'); setMsg(null) }}>
             {mode === 'in' ? 'New here? Create an account' : 'Have an account? Sign in'}

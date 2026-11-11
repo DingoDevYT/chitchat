@@ -13,19 +13,26 @@ import Members, { useMembers } from './Members'
 import ProfileCardHost from './ProfileCard'
 import { useMemberRoles } from './Roles'
 import { hasPerm } from './lib/roles'
+import { postBlock } from './lib/moderation'
+import { ModHost } from './Moderation'
 import { VoiceConnection, VoiceStage } from './Voice'
 import { CallHost, onCallSignal } from './DMCalls'
 import StadiumChat from './StadiumChat'
 import QuickSwitch from './QuickSwitch'
 import { CreateJoinModal, ServerSettingsModal, ChannelModal, NewDMModal } from './Modals'
+import { ForwardModal } from './Forward'
 import Settings from './Settings'
 import { ThreadPanel } from './Thread'
 import ServerRail from './ServerCards'
 import ContextMenuHost, { openMenu } from './ContextMenu'
+import YouGotHost, { youGot } from './YouGot'
+import { ask } from './Dialog'
 import { app, dmHidden, serverItems } from './menus'
 import { blockedDM, channelMuted, nextExpiry } from './lib/mute'
 import { blocks } from './lib/blocks'
 import { ConnBanner, conn, reportRealtime, startConnWatch, startLastSeen } from './ChatCues'
+import NotifyHost, { useQuiet } from './Notify'
+import Icon from './icons/Icon'
 
 function parseHash() {
   const [, kind, a, b] = location.hash.split('/')
@@ -38,6 +45,7 @@ export default function Shell({ userId }) {
   const me = useProfile(userId)
   const [servers, setServers] = useState(null)
   const [channels, setChannels] = useState([])
+  const [loadErr, setLoadErr] = useState(false) // first load failed: the splash offers a retry instead of spinning forever
   const chRef = useRef(channels)
   chRef.current = channels
   const [reads, setReads] = useState({})
@@ -45,15 +53,18 @@ export default function Shell({ userId }) {
   const [modal, setModal] = useState(null)
   const [voice, setVoice] = useState(null)
   const [vstate, setVstate] = useState({ muted: false, deafened: false, live: false, cam: false })
-  const joinVoice = c => {
+  const joinVoice = async c => {
     // Switching between a stadium and a DM call (either way) hangs up the old one, so ask first.
     if (c && voice && voice.id !== c.id && (c.kind === 'dm' || voice.kind === 'dm') &&
-      !confirm(voice.kind === 'dm' ? 'Hang up your current call first?' : `Leave ${voice.name} to start the call?`)) return false
+      !await ask(voice.kind === 'dm' ? { text: 'Hang up your current call first?', confirm: 'Hang up' } : { text: `Leave ${voice.name} to start the call?`, confirm: 'Leave' })) return false
+    // Timed out, or hasn't agreed to the rules yet: the database refuses the stadium too (032_moderation); say why here.
+    const block = c?.kind === 'voice' && c.server_id === server?.id && postBlock(server, member, hasPerm(roleData, role, userId, 'manage_server'))
+    if (block) { toast(block === 'timeout' ? "You're in a timeout, so stadiums are off for now." : 'Agree to the server rules first, then you can join stadiums.'); return false }
     setVoice(c); setVstate(v => ({ ...v, live: false, cam: false }))
   }
   // DM calls: join (or start, which rings everyone in the DM) and open the DM, where the call panel is.
-  const startCall = (c, video) => {
-    if (voice?.id !== c.id && joinVoice(c) === false) return
+  const startCall = async (c, video) => {
+    if (voice?.id !== c.id && await joinVoice(c) === false) return
     if (video) setVstate(v => ({ ...v, cam: true }))
     go(null, c.id)
   }
@@ -92,6 +103,7 @@ export default function Shell({ userId }) {
       supabase.from('read_states').select('channel_id, last_read_id'),
       supabase.from('members').select('server_id, position').eq('user_id', userId),
     ])
+    setLoadErr(!!(s.error || c.error))
     if (s.error || c.error) return toast('Could not load your stuff. Check your connection.')
     // your own rail order (members.position), unordered servers last by creation
     const order = Object.fromEntries((m.data || []).map(x => [x.server_id, x.position]))
@@ -99,14 +111,16 @@ export default function Shell({ userId }) {
     setChannels(c.data)
     setReads(Object.fromEntries((r.data || []).map(x => [x.channel_id, x.last_read_id])))
     ensureProfiles(c.data.filter(x => x.kind === 'dm').flatMap(x => x.channel_members.map(m => m.user_id)))
+    return s.data
   }, [])
 
   const joinInvite = useCallback(async code => {
     const { data, error } = await supabase.rpc('join_server', { code })
     if (error) return toast(error.message.includes('not found') ? 'That invite link is invalid.' : error.message)
-    await load()
+    const list = await load()
     go(data)
     toast('Joined! Say hi 👋')
+    youGot('join', `You joined ${list?.find(s => s.id === data)?.name || 'a new server'}!`)
   }, [load, go])
 
   useEffect(() => { load() }, [load])
@@ -184,7 +198,8 @@ export default function Shell({ userId }) {
     .sort((a, b) => (b.last_message_id || 0) - (a.last_message_id || 0)), [channels, closedDMs, route.channelId])
   const channel = channels.find(c => c.id === route.channelId && (c.server_id || null) === route.serverId) || null
   const members = useMembers(route.serverId)
-  const role = members.find(m => m.user_id === userId)?.role
+  const member = members.find(m => m.user_id === userId) // your own row here: nickname, timeout, rules agreement
+  const role = member?.role
   const roleData = useMemberRoles(route.serverId)
 
   // Threads: kind 'thread' channels, shown in a side panel next to their parent channel.
@@ -249,13 +264,15 @@ export default function Shell({ userId }) {
   const isUnread = useCallback(c => c.kind !== 'voice' && (c.last_message_id || 0) > (reads[c.id] ?? 0) &&
     !(c.id === channel?.id && visible && hold !== c.id) && !channelMuted(mutes, c) && !blockedDM(blocked, c, userId),
   [reads, channel?.id, visible, hold, mutes, tick, blocked, userId]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Notification level "Nothing": the dot stays (dimmed, ctx.quiet) but it never counts toward badges or the tab title.
+  const quiet = useQuiet(channels)
   // server id -> number of unread channels (a Map, so .has/.size read like the old Set)
   const unreadServers = useMemo(() => {
     const m = new Map()
-    for (const c of channels) if (c.server_id && c.kind !== 'thread' && isUnread(c)) m.set(c.server_id, (m.get(c.server_id) || 0) + 1)
+    for (const c of channels) if (c.server_id && c.kind !== 'thread' && isUnread(c) && !quiet(c)) m.set(c.server_id, (m.get(c.server_id) || 0) + 1)
     return m
-  }, [channels, isUnread])
-  const unreadDMs = dms.filter(isUnread).length
+  }, [channels, isUnread, quiet])
+  const unreadDMs = dms.filter(c => isUnread(c) && !quiet(c)).length
 
   // Red badges: @mentions of you (DMs: every unread message), from mention_counts(). Refetched (debounced) whenever
   // any channel gets a new message or a read state changes, since Shell only sees channels.last_message_id move.
@@ -266,14 +283,14 @@ export default function Shell({ userId }) {
       if (data) setMentions(Object.fromEntries(data.map(r => [r.channel_id, Number(r.count)])))
     }), 700)
     return () => clearTimeout(t)
-  }, [lastAny, reads])
+  }, [lastAny, reads, quiet]) // quiet: notification settings changed (suppress switches)
   // Mutes hide the unread dot but not mentions (like Discord); muted/blocked DMs stay quiet (their count is every message).
   const mentionOf = useCallback(c => {
     const n = mentions[c.id] || 0
-    if (!n || (c.last_message_id || 0) <= (reads[c.id] ?? 0) || (c.id === channel?.id && visible && hold !== c.id)) return 0
+    if (!n || (c.last_message_id || 0) <= (reads[c.id] ?? 0) || (c.id === channel?.id && visible && hold !== c.id) || quiet(c)) return 0
     if (c.kind === 'dm' && (channelMuted(mutes, c) || blockedDM(blocked, c, userId))) return 0
     return n
-  }, [mentions, reads, channel?.id, visible, hold, mutes, tick, blocked, userId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mentions, reads, channel?.id, visible, hold, mutes, tick, blocked, userId, quiet]) // eslint-disable-line react-hooks/exhaustive-deps
   // server id -> mention count; the rail cards read it (prop), and ctx.serverMentions for anyone else
   const serverMentions = useMemo(() => {
     const m = new Map()
@@ -282,7 +299,7 @@ export default function Shell({ userId }) {
   }, [channels, mentionOf])
   const mentionTotal = [...serverMentions.values()].reduce((a, b) => a + b, 0)
   // Unread DMs as rail cards (newest first, max 4); dms already drops closed ones, isUnread muted/blocked/open ones.
-  const dmCards = useMemo(() => dms.filter(isUnread).slice(0, 4).map(c => ({ c, count: Math.max(1, mentionOf(c)) })), [dms, isUnread, mentionOf])
+  const dmCards = useMemo(() => dms.filter(c => isUnread(c) && !quiet(c)).slice(0, 4).map(c => ({ c, count: Math.max(1, mentionOf(c)) })), [dms, isUnread, mentionOf, quiet])
 
   useEffect(() => {
     const n = unreadDMs + unreadServers.size + mentionTotal
@@ -318,10 +335,12 @@ export default function Shell({ userId }) {
     go(null, data)
   }
 
-  if (!me || !servers) return <Splash />
+  if (!me || !servers) return <Splash>{loadErr && !servers && <>
+    <p className="muted">Couldn't load your stuff. Check your connection.</p>
+    <button className="btn primary" onClick={load}>Try again</button></>}</Splash>
 
-  const ctx = { me, userId, server, role, can: perm => !!server && hasPerm(roleData, role, userId, perm), go, openDM, setModal, load, setChannels, markRead, markUnread, joinVoice,
-    voice, vstate, setVstate, startCall, threads, threadsByMsg, startThread, openThread: setThreadId, channels, reads, mentionOf, serverMentions }
+  const ctx = { me, userId, server, role, member, can: perm => !!server && hasPerm(roleData, role, userId, perm), go, openDM, setModal, load, setChannels, markRead, markUnread, joinVoice,
+    voice, vstate, setVstate, startCall, threads, threadsByMsg, startThread, openThread: setThreadId, channels, reads, mentionOf, serverMentions, quiet }
   Object.assign(app, { ctx, members, channels })
 
   return (
@@ -355,6 +374,8 @@ export default function Shell({ userId }) {
 
       <QuickSwitch servers={servers} channels={channels.filter(c => c.kind !== 'thread')} go={go} />
       <ProfileCardHost ctx={ctx} members={members} />
+      <ModHost ctx={ctx} />
+      <NotifyHost ctx={ctx} servers={servers} isUnread={isUnread} visible={visible} current={channel} />
       <ContextMenuHost />
 
       {modal?.type === 'createJoin' && <CreateJoinModal ctx={ctx} onClose={() => setModal(null)} joinInvite={joinInvite} />}
@@ -362,8 +383,10 @@ export default function Shell({ userId }) {
       {modal?.type === 'channel' && server && <ChannelModal ctx={ctx} members={members} channel={modal.channel} categoryId={modal.categoryId} onClose={() => setModal(null)} />}
       {modal?.type === 'newDM' && <NewDMModal ctx={ctx} onClose={() => setModal(null)} />}
       {modal?.type === 'settings' && <Settings me={me} tab={modal.tab} onClose={() => setModal(null)} />}
+      {modal?.type === 'forward' && <ForwardModal m={modal.message} ctx={ctx} servers={servers} onClose={() => setModal(null)} />}
 
       <ConnBanner />
+      <YouGotHost userId={userId} />
       <div className="toasts" aria-live="polite">
         {toastList.map(t => <div key={t.id} className="toast pop">{t.text}</div>)}
       </div>
@@ -375,7 +398,7 @@ export default function Shell({ userId }) {
 function Welcome({ ctx, onMenu, hasServers }) {
   return (
     <div className="welcome">
-      <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu">☰</button>
+      <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu"><Icon name="menu" /></button>
       <div className="welcome-card pop">
         <Avatar id={ctx.userId} size={96} />
         <h1>Hey {ctx.me.display_name || ctx.me.username}!</h1>

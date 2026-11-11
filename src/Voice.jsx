@@ -10,6 +10,7 @@ import { bubbles, speakTTS, stopTTS } from './lib/stadium'
 import { emojify } from './Markdown'
 import gateUrl from './lib/voice.js?url'
 import Avatar, { Name } from './Avatar'
+import Icon from './icons/Icon'
 import { openMenu } from './ContextMenu'
 import { app, personMenu, streamItems } from './menus'
 import { RoomTitle, roomVars } from './Rooms'
@@ -471,7 +472,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
     <div className="stage">
       <ThemeBackdrop theme={theme} variant="stadium" />
       <header className="chat-head room-head" style={roomVars(channel, app.ctx?.server)}>
-        <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu">☰</button>
+        <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu"><Icon name="menu" /></button>
         <RoomTitle c={channel} />
       </header>
       <div className="stadium">
@@ -479,7 +480,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
           {main ? (
             <>
               <Screen stream={all[main]} />
-              <div className="stage-caption"><b className="live-badge">🔴 LIVE</b> <Name id={main} /></div>
+              <div className="stage-caption"><b className="live-badge"><Icon name="live" size="1.25em" /> LIVE</b> <Name id={main} /></div>
               {shown.length > 1 && (
                 <div className="stage-thumbs">
                   {shown.filter(id => id !== main).map(id => (
@@ -503,7 +504,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
           {list.length === 0 && <p className="muted">Nobody's here yet.</p>}
           {list.map(id => (
             <div key={id} className={`stage-seat${id === meId ? ' me' : ''}`} {...personMenu(id)}>
-              {lives.includes(id) && <b className="live-badge">🔴 LIVE</b>}
+              {lives.includes(id) && <b className="live-badge"><Icon name="live" size="1.25em" /> LIVE</b>}
               <Bubble id={id} />
               <Avatar id={id} size={size} full vbadge>{joined && faces[id] && <Screen stream={faces[id]} />}</Avatar>
               <Name id={id} />
@@ -514,9 +515,9 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
       </div>
       <div className="stage-actions">
         {!joined && <button className="btn primary big join-voice" onClick={onJoin}>Join stadium</button>}
-        {joined && hidden.length > 0 && <button className="btn ghost" onClick={() => setHidden([])}>🙈 Show {hidden.length} hidden</button>}
-        {joined && canShare && <button className={`btn ${live ? 'danger' : 'primary'}`} onClick={onLive}>{live ? '⏹️ Stop sharing' : '📺 Go live'}</button>}
-        {joined && canCam && <button className={`btn ${cam ? 'danger' : 'primary'}`} onClick={onCam}>{cam ? '🚫 Camera off' : '📷 Camera'}</button>}
+        {joined && hidden.length > 0 && <button className="btn ghost" onClick={() => setHidden([])}><Icon name="eye" size={18} /> Show {hidden.length} hidden</button>}
+        {joined && canShare && <button className={`btn ${live ? 'danger' : 'primary'}`} onClick={onLive}><Icon name={live ? 'stop' : 'screen'} size={18} /> {live ? 'Stop sharing' : 'Go live'}</button>}
+        {joined && canCam && <button className={`btn ${cam ? 'danger' : 'primary'}`} onClick={onCam}><Icon name={cam ? 'camera-off' : 'camera'} size={18} /> {cam ? 'Camera off' : 'Camera'}</button>}
       </div>
     </div>
   )

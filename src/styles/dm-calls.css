@@ -1,1 +1,75 @@
-/* dm-calls styles — filled in by its feature agent */
+/* ── DM calls (DMCalls.jsx). Calm everywhere except the incoming-call ring. ── */
+body .ci { display: block; flex: none; transition: transform .2s var(--spring); }
+body .ci.hang { transform: rotate(135deg); }
+body .ci.up { transform: rotate(180deg); }
+body .btn .ci { width: 16px; height: 16px; }
+body .btn:has(> .ci) { display: inline-flex; align-items: center; gap: 6px; }
+
+/* panel at the top of the DM: resizable (drag the corner), collapsible to its bar */
+body .call-panel {
+  flex: none; height: 230px; min-height: 120px; max-height: 75%; resize: vertical; overflow: hidden;
+  display: flex; flex-direction: column; border-bottom: 2px solid var(--line);
+  background: radial-gradient(ellipse at 50% 120%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%), var(--bg-2);
+}
+body .call-panel.sharing { height: 420px; }
+body .call-panel.shut { height: auto !important; min-height: 0; resize: none; }
+body .call-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 0; }
+body .call-screen { flex: 1; min-height: 0; }
+body .call-screen .stage-caption { top: 12px; left: 12px; padding: 4px 10px; }
+body .call-crowd { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 20px; padding: 14px 4px 4px; } /* top room: a talking seat hops up */
+body .call-panel.sharing .call-crowd { flex: none; max-height: 45%; }
+body .call-crowd .stage-seat { margin: 0; }
+body .call-crowd .stage-seat .name { background: var(--bg-3); }
+body .call-bar { flex: none; display: flex; align-items: center; gap: 4px; padding: 6px 10px 8px; flex-wrap: wrap; }
+body .call-note { font-size: 13px; font-weight: 800; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 4px; }
+body .call-ctl.hangup { background: var(--danger); color: var(--danger-ink); width: 44px; border-radius: 999px; }
+body .call-ctl.hangup:hover { background: var(--danger); color: var(--danger-ink); }
+body .call-bar .btn.small { padding: 6px 12px; }
+
+/* incoming call cards (top right; full width on phones) */
+body .call-rings { position: fixed; top: 16px; right: 16px; z-index: 300; display: flex; flex-direction: column; gap: 10px; width: min(340px, calc(100vw - 32px)); }
+body .ring-card {
+  display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: var(--r-lg); background: var(--bg-2);
+  box-shadow: var(--shadow), 0 0 0 2px color-mix(in srgb, var(--mint) 55%, transparent);
+}
+body .ring-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+body .ring-av { position: relative; flex: none; display: grid; }
+body .ring-av::before, body .ring-av::after {
+  content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 3px solid var(--mint); pointer-events: none;
+  animation: dmc-ring 1.6s ease-out infinite;
+}
+body .ring-av::after { animation-delay: .8s; }
+@keyframes dmc-ring { from { transform: scale(1); opacity: .9; } to { transform: scale(1.45); opacity: 0; } }
+body .ring-text { display: flex; flex-direction: column; min-width: 0; }
+body .ring-text b { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .ring-actions { display: flex; gap: 8px; }
+body .ring-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 6px; border-radius: 999px;
+  font-weight: 800; font-size: 13px; transition: transform .15s var(--spring), filter .15s;
+}
+body .ring-btn:hover { transform: translateY(-2px); filter: brightness(1.05); }
+body .ring-btn.accept { background: var(--mint); color: var(--accent-ink); }
+body .ring-btn.video { background: var(--accent); color: var(--accent-ink); }
+body .ring-btn.decline { background: var(--danger); color: var(--danger-ink); }
+
+/* "In a call · Join" under a DM row, and the sidebar voice panel's "Call with …" */
+body .call-tag { display: block; color: var(--mint); font-size: 11.5px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+body .call-tag .link { text-decoration: underline; cursor: pointer; border-radius: 4px; }
+body .call-tag .link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+body .call-with { display: block; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+body .call-with:hover { text-decoration: underline; }
+
+/* "Missed call from pip · 2:14 PM" / "Call · 12m" lines in the chat */
+body .call-line { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 6px 16px; font-size: 13px; font-weight: 700; color: var(--muted); }
+body .call-line .ci { width: 15px; height: 15px; color: var(--mint); }
+body .call-line.missed .ci { color: var(--danger); }
+
+@media (max-width: 560px) {
+  body .call-rings { top: 10px; left: 10px; right: 10px; width: auto; }
+  body .call-panel { height: 200px; }
+  body .call-panel.sharing { height: 340px; }
+  body .call-crowd { gap: 2px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body .ring-av::before, body .ring-av::after { animation: none; opacity: .6; }
+}

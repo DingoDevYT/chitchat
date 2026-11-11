@@ -148,11 +148,11 @@ function CallWatch({ c, me }) {
   }
 
   useEffect(() => {
-    declines.set([])
     const t = setTimeout(missed, RING_MS)
     return () => {
       clearTimeout(t)
       callInfo.set(null)
+      declines.set([]) // here, not on mount: the declines effect below would already have seen the old list
       const st = s.current
       // shortcut: only a clean hang-up writes the line (a closed tab doesn't); the last one out writes it.
       if (st.first && !nRef.current) writeLine(c.id, `Call · ${callLength(((st.last || Date.now()) - st.first) / 1000)}`, { secs: Math.round(((st.last || Date.now()) - st.first) / 1000) })
@@ -221,7 +221,8 @@ export function CallPanel({ channel, ctx }) {
   const joined = ctx.voice?.id === channel.id
   const [open, setOpen] = useState(true)
   const info = callInfo.use()
-  const sharing = joined && Object.keys(streams.use()).length > 0
+  const nStreams = streams.use(s => Object.keys(s).length)
+  const sharing = joined && nStreams > 0
   const [, tick] = useState(0)
   const counting = joined && info && (!info.answered || info.aloneSince)
   useEffect(() => {

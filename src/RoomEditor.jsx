@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { toast, useProfile } from './lib/store'
+import { ask } from './Dialog'
+import { youGot } from './YouGot'
 import { uploadFile } from './lib/upload'
 import { categories, setCategories } from './lib/categories'
 import { applyItems, byPosition } from './lib/reorder'
@@ -157,11 +159,12 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
     }
     await ctx.load()
     if (!editing) ctx.go(ctx.server.id, id)
+    if (!editing && kind === 'voice') youGot('stadium', 'You started your first stadium!')
     onClose()
   }
 
   async function destroy() {
-    if (!confirm(`Delete ${channel.name} and all its messages?`)) return
+    if (!await ask({ text: `Delete ${channel.name} and all its messages?`, confirm: 'Delete', danger: true })) return
     const { error } = await supabase.from('channels').delete().eq('id', channel.id)
     if (error) return toast(error.message)
     await ctx.load()

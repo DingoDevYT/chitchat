@@ -14,6 +14,10 @@ import { app, chanMuted, messageItems, personMenu } from './menus'
 import { ThreadPill } from './Thread'
 import { isBlocked, useBlocked } from './lib/blocks'
 import LinkPreviews from './LinkPreview'
+import { ForwardHeader } from './Forward'
+import { PollCard } from './Poll'
+import { CloseIcon } from './icons'
+import Icon from './icons/Icon'
 
 export const QUICK_EMOJI = ['👍', '❤️', '😂']
 
@@ -85,11 +89,11 @@ export function flashTo(id) {
 
 function ReplyPreview({ m }) {
   const author = useProfile(m?.author_id)
-  if (!m) return <div className="reply-ref muted small">↪ Original message unavailable</div>
+  if (!m) return <div className="reply-ref muted small"><Icon name="reply" size={14} /> Original message unavailable</div>
   return (
     <button className="reply-ref small" onClick={() => flashTo(m.id)}>
-      ↪ <Avatar id={m.author_id} size={16} /> <b style={{ color: author?.color }}>{author?.display_name || author?.username}</b>
-      <span className="muted">{m.content.slice(0, 80) || '📎 attachment'}</span>
+      <Icon name="reply" size={14} /> <Avatar id={m.author_id} size={16} /> <b style={{ color: author?.color }}>{author?.display_name || author?.username}</b>
+      <span className="muted">{m.content.slice(0, 80) || <><Icon name="paperclip" size={13} /> attachment</>}</span>
     </button>
   )
 }
@@ -107,7 +111,7 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
   oldChips.current ??= new Set(reactions.map(r => r.emoji))
   const allProfiles = profiles.get()
   const media = useMemo(() => [...(m.attachments || []), ...(typing ? [] : mediaLinks(m.content))], [m.attachments, m.content, typing])
-  const mentioned = mentionsMe(m.content, myName) // same rule as the mention badges
+  const mentioned = mentionsMe(m.content, myName) || (m.mentions_everyone && !mine) // same rule as the mention badges; the DB sets mentions_everyone only when allowed
   const menu = e => !m.pending && !m.failed && !editing && openMenu(e, () => messageItems(m, {
     mine, canDelete, canPin, onReply, onEdit, onDelete, onReact, onPin, onThread, thread,
     quick: [...new Set([...(prefs.get().recentEmoji || []), ...QUICK_EMOJI, '😮', '😢', '🎉'])].slice(0, 6),
@@ -116,7 +120,7 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
 
   if (blocked && !reveal) return (
     <div id={`msg-${m.id}`} className={`msg${head ? ' head' : ''} blocked-msg`}>
-      <button className="muted small" onClick={() => setReveal(true)}>🚫 Blocked message · <u>show</u></button>
+      <button className="muted small" onClick={() => setReveal(true)}><Icon name="block" size={14} /> Blocked message · <u>show</u></button>
     </div>
   )
 
@@ -127,8 +131,11 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
         <div className="msg-gutter">
           {head ? <button className="av-btn" data-profile {...personMenu(m.author_id)} onClick={e => openProfile(m.author_id, e.currentTarget)} aria-label="View profile"><Avatar id={m.author_id} size={42} talk={typing} /></button> : <time className="hover-time">{fmtTime(new Date(m.created_at))}</time>}
         </div>
-        <div className="msg-body">
+        <div className={`msg-body${m.forward ? ' fwd' : ''}`}>
           {head && <div className="msg-meta"><button className="name-btn" data-profile {...personMenu(m.author_id)} onClick={e => openProfile(m.author_id, e.currentTarget)}><Name id={m.author_id} serverId={serverId} /></button><time className="muted small">{fmtStamp(m.created_at)}</time></div>}
+          {m.forward && <ForwardHeader f={m.forward} />}
+          {/* a sent message with neither text nor files is a poll (create_poll) */}
+          {!m.content && !m.attachments?.length && !m.forward && typeof m.id === 'number' && <PollCard messageId={m.id} me={me} />}
           {editing
             ? <EditBox initial={m.content} onSave={onSaveEdit} onCancel={onCancelEdit} />
             : m.content && (
@@ -142,8 +149,14 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
             {m.failed && onRetry && <button className="btn primary small" onClick={() => onRetry(m)}>Retry</button>}
             <button className="btn ghost small" onClick={() => onDelete(m)}>Delete</button>
           </div>}
-          {m.pending && !m.queued && m._files?.length > 0 && <div className="muted small" role="status">Uploading {m._files.length === 1 ? m._files[0].name : `${m._files.length} files`}…</div>}
-          {m.pinned_at && <div className="pin-mark">📌 pinned</div>}
+          {m.pending && !m.queued && m._files?.length > 0 && <div className="upload-bar">
+            <span className="muted small" role="status">Uploading {m._files.length === 1 ? m._files[0].name : `${m._files.length} files`}…</span>
+            <span className="upload-track" role="progressbar" aria-label="Upload progress" aria-valuenow={Math.round((m._progress || 0) * 100)}>
+              <i style={{ width: (m._progress || 0) * 100 + '%' }} />
+            </span>
+            {m._ctl && <button className="icon-btn" onClick={() => m._ctl.abort()} aria-label="Cancel upload" title="Cancel upload"><CloseIcon size={16} /></button>}
+          </div>}
+          {m.pinned_at && <div className="pin-mark"><Icon name="pin" size={13} /> pinned</div>}
           <Attachments list={media} />
           {!typing && !m.suppress_embeds && <LinkPreviews m={m} mine={mine} />}
           {reactions.length > 0 && (
@@ -163,12 +176,12 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
       {!m.pending && !m.failed && !editing && (
         <div className="msg-tools">
           {QUICK_EMOJI.map(e => <button key={e} onClick={() => onReact(m, e)} title={`React ${e}`}><Emoji e={e} /></button>)}
-          <button onMouseDown={e => e.stopPropagation()} onClick={e => setPicker(p => !p && (e.currentTarget.getBoundingClientRect().top > innerHeight / 2 ? 'up' : 'down'))} title="More reactions"><Emoji e="😊" /></button>
-          <button onClick={() => onReply(m)} title="Reply">↩️</button>
-          {onThread && <button onClick={() => onThread(m)} title={thread ? 'Open thread' : 'Start thread'} aria-label={thread ? 'Open thread' : 'Start thread'}>🧵</button>}
-          {canPin && <button onClick={() => onPin(m)} title={m.pinned_at ? 'Unpin' : 'Pin'} aria-label={m.pinned_at ? 'Unpin' : 'Pin'}>📌</button>}
-          {mine && <button onClick={() => onEdit(m)} title="Edit">✏️</button>}
-          {(mine || canDelete) && <button onClick={e => onDelete(m, e.shiftKey)} title="Delete (Shift = no confirm)">🗑️</button>}
+          <button onMouseDown={e => e.stopPropagation()} onClick={e => setPicker(p => !p && (e.currentTarget.getBoundingClientRect().top > innerHeight / 2 ? 'up' : 'down'))} title="More reactions" aria-label="More reactions"><Icon name="smile" size={18} /></button>
+          <button onClick={() => onReply(m)} title="Reply" aria-label="Reply"><Icon name="reply" size={18} /></button>
+          {onThread && <button onClick={() => onThread(m)} title={thread ? 'Open thread' : 'Start thread'} aria-label={thread ? 'Open thread' : 'Start thread'}><Icon name="thread" size={18} /></button>}
+          {canPin && <button onClick={() => onPin(m)} title={m.pinned_at ? 'Unpin' : 'Pin'} aria-label={m.pinned_at ? 'Unpin' : 'Pin'}><Icon name="pin" size={18} /></button>}
+          {mine && m.content && !m.forward && <button onClick={() => onEdit(m)} title="Edit" aria-label="Edit"><Icon name="edit" size={18} /></button>}
+          {(mine || canDelete) && <button onClick={e => onDelete(m, e.shiftKey)} title="Delete (Shift = no confirm)" aria-label="Delete"><Icon name="trash" size={18} /></button>}
           {picker && <EmojiPicker className={picker} onPick={e => { onReact(m, e); setPicker(false) }} onClose={() => setPicker(false)} />}
         </div>
       )}

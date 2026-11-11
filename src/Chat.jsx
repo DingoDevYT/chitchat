@@ -1,21 +1,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from './lib/supabase'
 import { ensureProfiles, prefs, profiles, setPref, setTypingIn, toast } from './lib/store'
+import { ask } from './Dialog'
+import { uiSound } from './lib/animalese'
+import { youGot } from './YouGot'
 import TypingRow from './Typing'
 import { applyReaction, mergeIncoming, overLimit, startsGroup, MAX_LEN } from './lib/chat'
 import { uploadFile } from './lib/upload'
 import Message, { flashTo } from './Message'
 import { PinsPanel, SearchPanel } from './PinsSearch'
 import { dmTitle } from './Sidebar'
-import { Emoji } from './Markdown'
 import EmojiPicker from './EmojiPicker'
 import { useEmojiAutocomplete } from './EmojiAutocomplete'
+import { useMentionAutocomplete } from './MentionAutocomplete'
 import GifPicker from './GifPicker'
+import { PollCreator, onVote } from './Poll'
+import VoiceRecorder from './VoiceNote'
+import { TimePicker } from './TimePicker'
+import { openMenu } from './ContextMenu'
+import { ClipIcon, ClockIcon, EyeOffIcon, MicIcon, PollIcon } from './icons'
+import Icon from './icons/Icon'
 import { ThreadsButton } from './Thread'
 import { CallButtons, CallLine, CallPanel } from './DMCalls'
 import { firstUnreadId, mergeRecent } from './lib/cues'
 import { conn } from './ChatCues'
 import Markdown from './Markdown'
+import { PostGate } from './Moderation'
 import { RoomBackdrop, RoomTitle, SlowBadge, roomVars, useSlowLeft } from './Rooms'
 import { slowUntil } from './lib/rooms'
 import ThemeBackdrop, { useRoomTheme } from './themes/ThemeBackdrop'
@@ -35,6 +46,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
   const [atBottom, setAtBottom] = useState(true)
   const [panel, setPanel] = useState(null) // 'pins' | 'search' | null
   const [loaded, setLoaded] = useState(false)
+  const [loadErr, setLoadErr] = useState(false) // first load failed: say so instead of shimmering forever
   const chRef = useRef(null)
   const topRef = useRef(null)
   const scrollRef = useRef(null)
@@ -60,7 +72,8 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
     .order('id', { ascending: false }).limit(PAGE)
     .then(({ data, error }) => {
       if (alive && !alive()) return
-      if (error) return toast('Could not load messages.')
+      setLoadErr(!!error)
+      if (error) return msgsRef.current && toast('Could not load new messages.') // with nothing shown yet, the inline retry says it
       const rows = data.reverse().map(r => ({ ...r, key: r.id }))
       ensureProfiles(rows.map(r => r.author_id))
       setMsgs(cur => mergeRecent(cur, rows))
@@ -92,6 +105,8 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
         setMsgs(l => applyReaction(l, r, true)))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'reactions' }, ({ old }) =>
         setMsgs(l => applyReaction(l, old, false)))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'poll_votes', filter }, ({ new: v }) => onVote(v, true))
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'poll_votes' }, ({ old }) => onVote(old, false))
       .on('broadcast', { event: 'typing' }, ({ payload }) => { stadium?.onType(payload.id); setTypers(t => ({ ...t, [payload.id]: Date.now() })) })
       .subscribe()
     chRef.current = ch
@@ -139,12 +154,18 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
     if (!navigator.onLine) return mark({ pending: true, failed: false, queued: true })
     if (m.queued) mark({ queued: false }) // so a second flush doesn't send it twice
     try {
-      const attachments = [...m._ready, ...await Promise.all(m._files.map(f => uploadFile(f, userId)))]
+      // one progress bar for all files, weighted by size; the bar's cancel aborts every upload
+      const ctl = new AbortController(), size = m._files.map(f => f.size || 1), done = size.map(() => 0), all = size.reduce((a, b) => a + b, 0)
+      if (m._files.length) mark({ _ctl: ctl, _progress: 0 })
+      const onProgress = i => (l, t) => { done[i] = (size[i] * l) / t; mark({ _progress: done.reduce((a, b) => a + b, 0) / all }) }
+      const uploaded = await Promise.all(m._files.map((f, i) => uploadFile(f, userId, { signal: ctl.signal, onProgress: onProgress(i) }).then(a => ({ ...a, ...f.meta }))))
+      const attachments = [...m._ready, ...uploaded]
       const { data, error } = await supabase.from('messages')
         .insert({ channel_id: channel.id, author_id: userId, content: m.content, reply_to: m.reply_to, attachments, ...(m.tts && { tts: true }) }).select().single()
       if (error) throw error
       setMsgs(l => mergeIncoming(l, data))
     } catch (e) {
+      if (e.name === 'AbortError') return setMsgs(l => l && l.filter(x => x.id !== m.id)) // cancelled from the upload bar
       const off = !navigator.onLine
       mark({ pending: off, failed: !off, queued: off })
       if (!off) toast('Message failed: ' + e.message)
@@ -157,7 +178,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
     const tmp = 'tmp-' + crypto.randomUUID()
     const row = {
       id: tmp, key: tmp, pending: true, _live: true, channel_id: channel.id, author_id: userId, content, reply_to: replyTo?.id ?? null, tts: !!(tts && content),
-      attachments: [...ready, ...files.map(f => ({ name: f.name, type: f.type, url: URL.createObjectURL(f), uploading: true }))],
+      attachments: [...ready, ...files.map(f => ({ name: f.name, type: f.type, url: URL.createObjectURL(f), uploading: true, ...f.meta }))],
       reactions: [], created_at: new Date().toISOString(), _files: files, _ready: ready,
     }
     setMsgs(l => [...(l || []), row])
@@ -165,7 +186,19 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
     setLastRead(null)
     scrollRef.current?.scrollTo({ top: 0 }) // column-reverse: 0 = latest, so you see your message (and its Retry if it fails)
     deliver(row)
+    uiSound('send')
+    // none of yours loaded in this server room yet: a one-time "You got…" moment
+    if (channel.server_id && !msgsRef.current?.some(m => m.author_id === userId)) youGot('firstMessage', `Your first message in ${channel.name}!`)
   }, [channel.id, userId, replyTo, deliver])
+
+  // Polls go out in one transaction (create_poll: the message under the normal send rules, plus its poll).
+  const createPoll = useCallback(async args => {
+    const { data, error } = await supabase.rpc('create_poll', { cid: channel.id, ...args })
+    if (error) { toast(error.message); return false }
+    setMsgs(l => mergeIncoming(l, data))
+    scrollRef.current?.scrollTo({ top: 0 })
+    return true
+  }, [channel.id])
 
   // Retry goes to the bottom, where the server will put it.
   const retry = useCallback(m => {
@@ -193,7 +226,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
 
   const remove = useCallback(async (m, skipConfirm) => {
     if (m.failed || m.queued) return setMsgs(l => l.filter(x => x.id !== m.id))
-    if (!skipConfirm && !confirm('Delete this message?')) return
+    if (!skipConfirm && !await ask({ text: 'Delete this message?', confirm: 'Delete', danger: true })) return
     setMsgs(l => l.filter(x => x.id !== m.id))
     const { error } = await supabase.from('messages').delete().eq('id', m.id)
     if (error) toast(error.message)
@@ -223,7 +256,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
   const startEdit = useCallback(m => setEditing(m.id), [])
   const cancelEdit = useCallback(() => setEditing(null), [])
   const editLast = useCallback(() => {
-    const last = [...(msgs || [])].reverse().find(m => m.author_id === userId && !m.pending && !m.failed)
+    const last = [...(msgs || [])].reverse().find(m => m.author_id === userId && !m.pending && !m.failed && m.content && !m.forward)
     if (last) setEditing(last.id)
   }, [msgs, userId])
 
@@ -363,24 +396,24 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
     <div className={`chat${server && channel.kind !== 'dm' ? ' room-chat' : ''}`} ref={rootRef} style={server && channel.kind !== 'dm' ? roomVars(channel, server) : undefined}>
       {room && <RoomBackdrop c={channel}><ThemeBackdrop theme={theme} /></RoomBackdrop>}
       {channel.kind !== 'thread' && <header className={`chat-head${room ? ' room-head' : ''}`} ref={headRef}>
-        {!stadium && <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu">☰</button>}
+        {!stadium && <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu"><Icon name="menu" /></button>}
         {room ? <RoomTitle c={channel} /> : <>
-          <span className="ch-icon">{stadium ? '💬' : '@'}</span>
+          <span className="ch-icon"><Icon name={stadium ? 'chat' : 'at'} size={18} /></span>
           <h2>{title}</h2>
         </>}
-        {channel.private && <span className="lock">🔒</span>}
+        {channel.private && <span className="lock" title="Private"><Icon name="lock" size={14} /></span>}
         <span className="spacer" />
         {server && channel.kind === 'text' && <ThreadsButton channel={channel} ctx={ctx} />}
         {channel.kind === 'dm' && <CallButtons channel={channel} ctx={ctx} />}
         <button className={`icon-btn${panel === 'pins' ? ' on' : ''}`} onClick={() => setPanel(p => p === 'pins' ? null : 'pins')}
-          title="Pinned messages" aria-label="Pinned messages">📌</button>
+          title="Pinned messages" aria-label="Pinned messages"><Icon name="pin" /></button>
         <button className={`icon-btn${panel === 'search' ? ' on' : ''}`} onClick={() => setPanel(p => p === 'search' ? null : 'search')}
-          title="Search (Ctrl+F)" aria-label="Search messages">🔍</button>
+          title="Search (Ctrl+F)" aria-label="Search messages"><Icon name="search" /></button>
         {server && !stadium && (
           <button className={`icon-btn${showMembers ? ' on' : ''}`} onClick={() => setPref('showMembers', !showMembers)}
-            title="Toggle member list">👥</button>
+            title="Toggle member list" aria-label="Toggle member list"><Icon name="friends" /></button>
         )}
-        {stadium && <button className="icon-btn" onClick={stadium.onClose} title="Hide chat" aria-label="Hide chat">✕</button>}
+        {stadium && <button className="icon-btn" onClick={stadium.onClose} title="Hide chat" aria-label="Hide chat"><Icon name="close" /></button>}
       </header>}
       {channel.kind === 'dm' && <CallPanel channel={channel} ctx={ctx} />}
 
@@ -395,7 +428,10 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
                 : <p className="muted">Say something nice. Everyone hears it in your voice 🎶</p>}
             </div>
           )}
-          {!msgs && <div className="loading-msgs">{[0, 1, 2, 3].map(i => <div key={i} className="skeleton" />)}</div>}
+          {!msgs && (loadErr
+            ? <div className="loading-msgs"><div className="row"><span className="muted">Couldn't load messages.</span>
+              <button className="btn ghost small" onClick={() => { setLoadErr(false); loadRecent() }}>Try again</button></div></div>
+            : <div className="loading-msgs">{[0, 1, 2, 3].map(i => <div key={i} className="skeleton" />)}</div>)}
           {msgs?.map((m, i) => {
             const prev = msgs[i - 1]
             const newDay = !prev || new Date(prev.created_at).toDateString() !== new Date(m.created_at).toDateString()
@@ -419,34 +455,59 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
 
       {showPill && (
         <div className="jump-unread pop">
-          <button onClick={jumpUnread}>↑ Jump to first unread</button>
-          <button className="x" onClick={() => setSeenDivider(true)} aria-label="Dismiss" title="Dismiss">✕</button>
+          <button onClick={jumpUnread}><Icon name="arrow-up" size={14} /> Jump to first unread</button>
+          <button className="x" onClick={() => setSeenDivider(true)} aria-label="Dismiss" title="Dismiss"><Icon name="close" size={14} /></button>
         </div>
       )}
 
       {!atBottom && (
-        <button className="jump pop" onClick={() => scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })}>Jump to latest ↓</button>
+        <button className="jump pop" onClick={() => scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' })}>Jump to latest <Icon name="arrow-down" size={14} /></button>
       )}
 
       <div className="typing-line" aria-live="polite">
         <TypingRow ids={typingIds} names={typingNames} meId={userId} />
       </div>
 
+      <PostGate ctx={ctx}>{/* timeout banner / rules card instead of the composer while you can't post */}
       <Composer key={channel.id} draftKey={channel.id} placeholder={`Message ${title}`} slow={slow} exempt={exempt} slowUntil={exempt ? null : slowUntil(msgs, userId, slow)}
         onSend={(...a) => { stopMeTyping(); return send(...a) }} onTyping={onTyping} onEditLast={editLast}
-        replyTo={replyTo} onCancelReply={() => setReplyTo(null)} profileMap={profileMap} serverId={server?.id} canTTS={!!stadium} />
+        replyTo={replyTo} onCancelReply={() => setReplyTo(null)} profileMap={profileMap} serverId={server?.id} canTTS={!!stadium} onPoll={createPoll} />
+      </PostGate>
     </div>
   )
 }
 
 const DRAFTS = new Map() // channel drafts survive switching channels
 
-function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, replyTo, onCancelReply, profileMap, serverId, canTTS, slow, exempt, slowUntil: until }) {
+function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, replyTo, onCancelReply, profileMap, serverId, canTTS, slow, exempt, slowUntil: until, onPoll }) {
   const slowLeft = useSlowLeft(until) // slowmode countdown; the database enforces it too
   const ref = useRef(null)
   const [tts, setTTS] = useState(false)
+  const [tool, setTool] = useState(null) // 'poll' | 'time' (dialogs from the + menu)
+  const [rec, setRec] = useState(null) // recording a voice message: when the mic was pressed (0 = from the keyboard)
+  const [altFor, setAltFor] = useState(null) // file index whose alt text is being written
+  const [, bump] = useState(0)
+  const caret = useRef(null) // where a timestamp goes
+  // shortcut: spoiler/alt ride on the File as an expando (file.meta), copied into the attachment JSON by deliver()
+  const setMeta = (f, patch) => { f.meta = { ...f.meta, ...patch }; bump(x => x + 1) }
+  const openTool = (t, at = ref.current?.selectionStart ?? text.length) => { caret.current = at; setTool(t) }
+  function insertAt(s) {
+    const el = ref.current, at = Math.min(caret.current ?? text.length, text.length)
+    setText(t => t.slice(0, at) + s + ' ' + t.slice(at))
+    setTool(null)
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(at + s.length + 1, at + s.length + 1) })
+  }
+  function plusMenu(e) {
+    const r = e.currentTarget.getBoundingClientRect()
+    openMenu({ clientX: r.left, clientY: r.top - 6, target: e.currentTarget, currentTarget: e.currentTarget, preventDefault() {} }, [
+      { label: 'Upload a file', icon: <ClipIcon size={16} />, onClick: () => fileInput.current.click() },
+      onPoll && { label: 'Create a poll', icon: <PollIcon size={16} />, onClick: () => openTool('poll') },
+      { label: 'Insert a timestamp', icon: <ClockIcon size={16} />, onClick: () => openTool('time') },
+    ])
+  }
   const [text, setText] = useState(() => DRAFTS.get(key) || '')
   const ac = useEmojiAutocomplete(ref, text, setText, serverId)
+  const mac = useMentionAutocomplete(ref, text, setText, key) // @people/@roles/@everyone and ~rooms (draftKey is the channel id)
   const [files, setFiles] = useState([])
   const [drag, setDrag] = useState(false)
   const [picker, setPicker] = useState(null) // 'emoji' | 'gif' | null
@@ -472,8 +533,8 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
   }
 
   function submit() {
-    if ((!text.trim() && !files.length) || slowLeft > 0) return
-    const out = ac.encode(text)
+    if ((!text.trim() && !files.length) || slowLeft > 0 || mac.guard(text)) return
+    const out = mac.encode(ac.encode(text))
     if (overLimit(out)) return toast(`Messages can be up to ${MAX_LEN} characters. That's ${overLimit(out)} too many.`)
     onSend(out, files, [], canTTS && tts)
     setText('')
@@ -505,43 +566,63 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
       {replyTo && (
         <div className="reply-bar pop">
           Replying to <b>{rp?.display_name || rp?.username}</b>
-          <button className="icon-btn" onClick={onCancelReply} aria-label="Cancel reply">✕</button>
+          <button className="icon-btn" onClick={onCancelReply} aria-label="Cancel reply"><Icon name="close" size={18} /></button>
         </div>
       )}
       {files.length > 0 && (
         <div className="file-chips">
           {files.map((f, i) => (
-            <span key={i} className="file-chip pop">
-              {previews[i] ? <img src={previews[i]} alt="" /> : '📄'} {f.name}
-              <button onClick={() => { setFiles(fs => fs.filter((_, j) => j !== i)); focus() }} aria-label={`Remove ${f.name}`}>✕</button>
+            <span key={i} className={`file-chip pop${f.meta?.spoiler ? ' spoiler' : ''}`}>
+              {previews[i] ? <img src={previews[i]} alt="" /> : <Icon name="file" size={16} />} {f.name}
+              {previews[i] && <>
+                <button className={`chip-tool${f.meta?.spoiler ? ' on' : ''}`} onClick={() => setMeta(f, { spoiler: !f.meta?.spoiler })} aria-pressed={!!f.meta?.spoiler}
+                  title="Mark as spoiler" aria-label={`Mark ${f.name} as spoiler`}><EyeOffIcon size={15} /></button>
+                <button className={`chip-tool alt${f.meta?.alt ? ' on' : ''}`} onClick={() => setAltFor(a => a === i ? null : i)} aria-expanded={altFor === i}
+                  title={f.meta?.alt ? `Alt text: ${f.meta.alt}` : 'Add alt text'} aria-label={`Alt text for ${f.name}`}>ALT</button>
+              </>}
+              <button onClick={() => { setFiles(fs => fs.filter((_, j) => j !== i)); setAltFor(null); focus() }} aria-label={`Remove ${f.name}`}><Icon name="close" size={14} /></button>
             </span>
           ))}
+          {files[altFor] && (
+            <input className="alt-input" autoFocus value={files[altFor].meta?.alt || ''} maxLength={500} aria-label={`Alt text for ${files[altFor].name}`}
+              placeholder="Describe the image for people who can't see it" onChange={e => setMeta(files[altFor], { alt: e.target.value })}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); setAltFor(null); focus() } }} />
+          )}
         </div>
       )}
-      {ac.popup}
+      {tool === 'poll' && createPortal(<PollCreator onCreate={onPoll} onClose={() => { setTool(null); focus() }} />, document.body)}
+      {tool === 'time' && createPortal(<TimePicker onInsert={insertAt} onClose={() => { setTool(null); focus() }} />, document.body)}
+      {ac.popup}{mac.popup}{mac.notice}
       {slow > 0 && <SlowBadge sec={slow} left={slowLeft} exempt={exempt} />}
+      {rec !== null ? <VoiceRecorder holdStart={rec} onDone={f => { setRec(null); if (f) onSend('', [f]); requestAnimationFrame(focus) }} /> :
       <div className="composer-row">
-        <button className="icon-btn attach" onMouseDown={e => e.preventDefault()} onClick={() => fileInput.current.click()} title="Attach files" aria-label="Attach files">＋</button>
+        <button className="icon-btn attach" onMouseDown={e => e.preventDefault()} onClick={plusMenu} title="Upload, poll, timestamp" aria-label="More: upload a file, create a poll, insert a timestamp" aria-haspopup="menu"><Icon name="plus" size={22} /></button>
         <input ref={fileInput} type="file" multiple hidden onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
         <textarea ref={ref} rows={1} value={text} placeholder={placeholder} aria-label={placeholder}
-          onChange={e => { setText(e.target.value); onTyping(); ac.track(e) }} onSelect={ac.track}
+          onChange={e => { setText(e.target.value); onTyping(); ac.track(e); mac.track(e) }} onSelect={e => { ac.track(e); mac.track(e) }}
           onPaste={e => { if (e.clipboardData.files.length) { e.preventDefault(); addFiles(e.clipboardData.files) } }}
           onKeyDown={e => {
-            if (e.nativeEvent.isComposing || ac.onKeyDown(e)) return
-            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit() }
+            if (e.nativeEvent.isComposing || ac.onKeyDown(e) || mac.onKeyDown(e)) return
+            const s = e.currentTarget.selectionStart
+            if (e.key === 'Enter' && !e.shiftKey && /(^|\s)\/time$/.test(text.slice(0, s))) { // "/time" + Enter opens the timestamp picker
+              e.preventDefault(); setText(t => t.slice(0, s - 5) + t.slice(s)); openTool('time', s - 5)
+            } else if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit() }
             else if (e.key === 'ArrowUp' && !text) { e.preventDefault(); onEditLast() }
             else if (e.key === 'Escape' && replyTo) onCancelReply()
           }} />
         <button className="icon-btn gif-btn" onMouseDown={e => e.stopPropagation()} onClick={() => setPicker(p => p === 'gif' ? null : 'gif')} title="GIFs" aria-label="GIFs">GIF</button>
-        <button className="icon-btn emoji-btn" onMouseDown={e => e.stopPropagation()} onClick={() => setPicker(p => p === 'emoji' ? null : 'emoji')} title="Emoji" aria-label="Emoji"><Emoji e="😊" /></button>
+        <button className="icon-btn emoji-btn" onMouseDown={e => e.stopPropagation()} onClick={() => setPicker(p => p === 'emoji' ? null : 'emoji')} title="Emoji" aria-label="Emoji"><Icon name="smile" size={22} /></button>
         {picker === 'emoji' && <EmojiPicker className="up" onPick={insert} onClose={() => setPicker(null)} />}
         {picker === 'gif' && <GifPicker className="up" onPick={sendGif} onClose={() => setPicker(null)} />}
-        <button className="send-btn" onClick={submit} disabled={(!text.trim() && !files.length) || slowLeft > 0} aria-label="Send">➤</button>
-      </div>
+        {!text.trim() && !files.length
+          ? <button className="send-btn mic-btn" disabled={slowLeft > 0} onPointerDown={e => { if (e.button === 0) { e.preventDefault(); setRec(Date.now()) } }}
+              onClick={e => { if (e.detail === 0) setRec(0) }} aria-label="Record a voice message" title="Voice message: click to record, or hold to talk"><MicIcon /></button>
+          : <button className="send-btn" onClick={submit} disabled={slowLeft > 0} aria-label="Send"><Icon name="send" /></button>}
+      </div>}
       {canTTS && (
         <div className="composer-sub">
           <button className={`tts-toggle${tts ? ' on' : ''}`} aria-pressed={tts} onMouseDown={e => e.preventDefault()} onClick={() => setTTS(t => !t)}
-            title="Read your messages aloud to everyone in the stadium">🔊 TTS</button>
+            title="Read your messages aloud to everyone in the stadium"><Icon name="volume" size={15} /> TTS</button>
         </div>
       )}
     </div>

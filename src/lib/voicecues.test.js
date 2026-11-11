@@ -22,8 +22,8 @@ test('member diff ignores the first snapshot and yourself', () => {
 test('stadium label: name when visible, generic otherwise', () => {
   const chans = [{ id: 'v1', name: 'Hangout', server_id: 's1' }]
   assert.equal(stadiumLabel(null, chans), null)
-  assert.deepEqual(stadiumLabel('v1', chans), { text: '🏟️ in Hangout', serverId: 's1', channelId: 'v1' })
-  assert.deepEqual(stadiumLabel('v9', chans), { text: '🏟️ in a stadium' })
+  assert.deepEqual(stadiumLabel('v1', chans), { text: 'in Hangout', serverId: 's1', channelId: 'v1' })
+  assert.deepEqual(stadiumLabel('v9', chans), { text: 'in a stadium' })
   assert.equal(stadiumLabel('call:abc', chans), null) // DM calls aren't shown as stadiums
 })
 

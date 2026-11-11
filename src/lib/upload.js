@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, SUPABASE_URL, SUPABASE_KEY } from './supabase'
 import { isAnimatedWebp } from './crop'
 
 // Shrinks big images to webp before upload, keeping the free 1GB storage tier going a long way.
@@ -20,14 +20,39 @@ async function compress(file) {
   }
 }
 
-export async function uploadFile(file, userId) {
+// supabase-js storage uploads can't report progress, so this is the same REST call over XHR.
+// onProgress(loaded, total) while sending; aborting `signal` rejects with an AbortError.
+async function put(path, blob, { onProgress, signal } = {}) {
+  const token = (await supabase.auth.getSession()).data.session?.access_token
+  if (signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError')
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${SUPABASE_URL}/storage/v1/object/media/${path}`)
+    xhr.setRequestHeader('authorization', `Bearer ${token}`)
+    xhr.setRequestHeader('apikey', SUPABASE_KEY)
+    xhr.setRequestHeader('content-type', blob.type || 'application/octet-stream')
+    xhr.setRequestHeader('cache-control', 'max-age=31536000')
+    xhr.setRequestHeader('x-upsert', 'false')
+    xhr.upload.onprogress = e => e.lengthComputable && onProgress?.(e.loaded, e.total)
+    xhr.onload = () => {
+      if (xhr.status < 300) return resolve()
+      let msg = `Upload failed (${xhr.status}).`
+      try { msg = JSON.parse(xhr.responseText).message || msg } catch {}
+      reject(new Error(msg))
+    }
+    xhr.onerror = () => reject(new Error('Upload failed. Check your connection.'))
+    xhr.onabort = () => reject(new DOMException('Upload cancelled', 'AbortError'))
+    signal?.addEventListener('abort', () => xhr.abort(), { once: true })
+    xhr.send(blob)
+  })
+}
+
+export async function uploadFile(file, userId, opts) {
   const { blob, w, h } = await compress(file)
   let name = file.name.replace(/[^\w.-]+/g, '_').slice(-80) || 'file'
   if (blob.type === 'image/webp' && file.type !== 'image/webp') name = name.replace(/\.\w+$/, '') + '.webp'
   const path = `${userId}/${crypto.randomUUID()}/${name}`
-  const { error } = await supabase.storage.from('media')
-    .upload(path, blob, { contentType: blob.type || 'application/octet-stream', cacheControl: '31536000' })
-  if (error) throw error
+  await put(path, blob, opts)
   const url = supabase.storage.from('media').getPublicUrl(path).data.publicUrl
   return { url, name, type: blob.type, size: blob.size, w, h }
 }

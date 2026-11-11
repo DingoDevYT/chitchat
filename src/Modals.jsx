@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { primeProfiles, toast, useProfile } from './lib/store'
+import { askText } from './Dialog'
 import { uploadFile } from './lib/upload'
 import { categories } from './lib/categories'
 import { byPosition } from './lib/reorder'
@@ -11,6 +12,8 @@ import ImageCropper from './ImageCropper'
 import EmojiSettings from './EmojiSettings'
 import { RolesTab } from './Roles'
 import { AppearanceTab } from './ServerCards'
+import { AuditTab, BansTab, InvitesTab, RulesTab } from './Moderation'
+import Icon from './icons/Icon'
 
 export function CreateJoinModal({ ctx, onClose, joinInvite }) {
   const [tab, setTab] = useState('create')
@@ -50,24 +53,28 @@ export function CreateJoinModal({ ctx, onClose, joinInvite }) {
         <form onSubmit={create} className="col">
           <p className="muted">You'll get a general room and a Hangout stadium to start.</p>
           <label>Server name<input value={name} onChange={e => setName(e.target.value)} maxLength={64} required autoFocus /></label>
-          <button className="btn primary" disabled={busy}>Create server</button>
+          <button className="btn primary" disabled={busy}>{busy ? 'Creating…' : 'Create server'}</button>
         </form>
       ) : (
         <form onSubmit={join} className="col">
           <p className="muted">Paste an invite link or code from a friend.</p>
           <label>Invite<input value={code} onChange={e => setCode(e.target.value)} placeholder="…/#/invite/a1b2c3d4" required autoFocus /></label>
-          <button className="btn primary" disabled={busy}>Join server</button>
+          <button className="btn primary" disabled={busy}>{busy ? 'Joining…' : 'Join server'}</button>
         </form>
       )}
     </Modal>
   )
 }
 
+const SETTINGS_TABS = [['general', 'General', 'manage_server'], ['appearance', 'Appearance', 'manage_server'], ['emoji', 'Emoji', 'manage_server'],
+  ['roles', 'Roles'], ['rules', 'Rules', 'manage_server'], ['invites', 'Invites', 'manage_invites'], ['bans', 'Bans', 'ban_members'], ['audit', 'Audit log', 'view_audit_log']]
+
 export function ServerSettingsModal({ ctx, onClose }) {
   const { server } = ctx
   const [name, setName] = useState(server.name)
   const [busy, setBusy] = useState(false)
-  const [tab, setTab] = useState(ctx.can('manage_server') ? 'general' : 'roles')
+  const tabs = SETTINGS_TABS.filter(([, , perm]) => !perm || ctx.can(perm))
+  const [tab, setTab] = useState(tabs[0][0])
   const [cropFile, setCropFile] = useState(null)
   const closeCropper = useCallback(() => setCropFile(null), [])
 
@@ -99,7 +106,7 @@ export function ServerSettingsModal({ ctx, onClose }) {
     setBusy(false)
   }
   async function destroy() {
-    if (prompt(`Type the server name to delete it forever:\n${server.name}`) !== server.name) return
+    if (await askText({ text: `Type the server name to delete it forever:\n${server.name}`, placeholder: server.name, confirm: 'Delete forever', danger: true }) !== server.name) return
     const { error } = await supabase.from('servers').delete().eq('id', server.id)
     if (error) return toast(error.message)
     await ctx.load()
@@ -108,17 +115,18 @@ export function ServerSettingsModal({ ctx, onClose }) {
   }
 
   return (
-    <Modal title="Server settings" onClose={onClose}>
-      {/* General and Emoji need manage_server; without it the database silently ignores the save */}
-      {ctx.can('manage_server') && <div className="tabs">
-        <button className={tab === 'general' ? 'on' : ''} onClick={() => setTab('general')}>General</button>
-        <button className={tab === 'appearance' ? 'on' : ''} onClick={() => setTab('appearance')}>Appearance</button>
-        <button className={tab === 'emoji' ? 'on' : ''} onClick={() => setTab('emoji')}>Emoji</button>
-        <button className={tab === 'roles' ? 'on' : ''} onClick={() => setTab('roles')}>Roles</button>
+    <Modal title="Server settings" onClose={onClose} wide>
+      {/* each tab shows only with its permission; without it the database ignores the save anyway */}
+      {tabs.length > 1 && <div className="tabs settings-tabs">
+        {tabs.map(([k, label]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{label}</button>)}
       </div>}
       {tab === 'appearance' && <AppearanceTab ctx={ctx} />}
       {tab === 'emoji' && <EmojiSettings ctx={ctx} />}
       {tab === 'roles' && <RolesTab ctx={ctx} />}
+      {tab === 'rules' && <RulesTab ctx={ctx} />}
+      {tab === 'invites' && <InvitesTab ctx={ctx} />}
+      {tab === 'bans' && <BansTab ctx={ctx} />}
+      {tab === 'audit' && <AuditTab ctx={ctx} />}}
       <form onSubmit={save} className="col" style={tab !== 'general' ? { display: 'none' } : undefined}>
         <div className="row">
           <div className="server-icon-preview">{server.icon_url ? <CropImg src={server.icon_url} crop={server.icon_crop} /> : server.name[0]}</div>
@@ -142,18 +150,20 @@ export function NewDMModal({ ctx, onClose }) {
   const [q, setQ] = useState('')
   const [results, setResults] = useState([])
   const [picked, setPicked] = useState([])
+  const [searched, setSearched] = useState('') // the term `results` belong to, so "Nobody found." waits for the answer
+  const term = q.trim().toLowerCase().replace(/^@/, '')
 
   useEffect(() => {
-    const term = q.trim().toLowerCase().replace(/^@/, '')
     if (term.length < 2) return setResults([])
+    let on = true // a slow answer for an older term can't overwrite a newer one
     const t = setTimeout(async () => {
       const { data } = await supabase.from('profiles').select('*')
         .or(`username.ilike.%${term.replace(/[%_,()]/g, '')}%,display_name.ilike.%${term.replace(/[%_,()]/g, '')}%`)
         .neq('id', ctx.userId).limit(8)
-      if (data) { primeProfiles(data); setResults(data) }
+      if (data && on) { primeProfiles(data); setResults(data); setSearched(term) }
     }, 200)
-    return () => clearTimeout(t)
-  }, [q, ctx.userId])
+    return () => { on = false; clearTimeout(t) }
+  }, [term, ctx.userId])
 
   const toggle = p => setPicked(list => list.some(x => x.id === p.id) ? list.filter(x => x.id !== p.id) : [...list, p].slice(0, 9))
 
@@ -163,7 +173,7 @@ export function NewDMModal({ ctx, onClose }) {
         <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search by username" aria-label="Search people" />
         {picked.length > 0 && (
           <div className="file-chips">{picked.map(p => (
-            <span key={p.id} className="file-chip pop">@{p.username}<button onClick={() => toggle(p)} aria-label={`Remove ${p.username}`}>✕</button></span>
+            <span key={p.id} className="file-chip pop">@{p.username}<button onClick={() => toggle(p)} aria-label={`Remove ${p.username}`}><Icon name="close" size={14} /></button></span>
           ))}</div>
         )}
         <div className="pick-list">
@@ -172,7 +182,7 @@ export function NewDMModal({ ctx, onClose }) {
               <Avatar id={p.id} size={28} /> <b>{p.display_name || p.username}</b> <span className="muted">@{p.username}</span>
             </button>
           ))}
-          {q.trim().length >= 2 && results.length === 0 && <p className="muted small">Nobody found.</p>}
+          {term.length >= 2 && results.length === 0 && <p className="muted small">{searched === term ? 'Nobody found.' : 'Searching…'}</p>}
         </div>
         <button className="btn primary" disabled={!picked.length}
           onClick={() => { ctx.openDM(picked.map(p => p.id)); onClose() }}>

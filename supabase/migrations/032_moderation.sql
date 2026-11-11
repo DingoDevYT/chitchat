@@ -26,6 +26,7 @@ alter table public.servers
   add column if not exists members_can_invite boolean not null default true,
   add column if not exists rules text check (char_length(rules) <= 2000),
   add column if not exists screening_at timestamptz; -- null = screening off; members who joined after it must agree
+grant update (members_can_invite, rules, screening_at) on public.servers to authenticated; -- servers uses column grants
 alter table public.members
   add column if not exists nickname text check (char_length(nickname) between 1 and 32),
   add column if not exists timeout_until timestamptz,
@@ -35,11 +36,12 @@ alter table public.members
 -- role holders on plain members ranked below them. Non-members (ban by id) count as plain, unranked members.
 create or replace function public.can_moderate(sid uuid, uid uuid, perm text) returns boolean
 language sql stable security definer set search_path = '' as $$
+  -- coalesce: server_role() is null for non-members, and `if not null` would let them through
   with t as (select coalesce((select role from public.members where server_id = sid and user_id = uid), 'member') r)
-  select uid is not null and auth.uid() is not null and uid <> auth.uid() and (select r from t) <> 'owner'
+  select coalesce(uid is not null and auth.uid() is not null and uid <> auth.uid() and (select r from t) <> 'owner'
     and (public.server_role(sid) = 'owner'
       or ((select r from t) = 'member' and public.has_perm(sid, perm)
-          and (public.server_role(sid) = 'admin' or public.member_rank(sid, uid) < public.member_rank(sid, auth.uid()))))
+          and (public.server_role(sid) = 'admin' or public.member_rank(sid, uid) < public.member_rank(sid, auth.uid())))), false)
 $$;
 
 -- Why the signed-in user can't post in a server right now: 'timeout', 'rules' or null.

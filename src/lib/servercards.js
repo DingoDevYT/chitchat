@@ -26,7 +26,7 @@ export function serverChips(memberIds = [], presence = {}, stadiums = []) {
     const n = Object.keys(presence).filter(id => presence[id]?.voice === c.id).length
     if (n && (!stadium || n > stadium.n)) stadium = { n, name: c.name }
   }
-  return { online, stadium: stadium && `🏟️ ${stadium.n} in ${stadium.name}` }
+  return { online, stadium: stadium && `${stadium.n} in ${stadium.name}` } // the card draws the stadium icon
 }
 
 // Cards unless the user picked compact; no choice yet = compact on narrow desktop windows.

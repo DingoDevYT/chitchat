@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { toast } from './lib/store'
+import { ask } from './Dialog'
 import { uploadFile } from './lib/upload'
 import { emojiName, prepEmoji, MAX_EMOJI, NAME_RX } from './lib/customEmoji'
 import { forgetEmoji, loadMyEmoji } from './lib/emojiStore'
 import './styles/custom-emoji.css'
+import Icon from './icons/Icon'
 
 // Server settings → Emoji tab (owners/admins).
 export default function EmojiSettings({ ctx }) {
@@ -49,7 +51,7 @@ export default function EmojiSettings({ ctx }) {
   }
 
   async function remove(e) {
-    if (!confirm(`Delete :${e.name}:? Messages using it will show its name instead.`)) return
+    if (!await ask({ text: `Delete :${e.name}:? Messages using it will show its name instead.`, confirm: 'Delete', danger: true })) return
     const { error } = await supabase.from('server_emoji').delete().eq('id', e.id)
     if (error) return toast(error.message)
     forgetEmoji(e.id)
@@ -74,7 +76,7 @@ export default function EmojiSettings({ ctx }) {
             <img src={e.url} alt="" />
             <input defaultValue={e.name} maxLength={32} aria-label={`Rename :${e.name}:`}
               onBlur={ev => rename(e, ev.target.value)} onKeyDown={ev => { if (ev.key === 'Enter') ev.target.blur() }} />
-            <button type="button" className="icon-btn" onClick={() => remove(e)} title="Delete" aria-label={`Delete :${e.name}:`}>🗑️</button>
+            <button type="button" className="icon-btn" onClick={() => remove(e)} title="Delete" aria-label={`Delete :${e.name}:`}><Icon name="trash" /></button>
           </div>
         ))}
       </div>

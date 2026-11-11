@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { createStore } from './lib/store'
+import { uiSound } from './lib/animalese'
+import Icon from './icons/Icon'
 import './styles/context-menu.css'
 
 // Right-click menus for the whole app. Call openMenu(event, items) from any onContextMenu handler.
-// items (an array, or a function returning one): [{ label, icon, onClick, danger, disabled, checked, hint, submenu: items, slider: { value, min, max, step, onChange, format }, separator }]
+// items (an array, or a function returning one): [{ label, icon (an icons/paths name, or an element), onClick, danger, disabled, checked, hint, submenu: items, slider: { value, min, max, step, onChange, format }, separator }]
 // Falsy entries are skipped, so `cond && { ... }` works. The innermost handler wins (outer handlers see defaultPrevented).
 // Shift+right-click, text fields, links and selected text keep the browser's own menu.
 const state = createStore(null) // { x, y, items, key }
@@ -22,8 +24,9 @@ export function openMenu(e, items) {
   if (Date.now() - openedAt < 400 && state.get()) return // Android fires its own contextmenu after our long-press one
   openedAt = Date.now()
   state.set({ x: e.clientX, y: e.clientY, items: list, key: openedAt })
+  uiSound('open')
 }
-export const closeMenu = () => state.set(null)
+export const closeMenu = () => { if (state.get()) uiSound('close'); state.set(null) }
 
 const clean = items => (items || []).filter(Boolean).filter((it, i, a) =>
   !it.separator || (i > 0 && i < a.length - 1 && !a[i - 1].separator))
@@ -151,10 +154,10 @@ function Menu({ items, at, anchor, focus, onBack }) {
               aria-haspopup={it.submenu ? 'menu' : undefined} aria-expanded={it.submenu ? sub?.i === i : undefined}
               onMouseEnter={e => { e.currentTarget.focus({ preventScroll: true }); if (it.submenu) openSub(i, e.currentTarget); else setSub(null) }}
               onClick={e => pick(it, i, e)}>
-              <span className="ctx-icon" aria-hidden="true">{it.checked != null ? (it.checked ? '✓' : '') : it.icon}</span>
+              <span className="ctx-icon" aria-hidden="true">{it.checked != null ? (it.checked && <Icon name="check" size={16} />) : typeof it.icon === 'string' ? <Icon name={it.icon} size={17} /> : it.icon}</span>
               <span className="ctx-label">{it.label}</span>
               {it.hint && <kbd className="ctx-hint">{it.hint}</kbd>}
-              {it.submenu && <span className="ctx-chev" aria-hidden="true">›</span>}
+              {it.submenu && <span className="ctx-chev" aria-hidden="true"><Icon name="chevron-right" size={14} /></span>}
             </button>
             {sub?.i === i && <Menu key={i} items={clean(it.submenu)} anchor={sub.rect} focus={sub.focus}
               onBack={() => { setSub(null); ref.current.querySelectorAll(':scope > .ctx-row')[i]?.querySelector('[data-item]')?.focus() }} />}
@@ -171,7 +174,7 @@ function Slider({ it }) {
   const [v, setV] = useState(it.slider.value)
   return (
     <label className="ctx-slider">
-      <span className="ctx-slider-top"><span>{it.icon} {it.label}</span><b>{format(v)}</b></span>
+      <span className="ctx-slider-top"><span>{typeof it.icon === 'string' ? <Icon name={it.icon} size={16} /> : it.icon} {it.label}</span><b>{format(v)}</b></span>
       <input data-item data-label={it.label} aria-label={it.label} aria-valuetext={String(format(v))} type="range" min={min} max={max} step={step} value={v} disabled={it.disabled}
         onChange={e => { setV(+e.target.value); onChange?.(+e.target.value) }} />
     </label>

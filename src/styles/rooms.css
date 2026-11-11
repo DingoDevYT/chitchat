@@ -147,5 +147,12 @@ body .re-welcome-prev .room-welcome { margin: 0; }
   body .room-dot { transition: none; }
 }
 
-/* Static header: one fixed, compact height that never grows or shrinks with scrolling (user preference). */
-body .room-head { --shrink: 0 !important; --extra: 28px; }
+/* Static header that hugs its content: no banner-height padding, never grows or shrinks with scrolling (user preference). */
+body .chat-head.room-head {
+  --shrink: 0 !important; height: auto; min-height: 56px; padding-top: 8px; padding-bottom: 8px;
+  align-items: center; transition: border-color .3s;
+}
+body .room-head-icon { width: 30px; height: 30px; align-self: center; margin-bottom: 0; }
+body .room-head h2 { font-size: 19px; }
+body .room-head h2.font-small { font-size: 14px; }
+@media (max-width: 720px) { body .room-head h2 { font-size: 17px; } }

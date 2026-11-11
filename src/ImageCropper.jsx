@@ -4,6 +4,7 @@ import Modal from './Modal'
 import { CropImg } from './Avatar'
 import { MAX_ZOOM, SHAPES, clampCrop, cropBox, isAnimatedWebp, zoomCrop } from './lib/crop'
 import './styles/cropper.css'
+import Icon from './icons/Icon'
 
 const PREVIEWS = {
   circle: [[42, 'Chat', '50%'], [116, 'Stadium', '50%']],
@@ -100,11 +101,11 @@ export default function ImageCropper({ file, shape = 'circle', title = 'Crop ima
               </figure>
             ))}
           </div>
-          <label className="crop-zoom"><span aria-hidden="true">🔍</span>
+          <label className="crop-zoom"><Icon name="search" size={18} />
             <input type="range" min="1" max={MAX_ZOOM} step="0.01" value={crop?.zoom || 1} aria-label="Zoom"
               onChange={e => setCrop(c => c && zoomCrop(c, +e.target.value))} /></label>
           <div className="row">
-            <button type="button" className="btn ghost small" onClick={() => setCrop(c => c && clampCrop({ ...c, rot: c.rot + 90 }))}>↻ Rotate</button>
+            <button type="button" className="btn ghost small" onClick={() => setCrop(c => c && clampCrop({ ...c, rot: c.rot + 90 }))}><Icon name="rotate" size={15} /> Rotate</button>
             <button type="button" className="btn ghost small" onClick={() => setCrop(c => c && clampCrop({ ar: c.ar, fa }))}>Reset</button>
           </div>
           {animated && <p className="muted small">Animated image: it stays animated, we just remember how it's framed.</p>}

@@ -3,6 +3,7 @@ import { supabase } from './lib/supabase'
 import { toast } from './lib/store'
 import { previewLinks } from './lib/linkpreview'
 import './styles/blocks-links.css'
+import Icon from './icons/Icon'
 
 const TTL = 7 * 24 * 3600 * 1000
 const cache = new Map() // url -> Promise<preview|null>, for this session
@@ -43,7 +44,7 @@ function Card({ url, onRemove }) {
         {p.description && <div className="link-card-desc small">{p.description}</div>}
       </div>
       {img && <img className="link-card-thumb" src={img} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setImgOk(false)} />}
-      {onRemove && <button className="icon-btn link-card-x" onClick={onRemove} title="Remove embeds" aria-label="Remove embeds">×</button>}
+      {onRemove && <button className="icon-btn link-card-x" onClick={onRemove} title="Remove embeds" aria-label="Remove embeds"><Icon name="close" size={14} /></button>}
     </div>
   )
 }

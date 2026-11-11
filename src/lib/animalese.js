@@ -1,4 +1,5 @@
 import { prefs, isDND } from './store'
+import { playUi } from './uisound'
 
 // Synthesised "Animalese": one short formant-filtered blip per letter. No audio files needed.
 let ctx
@@ -7,6 +8,12 @@ let lastAt = 0
 export function unlockAudio() {
   ctx ??= new (window.AudioContext || window.webkitAudioContext)()
   if (ctx.state === 'suspended') ctx.resume()
+}
+
+// UI blips (menus, dialogs, sends, toggles, "You got…"): own toggle + volume, silent in DND, only once audio is unlocked.
+export function uiSound(kind) {
+  const { uiSounds, uiVolume } = prefs.get()
+  if (uiSounds && !isDND() && ctx?.state === 'running') playUi(ctx, kind, uiVolume)
 }
 
 // Resolves once the audio engine is actually running, so the first blips of a line aren't swallowed.

@@ -24,7 +24,7 @@ test('chips count online members and the busiest stadium', () => {
   }
   const r = serverChips(['a', 'b', 'c', 'd', 'e'], presence, [{ id: 'v1', name: 'Hangout' }, { id: 'v2', name: 'Games' }])
   assert.equal(r.online, 3) // invisible c and absent e are offline
-  assert.equal(r.stadium, '🏟️ 2 in Games')
+  assert.equal(r.stadium, '2 in Games')
   assert.deepEqual(serverChips(['e'], {}, [{ id: 'v1', name: 'Hangout' }]), { online: 0, stadium: null })
 })
 

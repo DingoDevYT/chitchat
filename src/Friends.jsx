@@ -7,6 +7,9 @@ import { InStadium } from './VoiceCues'
 import { statusOf } from './lib/status'
 import { openProfile } from './ProfileCard'
 import { personMenu } from './menus'
+import { ask as askUser } from './Dialog'
+import { youGot } from './YouGot'
+import Icon from './icons/Icon'
 
 // rows: { user_a (asker), user_b (asked), status }
 export const friendships = createStore([])
@@ -17,7 +20,11 @@ async function reload() {
   if (!data) return
   ensureProfiles(data.flatMap(r => [r.user_a, r.user_b]))
   friendships.set(data)
+  const accepted = data.filter(r => r.status === 'accepted').map(other)
+  if (friendsKnown && accepted.some(id => !friendsKnown.has(id))) youGot('friend', 'You made a new friend!')
+  friendsKnown = new Set(accepted)
 }
+let friendsKnown = null // accepted friends as of the last load (null before the first), to spot a brand-new one
 
 export function startFriends(me) {
   meId = me
@@ -37,7 +44,7 @@ export function startFriends(me) {
       reload()
     })
     .subscribe()
-  return () => { supabase.removeChannel(ch); friendships.set([]) }
+  return () => { supabase.removeChannel(ch); friendships.set([]); friendsKnown = null }
 }
 
 const other = r => (r.user_a === meId ? r.user_b : r.user_a)
@@ -62,7 +69,7 @@ export async function acceptFriend(id) {
   reload()
 }
 export async function removeFriend(id, ask) {
-  if (ask && !confirm(ask)) return
+  if (ask && !await askUser({ text: ask, confirm: 'Remove', danger: true })) return
   const { error } = await supabase.from('friendships').delete().or(`and(user_a.eq.${id},user_b.eq.${meId}),and(user_a.eq.${meId},user_b.eq.${id})`)
   if (error) toast(error.message)
   reload()
@@ -100,13 +107,13 @@ export default function FriendsHome({ ctx, onMenu }) {
     setBusy(false)
   }
 
-  const msg = id => <button className="icon-btn" title="Message" aria-label="Message" onClick={() => ctx.openDM([id])}>💬</button>
+  const msg = id => <button className="icon-btn" title="Message" aria-label="Message" onClick={() => ctx.openDM([id])}><Icon name="chat" /></button>
 
   return (
     <div className="friends">
       <header className="chat-head">
-        <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu">☰</button>
-        <h2>👯 Friends</h2>
+        <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu"><Icon name="menu" /></button>
+        <h2><Icon name="friends" size={22} /> Friends</h2>
         <div className="tabs friend-tabs">
           <button className={tab === 'online' ? 'on' : ''} onClick={() => setTab('online')}>Online</button>
           <button className={tab === 'all' ? 'on' : ''} onClick={() => setTab('all')}>All</button>
@@ -162,7 +169,7 @@ export default function FriendsHome({ ctx, onMenu }) {
               <Row key={id} id={id} ctx={ctx}>
                 {msg(id)}
                 <button className="icon-btn" title="Remove friend" aria-label="Remove friend"
-                  onClick={() => removeFriend(id, `Remove ${profiles.get()[id]?.username} as a friend?`)}>✕</button>
+                  onClick={() => removeFriend(id, `Remove ${profiles.get()[id]?.username} as a friend?`)}><Icon name="close" /></button>
               </Row>
             ))}
           </>

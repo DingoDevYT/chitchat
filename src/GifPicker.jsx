@@ -12,6 +12,7 @@ export function loadFavs() {
     .then(({ data, error }) => { if (error) favLoad = null; else gifFavs.set(data) })
 }
 export async function toggleFav(g) {
+  if (!g.url) return
   await loadFavs()
   const hit = gifFavs.get()?.find(f => f.url === g.url)
   if (hit) {
@@ -47,9 +48,10 @@ export default function GifPicker({ onPick: send, onClose, className = '' }) {
   const root = useRef(null)
   const favs = gifFavs.use()
   const recent = prefs.use(s => s.recentGifs) || []
-  const [tab, setTab] = useState(null) // null: Favourites when you have some, else Trending
+  const [tab, setTab] = useState(null) // picked once favourites load: Favourites when you have some, else Trending
   useEffect(() => { loadFavs() }, [])
-  const view = q.trim() ? 'search' : tab ?? (favs === null ? null : favs.length ? 'favs' : 'trending')
+  useEffect(() => { if (tab === null && favs !== null) setTab(favs.length ? 'favs' : 'trending') }, [favs, tab])
+  const view = q.trim() ? 'search' : tab
   const onPick = g => {
     const { id, url, preview, w, h, pw, ph, title } = g
     setPref('recentGifs', [{ id, url, preview, w, h, pw, ph, title }, ...recent.filter(r => r.url !== url)].slice(0, 30))

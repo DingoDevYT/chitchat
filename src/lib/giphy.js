@@ -4,7 +4,7 @@ const KEY = 'NPO2m1fEp2tYapcVAXqM1IYwgGQmsTNy'
 const cache = new Map() // query -> Promise<gif[]>, so repeat searches cost nothing
 
 export function toGif(g) {
-  const pick = g.images.fixed_width, full = g.images.downsized || g.images.original
+  const pick = g.images.fixed_width, full = [g.images.downsized, g.images.original].find(x => x?.url) || {}
   return {
     id: g.id, title: g.title || 'GIF',
     preview: pick.webp || pick.url, pw: +pick.width, ph: +pick.height,

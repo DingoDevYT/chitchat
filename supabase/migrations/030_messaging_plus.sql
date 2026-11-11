@@ -131,8 +131,9 @@ language plpgsql security definer set search_path = '' as $$
 declare o record;
 begin
   if tg_op = 'UPDATE' then
-    if old.forward is not null and new.content is distinct from old.content then
-      raise exception 'Forwarded messages can''t be edited.' using errcode = 'P0001';
+    if new.content is distinct from old.content
+       and (old.forward is not null or exists (select 1 from public.polls p where p.message_id = old.id)) then
+      raise exception 'Forwarded messages and polls can''t be edited.' using errcode = 'P0001';
     end if;
     return new;
   end if;

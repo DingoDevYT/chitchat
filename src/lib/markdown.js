@@ -92,7 +92,7 @@ export function fmtTimestamp(unix, f = 'f', now = Date.now(), locale) {
   if (isNaN(d)) return String(unix)
   if (f !== 'R') return d.toLocaleString(locale, STAMP[f] || STAMP.f)
   const diff = unix - now / 1000, abs = Math.abs(diff)
-  const [unit, sec] = UNITS.find(([, s]) => abs >= s) || UNITS.at(-1)
+  const [unit, sec] = UNITS.find(([, s]) => abs >= s * 0.9) || UNITS.at(-1) // near the next unit rounds up: 59 minutes away reads "in 1 hour"
   return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(Math.round(diff / sec), unit)
 }
 

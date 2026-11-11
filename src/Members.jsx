@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { ensureProfiles, online } from './lib/store'
+import { ensureProfiles, nicknames, online } from './lib/store'
+import { TimeoutBadge } from './Moderation'
 import { openProfile, ROLE_BADGE } from './ProfileCard'
 import Avatar, { Name, CustomStatus } from './Avatar'
 import { InStadium, LiveTag } from './VoiceCues'
@@ -13,11 +14,13 @@ export function useMembers(serverId) {
   const [list, setList] = useState([])
   useEffect(() => {
     setList([])
+    nicknames.set({ sid: serverId || null, map: {} })
     if (!serverId) return
     let alive = true
-    const fetch = () => supabase.from('members').select('user_id, role').eq('server_id', serverId).then(({ data }) => {
+    const fetch = () => supabase.from('members').select('user_id, role, nickname, timeout_until, joined_at, rules_agreed_at').eq('server_id', serverId).then(({ data }) => {
       if (!alive || !data) return
       setList(data)
+      nicknames.set({ sid: serverId, map: Object.fromEntries(data.filter(m => m.nickname).map(m => [m.user_id, m.nickname])) })
       ensureProfiles(data.map(m => m.user_id))
     })
     fetch()
@@ -47,6 +50,7 @@ export default function Members({ members, ctx }) {
               <Avatar id={m.user_id} size={32} status />
               <span className="who"><Name id={m.user_id} serverId={sid} /><CustomStatus id={m.user_id} /><InStadium id={m.user_id} ctx={ctx} /></span>
               <LiveTag id={m.user_id} />
+              <TimeoutBadge m={m} ctx={ctx} />
               <span className="role-badge">{ROLE_BADGE[m.role]}</span>
             </button>
           ))}

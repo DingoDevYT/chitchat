@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { createStore, toast } from './lib/store'
-import { PERMS, canKick, canSetRole, hasPerm, sortRoles, topColor, userRoles } from './lib/roles'
+import { ask } from './Dialog'
+import { PERMS, canKick, canModerate, canSetRole, hasPerm, sortRoles, topColor, userRoles } from './lib/roles'
 import './styles/roles.css'
+import Icon from './icons/Icon'
 
 // ── per-server roles cache: serverId -> { roles (highest first), byUser: { userId: [roleId] } } ──
 const roleStore = createStore({})
@@ -53,6 +55,9 @@ export function useCanKick(ctx, uid, targetRole) {
 // Same check for non-hook callers (right-click menus).
 export const canKickNow = (ctx, uid, targetRole) =>
   !!ctx.server && canKick(roleStore.get()[ctx.server.id] || EMPTY, ctx.role, ctx.userId, uid, targetRole)
+// Ban / time out / rename: same rank rule as public.can_moderate().
+export const canModerateNow = (ctx, uid, targetRole, perm) =>
+  !!ctx?.server && canModerate(roleStore.get()[ctx.server.id] || EMPTY, ctx.role, ctx.userId, uid, targetRole, perm)
 
 const SWATCHES = ['#ff9f6b', '#e76f51', '#ff6b8b', '#c77dff', '#7b9cff', '#4cc9f0', '#7ed6b1', '#b5e48c', '#ffd166']
 const err = ({ error }) => error && toast(error.message)
@@ -85,7 +90,7 @@ export function RolesTab({ ctx }) {
   return (
     <div className="col roles-tab">
       <p className="muted small">Higher roles outrank lower ones. Names show in the colour of someone's highest coloured role.</p>
-      {canManage && <button className="btn primary" onClick={create}>＋ New role</button>}
+      {canManage && <button className="btn primary" onClick={create}><Icon name="plus" size={16} /> New role</button>}
       {data.roles.length === 0 && <p className="muted small">No roles yet.</p>}
       <ul className="role-list">
         {data.roles.map((r, i) => (
@@ -97,8 +102,8 @@ export function RolesTab({ ctx }) {
                 {r.hoist && <span className="muted small">shown separately</span>}
               </button>
               {editable(r) && <>
-                <button className="icon-btn" disabled={i === 0 || !editable(data.roles[i - 1])} onClick={() => move(i, -1)} aria-label={`Move ${r.name} up`}>▲</button>
-                <button className="icon-btn" disabled={i === data.roles.length - 1} onClick={() => move(i, 1)} aria-label={`Move ${r.name} down`}>▼</button>
+                <button className="icon-btn" disabled={i === 0 || !editable(data.roles[i - 1])} onClick={() => move(i, -1)} aria-label={`Move ${r.name} up`}><Icon name="chevron-up" size={16} /></button>
+                <button className="icon-btn" disabled={i === data.roles.length - 1} onClick={() => move(i, 1)} aria-label={`Move ${r.name} down`}><Icon name="chevron-down" size={16} /></button>
               </>}
             </div>
             {open === r.id && <RoleEditor role={r} sid={sid} locked={!editable(r)} />}
@@ -113,7 +118,7 @@ function RoleEditor({ role, sid, locked }) {
   const [name, setName] = useState(role.name)
   const save = async patch => { err(await supabase.from('roles').update(patch).eq('id', role.id)); reloadRoles(sid) }
   async function destroy() {
-    if (!confirm(`Delete the ${role.name} role? Everyone loses it.`)) return
+    if (!await ask({ text: `Delete the ${role.name} role? Everyone loses it.`, confirm: 'Delete', danger: true })) return
     err(await supabase.from('roles').delete().eq('id', role.id))
     reloadRoles(sid)
   }
@@ -172,12 +177,12 @@ export function RoleChips({ ctx, uid }) {
       {mine.map(r => (
         <span key={r.id} className="role-chip pop" style={{ '--rc': r.color || 'var(--muted)' }}>
           <i className="role-dot" />{r.name}
-          {canAssign(r) && <button onClick={() => unassign(r)} aria-label={`Remove ${r.name} role`}>×</button>}
+          {canAssign(r) && <button onClick={() => unassign(r)} aria-label={`Remove ${r.name} role`}><Icon name="close" size={12} /></button>}
         </span>
       ))}
       {addable.length > 0 && (
         <span className="role-add">
-          <button className="role-chip add" onClick={() => setAdding(!adding)} aria-label="Add role" aria-expanded={adding}>＋</button>
+          <button className="role-chip add" onClick={() => setAdding(!adding)} aria-label="Add role" aria-expanded={adding}><Icon name="plus" size={13} /></button>
           {adding && (
             <div className="menu pop role-menu">
               {addable.map(r => <button key={r.id} onClick={() => assign(r)}><i className="role-dot" style={{ background: r.color || 'var(--muted)' }} /> {r.name}</button>)}
