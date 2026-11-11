@@ -1,0 +1,49 @@
+/* Synthwave (v2): a gouache sunset over a hand-drawn grid. Static paintings are composited once;
+   only small separate roots move (transform/opacity), on odd, unsynced loops. */
+.v2-syn-canvas { left: 0; top: 0; will-change: transform; }
+.v2-syn-pin { width: 1px; height: 1px; }
+
+.v2-syn-breathe { animation-name: v2-syn-breathe; animation-direction: alternate; }
+@keyframes v2-syn-breathe { from { opacity: var(--lo, .6); } to { opacity: 1; } }
+.v2-syn-drift { animation-name: v2-syn-drift; animation-direction: alternate; }
+@keyframes v2-syn-drift { from { transform: translateX(calc(var(--x, 30px) * -1)); } to { transform: translateX(var(--x, 30px)); } }
+.v2-syn-sway { animation-name: v2-syn-sway; animation-direction: alternate; }
+@keyframes v2-syn-sway { from { transform: rotate(calc(var(--r, 2deg) * -1)); } to { transform: rotate(var(--r, 2deg)); } }
+/* stars flicker in a few held steps rather than a smooth tween */
+.v2-syn-tw { animation-name: v2-syn-tw; animation-timing-function: steps(2, jump-none); }
+@keyframes v2-syn-tw { 0%, 100% { opacity: 1; } 30% { opacity: .45; } 45% { opacity: .85; } 70% { opacity: .3; } }
+
+/* the sun's bands: painted sky-coloured strips that sink slowly through the lower half of the disc */
+.v2-syn-bandclip { overflow: hidden; }
+.v2-syn-bands { left: 0; top: -44px; width: 100%; height: calc(100% + 44px); animation-name: v2-syn-sink; animation-timing-function: linear; }
+.v2-syn-bands > svg { left: 0; top: 0; }
+@keyframes v2-syn-sink { from { transform: none; } to { transform: translateY(44px); } }
+
+/* the floor: hand-drawn lines on a tilted plane, gliding toward you; vanishing point under the sun */
+.v2-syn-floor { left: 0; right: 0; bottom: 0; overflow: hidden; perspective: 260px; perspective-origin: 57% 0; }
+.v2-syn-plane { left: -100%; right: -100%; top: 0; height: 100%; transform-origin: 50% 0; transform: rotateX(66deg); }
+.v2-syn-lines { left: 0; top: -84px; width: 100%; height: calc(300% + 84px); animation-name: v2-syn-glide; animation-timing-function: linear; }
+.v2-syn-lines > svg { left: 0; top: 0; }
+@keyframes v2-syn-glide { from { transform: none; } to { transform: translateY(84px); } }
+
+/* the sun's light on the floor: three painted frames held in turn */
+.v2-syn-h0, .v2-syn-h1, .v2-syn-h2 { animation-timing-function: steps(1, end); }
+.v2-syn-h0 { animation-name: v2-syn-h0; }
+.v2-syn-h1 { animation-name: v2-syn-h1; }
+.v2-syn-h2 { animation-name: v2-syn-h2; }
+@keyframes v2-syn-h0 { 0% { opacity: 1; } 33.3% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes v2-syn-h1 { 0% { opacity: 0; } 33.3% { opacity: 1; } 66.6% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes v2-syn-h2 { 0% { opacity: 0; } 66.6% { opacity: 1; } 100% { opacity: 1; } }
+
+/* three birds cross now and then, wings in two held frames */
+.v2-syn-lane { left: 0; width: 100%; height: 0; animation-name: v2-syn-fly; animation-timing-function: linear; }
+.v2-syn-lane > svg { left: 0; top: 0; }
+@keyframes v2-syn-fly { 0% { transform: translateX(-8%); } 46% { transform: translateX(108%); } 100% { transform: translateX(108%); } }
+.v2-syn-wa, .v2-syn-wb { animation-timing-function: steps(1, end); }
+.v2-syn-wa { animation-name: v2-syn-wa; }
+.v2-syn-wb { animation-name: v2-syn-wb; }
+@keyframes v2-syn-wa { 0% { opacity: 1; } 50% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes v2-syn-wb { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 1; } }
+
+/* rooms: the sun glows softer behind text */
+.tb-room .v2-syn-sun { opacity: .75; }

@@ -24,6 +24,8 @@
 /* emoji category row: tabs shrink a little to fit a 320px phone, then scroll (servers with custom emoji add tabs) */
 .ep-tabs { overflow-x: auto; scrollbar-width: none; }
 .ep-tabs > button { flex: 0 1 32px; min-width: 26px; }
+/* composer emoji/GIF picker: on short windows (568px, 150% zoom) it no longer rises over the room header */
+.composer .emoji-picker { max-height: calc(100vh - 180px); max-height: calc(100dvh - 180px); }
 .quick-item .muted { flex: none; white-space: nowrap; } /* long room names wrap; the server name stays on one line */
 
 /* ── popups ── */

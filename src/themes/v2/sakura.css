@@ -1,0 +1,41 @@
+/* Sakura breeze (v2, gouache): painted static layers + slow, uneven transform/opacity loops. */
+/* size container: petals blow across in units of the scene (cqw/cqh) without full-size animated layers */
+.v2-sakura-root { inset: 0; container-type: size; }
+.v2-sakura-root .pt-canvas { left: 0; top: 0; will-change: transform; }
+.v2-sakura-root .pt-pin { width: 1px; height: 1px; overflow: visible; }
+.v2-sakura-wind { inset: -40px; }
+.v2-sakura-plane { left: 0; top: 0; width: 100%; height: 200%; animation-name: v2-sakura-down; animation-timing-function: linear; }
+@keyframes v2-sakura-down { from { transform: translateY(-50%); } to { transform: none; } }
+.v2-sakura-plane > svg, .v2-sakura-lane > svg { width: 1px; height: 1px; }
+.v2-sakura-branch { right: -6px; width: var(--bw); aspect-ratio: 480 / 280; transform-origin: 100% 0; }
+.v2-sakura-part, .v2-sakura-twig, .v2-sakura-twig > svg { left: 0; top: 0; width: 100%; height: 100%; }
+.v2-sakura-lane { width: 0; height: 0; }
+.v2-sakura-crossing { left: 0; width: 100%; height: 0; }
+.v2-sakura-room .v2-sakura-lane, .v2-sakura-room .v2-sakura-crossing { opacity: .55; }
+.v2-sakura-room .v2-sakura-wind { opacity: .8; }
+
+.v2-sakura-drift { animation-name: v2-sakura-drift; animation-direction: alternate; }
+@keyframes v2-sakura-drift { from { transform: translateX(calc(var(--x, 30px) * -1)); } to { transform: translateX(var(--x, 30px)); } }
+.v2-sakura-breathe { animation-name: v2-sakura-breathe; animation-direction: alternate; }
+@keyframes v2-sakura-breathe { from { opacity: var(--lo, .6); } to { opacity: 1; } }
+.v2-sakura-sway { animation-name: v2-sakura-sway; animation-direction: alternate; }
+@keyframes v2-sakura-sway { from { transform: rotate(calc(var(--r, 1deg) * -1)); } to { transform: rotate(var(--r, 1deg)); } }
+.v2-sakura-tumble { animation-name: v2-sakura-tumble; animation-timing-function: linear; }
+@keyframes v2-sakura-tumble { 0% { transform: rotate(0) scaleX(1); } 25% { transform: rotate(80deg) scaleX(.3); } 50% { transform: rotate(175deg) scaleX(1); } 75% { transform: rotate(265deg) scaleX(.45); } 100% { transform: rotate(360deg) scaleX(1); } }
+/* a petal let go by the branch rides the breeze down and across, in uneven gusts */
+.v2-sakura-blow { animation-name: v2-sakura-blow; }
+@keyframes v2-sakura-blow {
+  0% { transform: translate(0, 0); opacity: 0; } 5% { opacity: 1; }
+  30% { transform: translate(calc(var(--x) * .34cqw), calc(var(--y) * .2cqh)); }
+  52% { transform: translate(calc(var(--x) * .5cqw), calc(var(--y) * .46cqh)); }
+  78% { transform: translate(calc(var(--x) * .82cqw), calc(var(--y) * .7cqh)); }
+  92% { opacity: 1; } 100% { transform: translate(calc(var(--x) * 1cqw), calc(var(--y) * 1cqh)); opacity: 0; } }
+.v2-sakura-f3 { animation-name: v2-sakura-f3; animation-timing-function: step-end; }
+@keyframes v2-sakura-f3 { 0% { opacity: 1; } 33.3%, 100% { opacity: 0; } }
+/* rare: a small bird crosses in the first fifth of a long cycle */
+.v2-sakura-cross { animation-name: v2-sakura-cross; animation-timing-function: linear; }
+@keyframes v2-sakura-cross { 0% { transform: translateX(106%); } 20%, 100% { transform: translateX(-6%); } }
+.v2-sakura-flap { animation-name: v2-sakura-flap; animation-timing-function: step-end; }
+@keyframes v2-sakura-flap { 0%, 14%, 28%, 70% { opacity: 1; } 7%, 21%, 35%, 77% { opacity: 0; } }
+.v2-sakura-flap.b { animation-name: v2-sakura-flap-b; }
+@keyframes v2-sakura-flap-b { 0%, 14%, 28%, 70% { opacity: 0; } 7%, 21%, 35%, 77% { opacity: 1; } }

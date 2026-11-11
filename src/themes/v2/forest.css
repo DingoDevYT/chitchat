@@ -1,0 +1,53 @@
+/* Firefly forest (v2, painted). Static painted layers rasterise once; motion is transform/opacity on small unfiltered parts.
+   Timing comes from the shared .a primitive (--d/--dl, scaled by --k). */
+.v2-forest-canvas { left: 0; top: 0; will-change: transform; }
+.v2-forest-pin { width: 1px; height: 1px; overflow: visible; }
+.v2-forest-swarm { inset: 0; }
+/* rooms: fireflies cross behind messages, so they glow softer there */
+.tb-room .v2-forest-swarm { opacity: .6; }
+
+.v2-forest-breathe { animation-name: v2-forest-breathe; animation-direction: alternate; }
+@keyframes v2-forest-breathe { from { opacity: var(--lo, .6); } to { opacity: 1; } }
+
+.v2-forest-mist { height: 34px; margin-top: -17px; border-radius: 50%; background: radial-gradient(closest-side, #b4cbbd26, #b4cbbd10 60%, transparent); }
+.v2-forest-mist.low { height: 26px; background: radial-gradient(closest-side, #a6bfb11c, transparent); }
+.v2-forest-drift { animation-name: v2-forest-drift; animation-direction: alternate; }
+@keyframes v2-forest-drift { from { transform: translateX(calc(var(--x, 30px) * -1)); } to { transform: translateX(var(--x, 30px)); } }
+
+.v2-forest-sway { animation-name: v2-forest-sway; animation-direction: alternate; transform-origin: 50% 100%; }
+@keyframes v2-forest-sway { from { transform: rotate(calc(var(--r, 2deg) * -1)); } to { transform: rotate(var(--r, 2deg)); } }
+
+.v2-forest-bough { transform-origin: 100% 0; animation-name: v2-forest-bough; animation-direction: alternate; }
+.v2-forest-bough.b { transform-origin: 0 0; animation-name: v2-forest-bough-b; }
+@keyframes v2-forest-bough { from { transform: rotate(-1.2deg); } to { transform: rotate(1.6deg); } }
+@keyframes v2-forest-bough-b { from { transform: rotate(1.4deg); } to { transform: rotate(-1deg); } }
+
+/* a leaf lets go, rocks down through the air, and is gone until next time */
+.v2-forest-leaf { opacity: 0; animation-name: v2-forest-leaf; animation-timing-function: linear; }
+@keyframes v2-forest-leaf {
+  0% { transform: none; opacity: 0; } 2% { opacity: .9; }
+  10% { transform: translate(calc(var(--x) * .3), calc(var(--y) * .25)) rotate(70deg); }
+  20% { transform: translate(calc(var(--x) * .1), calc(var(--y) * .5)) rotate(-30deg); }
+  30% { transform: translate(calc(var(--x) * .7), calc(var(--y) * .78)) rotate(110deg); opacity: .8; }
+  40% { transform: translate(var(--x), var(--y)) rotate(20deg); opacity: 0; } 100% { transform: translate(var(--x), var(--y)); opacity: 0; } }
+
+/* the owl: eyes open, one blink, close */
+.v2-forest-owl { opacity: 0; animation-name: v2-forest-owl; animation-timing-function: steps(1, end); }
+@keyframes v2-forest-owl { 0% { opacity: 0; transform: none; } 90% { opacity: 1; } 93% { transform: scaleY(.15); } 93.6% { transform: none; } 97% { opacity: 0; } 100% { opacity: 0; } }
+
+/* fireflies: wander (translate), flutter (transform) and blink (opacity), each on its own beat */
+.v2-forest-fly {
+  animation-name: v2-forest-w0, v2-forest-blink, v2-forest-flutter;
+  animation-duration: calc(var(--d) * var(--k)), calc(var(--d2) * var(--k)), calc(var(--d3) * var(--k));
+  animation-delay: calc(var(--dl) * var(--k)), calc(var(--dl2) * var(--k)), calc(var(--dl3) * var(--k));
+  animation-direction: normal, normal, alternate;
+}
+.v2-forest-fly.w1 { animation-name: v2-forest-w1, v2-forest-blink, v2-forest-flutter; }
+.v2-forest-fly.w2 { animation-name: v2-forest-w2, v2-forest-blink, v2-forest-flutter; }
+.v2-forest-fly.w3 { animation-name: v2-forest-w3, v2-forest-blink, v2-forest-flutter; }
+@keyframes v2-forest-w0 { 0%, 100% { translate: 0 0; } 23% { translate: 30px -20px; } 51% { translate: 56px 6px; } 77% { translate: 20px 22px; } }
+@keyframes v2-forest-w1 { 0%, 100% { translate: 0 0; } 31% { translate: -42px 14px; } 58% { translate: -16px -28px; } 82% { translate: 20px -8px; } }
+@keyframes v2-forest-w2 { 0%, 100% { translate: 0 0; } 19% { translate: 22px 24px; } 54% { translate: -30px 10px; } 79% { translate: -8px -24px; } }
+@keyframes v2-forest-w3 { 0%, 100% { translate: 0 0; } 27% { translate: -18px -26px; } 49% { translate: 26px -34px; } 73% { translate: 36px 4px; } }
+@keyframes v2-forest-blink { 0%, 100% { opacity: .28; } 34% { opacity: .38; } 46%, 58% { opacity: 1; } 72% { opacity: .3; } }
+@keyframes v2-forest-flutter { from { transform: translate(-1.5px, 1px); } to { transform: translate(2px, -3px); } }
