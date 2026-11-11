@@ -8,6 +8,7 @@ export function createStore(initial) {
   const subscribe = cb => (subs.add(cb), () => subs.delete(cb))
   return {
     get: () => state,
+    subscribe,
     set(next) { state = typeof next === 'function' ? next(state) : next; subs.forEach(f => f()) },
     use: (sel = s => s) => useSyncExternalStore(subscribe, () => sel(state)),
   }
@@ -42,13 +43,15 @@ export function setVoiceTalking(id, on) {
   if (!!talking.get()['v:' + id] !== on) talking.set(s => ({ ...s, ['v:' + id]: on }))
 }
 
-// ── presence: id -> { voice: channelId|null, live: boolean } ──
+// ── presence: id -> { voice: channelId|null, live: screenStreamId|false, cam: camStreamId|null } ──
 export const online = createStore({})
 
 // ── screen shares in the stadium you're in: userId -> MediaStream (yours too, as a local preview) ──
 export const streams = createStore({})
-export function dropStream(id, ms) {
-  if (streams.get()[id] === ms) streams.set(s => { const n = { ...s }; delete n[id]; return n })
+// ── webcams in the stadium you're in, same shape ──
+export const cams = createStore({})
+export function dropStream(id, ms, store = streams) {
+  if (store.get()[id] === ms) store.set(s => { const n = { ...s }; delete n[id]; return n })
 }
 
 // ── local prefs ──

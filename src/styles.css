@@ -122,6 +122,10 @@ label.btn { flex-direction: row; color: var(--text); font-size: 14px; cursor: po
 .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; transition: transform .12s var(--spring); }
 .avatar.talking img, .avatar.talking .critter-body { animation: bob .28s ease-in-out infinite; }
 .avatar.talking img { transform: scale(1.04); }
+.avatar.cam { background: #000; box-shadow: 0 0 0 4px var(--ring, var(--accent)); }
+.avatar.cam video { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.avatar.cam.talking { animation: bob .28s ease-in-out infinite; }
+.stage-seat.me .avatar.cam video { transform: scaleX(-1); }
 .critter { overflow: visible; display: block; }
 .critter-body { transform-origin: 50% 90%; }
 .critter.talk .critter-body { animation: bob .28s ease-in-out infinite; }
@@ -444,7 +448,7 @@ button.reply-ref::before { left: 34px; }
 .stage-seat:has(.talking) { transform: translateY(-10px) scale(1.08); z-index: 1; }
 .stage-seat .live-badge { position: absolute; top: -4px; z-index: 1; }
 .stage-seat .name { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; padding: 1px 10px; border-radius: 999px; background: var(--bg-2); }
-.stage-actions { display: flex; justify-content: center; padding: 8px 16px 20px; flex: none; }
+.stage-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 8px 16px 20px; flex: none; }
 .join-voice { margin: 0; }
 .stage { container-type: inline-size; }
 @container (max-width: 560px) {

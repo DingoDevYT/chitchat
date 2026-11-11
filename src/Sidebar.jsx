@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from './lib/supabase'
 import { online, toast, useProfile } from './lib/store'
 import Avatar, { Name } from './Avatar'
-import { canShare } from './Voice'
+import { canShare, canCam } from './Voice'
 
 export function dmTitle(channel, meId, profileMap) {
   const others = channel.channel_members.map(m => m.user_id).filter(id => id !== meId)
@@ -32,9 +32,13 @@ function VoiceRoster({ channelId }) {
   if (!ids) return null
   return (
     <div className="voice-roster">
-      {ids.split(',').map(id => <div key={id} className="voice-user"><Avatar id={id} size={22} /><Name id={id} /></div>)}
+      {ids.split(',').map(id => <div key={id} className="voice-user"><Avatar id={id} size={22} /><Name id={id} /><CamOn id={id} /></div>)}
     </div>
   )
+}
+
+function CamOn({ id }) {
+  return online.use(s => !!s[id]?.cam) && <span title="Camera on" aria-label="Camera on">📷</span>
 }
 
 export default function Sidebar({ ctx, channels, current, isUnread, voice, vstate, setVstate, onLeaveVoice }) {
@@ -107,6 +111,8 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
           <div className="row">
             {canShare && <button className={`icon-btn${vstate.live ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, live: !v.live }))}
               title={vstate.live ? 'Stop sharing' : 'Go live'}>{vstate.live ? '⏹️' : '📺'}</button>}
+            {canCam && <button className={`icon-btn${vstate.cam ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, cam: !v.cam }))}
+              title={vstate.cam ? 'Turn camera off' : 'Turn camera on'}>📷</button>}
             <button className={`icon-btn${vstate.muted ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, muted: !v.muted }))}
               title={vstate.muted ? 'Unmute' : 'Mute'}>{vstate.muted ? '🔇' : '🎙️'}</button>
             <button className={`icon-btn${vstate.deafened ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, deafened: !v.deafened }))}

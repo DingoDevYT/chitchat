@@ -25,15 +25,16 @@ export function Critter({ size = 40, color = '#f4a261', talk = false }) {
 }
 
 // PNGtuber avatar: idle image, swaps to the talking image (or bounces) while the user speaks.
-export default function Avatar({ id, size = 40, status = false }) {
+// Children (a webcam <video>) replace the face, in a ring of the user's colour.
+export default function Avatar({ id, size = 40, status = false, children }) {
   const p = useProfile(id)
   const talk = talking.use(s => (s[id] || 0) > 0 || !!s['v:' + id])
   const isOnline = online.use(s => !!s[id])
   return (
-    <span className={`avatar${talk ? ' talking' : ''}`} style={{ width: size, height: size }}>
-      {p?.avatar_idle
+    <span className={`avatar${talk ? ' talking' : ''}${children ? ' cam' : ''}`} style={{ width: size, height: size, '--ring': p?.color }}>
+      {children || (p?.avatar_idle
         ? <img src={talk && p.avatar_talk ? p.avatar_talk : p.avatar_idle} alt="" width={size} height={size} draggable="false" />
-        : <Critter size={size} color={p?.color} talk={talk} />}
+        : <Critter size={size} color={p?.color} talk={talk} />)}
       {status && <i className={`dot${isOnline ? ' on' : ''}`} />}
     </span>
   )

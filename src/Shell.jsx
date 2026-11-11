@@ -28,8 +28,8 @@ export default function Shell({ userId }) {
   const [route, setRoute] = useState(parseHash)
   const [modal, setModal] = useState(null)
   const [voice, setVoice] = useState(null)
-  const [vstate, setVstate] = useState({ muted: false, deafened: false, live: false })
-  const joinVoice = c => { setVoice(c); setVstate(v => ({ ...v, live: false })) }
+  const [vstate, setVstate] = useState({ muted: false, deafened: false, live: false, cam: false })
+  const joinVoice = c => { setVoice(c); setVstate(v => ({ ...v, live: false, cam: false })) }
   const [navOpen, setNavOpen] = useState(false)
   const [visible, setVisible] = useState(!document.hidden)
   const showMembers = prefs.use(s => s.showMembers)
@@ -192,8 +192,9 @@ export default function Shell({ userId }) {
 
       <main className="main">
         {channel?.kind === 'voice'
-          ? <VoiceStage channel={channel} joined={voice?.id === channel.id} onJoin={() => joinVoice(channel)}
-            live={vstate.live} onLive={() => setVstate(v => ({ ...v, live: !v.live }))} onMenu={() => setNavOpen(true)} />
+          ? <VoiceStage channel={channel} meId={userId} joined={voice?.id === channel.id} onJoin={() => joinVoice(channel)}
+            live={vstate.live} onLive={() => setVstate(v => ({ ...v, live: !v.live }))}
+            cam={vstate.cam} onCam={() => setVstate(v => ({ ...v, cam: !v.cam }))} onMenu={() => setNavOpen(true)} />
           : channel
             ? <Chat key={channel.id} channel={channel} ctx={ctx} members={members} onMenu={() => setNavOpen(true)} />
             : <Welcome ctx={ctx} onMenu={() => setNavOpen(true)} hasServers={servers.length > 0} />}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { online, setVoiceTalking, streams, dropStream } from './lib/store'
+import { online, setVoiceTalking, streams, cams, dropStream, toast } from './lib/store'
 import { trackVoice } from './lib/presence'
 import Avatar, { Name } from './Avatar'
 
@@ -9,6 +9,31 @@ const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:1
 
 // Phones have no screen sharing; hide "Go live" there.
 export const canShare = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia
+// shortcut: checks the API only, so a desktop with no webcam still sees the button (it toasts on failure); check enumerateDevices if that annoys people.
+export const canCam = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
+
+// Webcam bubbles are tiny, so keep them cheap; screen shares stay uncapped.
+function addCam(pc, cam) {
+  return cam.getTracks().map(t => {
+    const sender = pc.addTrack(t, cam)
+    try {
+      const prm = sender.getParameters()
+      // shortcut: some browsers (older Firefox) have no encodings until negotiated, so the cap is skipped there.
+      if (prm.encodings?.length) { prm.encodings[0].maxBitrate = 200_000; sender.setParameters(prm).catch(() => {}) }
+    } catch {}
+    return sender
+  })
+}
+
+const hasVideo = ms => ms.getVideoTracks().some(t => t.readyState === 'live' && !t.muted)
+// Camera and screen are both video: the sender's presence says which stream id is which.
+// Until presence names a stream it stays hidden, so a camera never flashes onto the big screen.
+function route(id, ms) {
+  const m = online.get()[id] || {}
+  const to = !hasVideo(ms) ? null : ms.id === m.cam ? cams : ms.id === m.live ? streams : null
+  for (const st of [streams, cams]) if (st !== to) dropStream(id, ms, st)
+  if (to && to.get()[id] !== ms) to.set(s => ({ ...s, [id]: ms }))
+}
 
 // Watches a stream's loudness and flips the owner's avatar into talking mode.
 function watchLevel(audioCtx, stream, id) {
@@ -32,6 +57,7 @@ function watchLevel(audioCtx, stream, id) {
 export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
   const streamRef = useRef(null)
   const shareRef = useRef(null)
+  const camRef = useRef(null)
   const peersRef = useRef(new Map())
   const vstateRef = useRef(vstate)
   vstateRef.current = vstate
@@ -49,8 +75,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       const p = peers.get(id)
       if (!p) return
       p.pc.close(); p.stop?.()
-      for (const a of p.media.values()) a.remove()
-      dropStream(id, streams.get()[id])
+      for (const a of p.media.values()) { a.remove(); dropStream(id, a.srcObject); dropStream(id, a.srcObject, cams) }
       peers.delete(id)
     }
 
@@ -61,6 +86,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       streamRef.current.getTracks().forEach(t => pc.addTrack(t, streamRef.current))
       const share = shareRef.current // late joiners get the current screen share too
       p.senders = share ? share.getTracks().map(t => pc.addTrack(t, share)) : []
+      p.camSenders = camRef.current ? addCam(pc, camRef.current) : []
       pc.onnegotiationneeded = async () => {
         try {
           p.makingOffer = true
@@ -71,7 +97,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       pc.onicecandidate = e => e.candidate && send(id, { candidate: e.candidate.toJSON() })
       pc.ontrack = ({ track, streams: [ms] }) => {
         if (!ms) return
-        // Every remote stream (mic, or screen video+audio) plays through a hidden <audio> so deafen covers both.
+        // Every remote stream (mic, camera, or screen video+audio) plays through a hidden <audio> so deafen covers all.
         if (!p.media.has(ms.id)) {
           const a = new Audio()
           a.autoplay = true
@@ -80,15 +106,13 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
           document.body.appendChild(a)
           p.media.set(ms.id, a)
           ms.onremovetrack = () => {
-            if (!ms.getVideoTracks().length) dropStream(id, ms)
+            route(id, ms)
             if (!ms.getTracks().length) { a.remove(); p.media.delete(ms.id) }
           }
         }
         if (track.kind === 'video') {
-          const show = () => streams.set(s => ({ ...s, [id]: ms }))
-          show()
-          track.onunmute = show
-          track.onmute = track.onended = () => dropStream(id, ms)
+          route(id, ms)
+          track.onunmute = track.onmute = track.onended = () => route(id, ms)
         } else if (!ms.getVideoTracks().length && !p.stop) p.stop = watchLevel(audioCtx, ms, id) // mic only
       }
       pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') close(id) }
@@ -128,6 +152,8 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       if (closed) return streamRef.current.getTracks().forEach(t => t.stop())
       streamRef.current.getAudioTracks().forEach(t => { t.enabled = !vstateRef.current.muted })
       stops.push(watchLevel(audioCtx, streamRef.current, me.id))
+      // Presence and media travel separately; re-sort video whenever someone's cam/live ids change.
+      stops.push(online.subscribe(() => { for (const [id, p] of peers) for (const a of p.media.values()) route(id, a.srcObject) }))
 
       ch = supabase.channel(`chan:${channel.id}`, { config: { private: true, presence: { key: me.id } } })
       ch.on('broadcast', { event: 'signal' }, onSignal)
@@ -138,7 +164,10 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
         for (const id of ids) if (!peers.has(id) && me.id < id) makePeer(id)
       })
       ch.subscribe(status => {
-        if (status === 'SUBSCRIBED') { ch.track({}); trackVoice(channel.id, !!shareRef.current) }
+        if (status === 'SUBSCRIBED') {
+          ch.track({})
+          trackVoice({ voice: channel.id, live: shareRef.current?.id || false, cam: camRef.current?.id || null })
+        }
         if (status === 'CHANNEL_ERROR') onError("Couldn't connect to the stadium.")
       })
     }
@@ -146,7 +175,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
 
     return () => {
       closed = true
-      trackVoice(null)
+      trackVoice({ voice: null, live: false, cam: null })
       for (const id of [...peers.keys()]) close(id)
       stops.forEach(f => f())
       streamRef.current?.getTracks().forEach(t => t.stop())
@@ -170,9 +199,9 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       if (stopped) return s.getTracks().forEach(t => t.stop())
       share = shareRef.current = s
       s.getVideoTracks()[0].onended = end // the browser's own "Stop sharing" bar
+      trackVoice({ live: s.id }) // before the tracks, so peers can tell it from a camera
       for (const p of peersRef.current.values()) p.senders = s.getTracks().map(t => p.pc.addTrack(t, s))
       streams.set(st => ({ ...st, [me.id]: s }))
-      trackVoice(channel.id, true)
     }, end)
     return () => {
       stopped = true
@@ -184,9 +213,36 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
         p.senders = []
       }
       dropStream(me.id, share)
-      if (streamRef.current) trackVoice(channel.id, false)
+      if (streamRef.current) trackVoice({ live: false })
     }
   }, [vstate.live]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Camera: its own stream (separate from mic and screen) so peers can route it to a crowd bubble.
+  useEffect(() => {
+    if (!vstate.cam) return
+    let cam = null, stopped = false
+    const end = () => setVstate(v => ({ ...v, cam: false }))
+    navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 320, frameRate: 20, facingMode: 'user' } }).then(s => {
+      if (stopped) return s.getTracks().forEach(t => t.stop())
+      cam = camRef.current = s
+      s.getVideoTracks()[0].onended = end // unplugged
+      trackVoice({ cam: s.id }) // before the tracks, so peers can tell it from a screen share
+      for (const p of peersRef.current.values()) p.camSenders = addCam(p.pc, s)
+      cams.set(c => ({ ...c, [me.id]: s }))
+    }, () => { toast("Couldn't turn on your camera."); end() })
+    return () => {
+      stopped = true
+      if (!cam) return
+      cam.getTracks().forEach(t => t.stop()) // camera light off
+      camRef.current = null
+      for (const p of peersRef.current.values()) {
+        if (p.pc.signalingState !== 'closed') p.camSenders.forEach(x => p.pc.removeTrack(x))
+        p.camSenders = []
+      }
+      dropStream(me.id, cam, cams)
+      if (streamRef.current) trackVoice({ cam: null })
+    }
+  }, [vstate.cam]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return null
 }
@@ -199,10 +255,11 @@ function Screen({ stream }) {
 }
 
 // The main-area view of a stadium: a big screen for whoever is live, with everyone standing in the crowd below.
-export function VoiceStage({ channel, joined, onJoin, live, onLive, onMenu }) {
+export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, onCam, onMenu }) {
   const ids = online.use(s => Object.keys(s).filter(id => s[id].voice === channel.id).join(','))
   const liveIds = online.use(s => Object.keys(s).filter(id => s[id].voice === channel.id && s[id].live).join(','))
   const all = streams.use()
+  const faces = cams.use()
   const [pick, setPick] = useState(null)
   const list = ids ? ids.split(',') : []
   const lives = liveIds ? liveIds.split(',') : []
@@ -244,9 +301,9 @@ export function VoiceStage({ channel, joined, onJoin, live, onLive, onMenu }) {
         <div className="stage-crowd">
           {list.length === 0 && <p className="muted">Nobody's here yet.</p>}
           {list.map(id => (
-            <div key={id} className="stage-seat">
+            <div key={id} className={`stage-seat${id === meId ? ' me' : ''}`}>
               {lives.includes(id) && <b className="live-badge">🔴 LIVE</b>}
-              <Avatar id={id} size={size} />
+              <Avatar id={id} size={size}>{joined && faces[id] && <Screen stream={faces[id]} />}</Avatar>
               <Name id={id} />
             </div>
           ))}
@@ -255,6 +312,7 @@ export function VoiceStage({ channel, joined, onJoin, live, onLive, onMenu }) {
       <div className="stage-actions">
         {!joined && <button className="btn primary big join-voice" onClick={onJoin}>Join stadium</button>}
         {joined && canShare && <button className={`btn ${live ? 'danger' : 'primary'}`} onClick={onLive}>{live ? '⏹️ Stop sharing' : '📺 Go live'}</button>}
+        {joined && canCam && <button className={`btn ${cam ? 'danger' : 'primary'}`} onClick={onCam}>{cam ? '🚫 Camera off' : '📷 Camera'}</button>}
       </div>
     </div>
   )
