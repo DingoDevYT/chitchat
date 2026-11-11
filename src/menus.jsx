@@ -81,7 +81,8 @@ export function personItems(id, el) {
     ctx.server && role && !self && my === 'owner' && role !== 'owner' && { separator: true },
     ctx.server && !self && my === 'owner' && role === 'member' && { label: 'Make admin', icon: '⭐', onClick: () => setRole('admin') },
     ctx.server && !self && my === 'owner' && role === 'admin' && { label: 'Remove admin', icon: '☆', onClick: () => setRole('member') },
-    ctx.server && role && !self && role !== 'owner' && (my === 'owner' || (my === 'admin' && role === 'member')) &&
+    // the database enforces rank (no kicking people above you); this just hides the item when it can't work
+    ctx.server && role && !self && role !== 'owner' && (my === 'owner' || ctx.can?.('kick_members')) &&
       { label: `Kick ${name}`, icon: '🚪', danger: true, onClick: kick },
     ...extras('person', id),
   ]

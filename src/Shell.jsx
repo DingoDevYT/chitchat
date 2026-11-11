@@ -132,6 +132,8 @@ export default function Shell({ userId }) {
         setChannels(cs => cs.map(c => c.id === row.id ? { ...c, ...row } : c)))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'channels' }, ({ old }) =>
         setChannels(cs => cs.filter(c => c.id !== old.id)))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'servers' }, ({ new: row }) =>
+        setServers(ss => ss && ss.map(s => s.id === row.id ? { ...s, ...row } : s)))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'members' }, ({ old }) => {
         if (old.user_id === userId) load()
       })
