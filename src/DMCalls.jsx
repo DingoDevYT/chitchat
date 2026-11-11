@@ -46,6 +46,22 @@ function writeLine(cid, content, call) {
     .then(({ data, error }) => error ? toast("Couldn't note the call in the chat.") : app.ctx?.markRead([{ id: cid, kind: 'dm', last_message_id: data.id }]))
 }
 
+// After you leave an answered call: once nobody's left in it, one "Call · 12m" line. People hanging up together can each
+// still see the other in presence for a second or two, so everyone who leaves checks; checks are staggered by member order
+// and skip if the line already exists, so it's written once.
+// shortcut: a closed tab never checks; if the last two both close their tabs, the call gets no line.
+function noteCallEnd(c, me, first, end) {
+  const order = (c.channel_members || []).map(m => m.user_id).sort().indexOf(me)
+  setTimeout(async () => {
+    if ((calls.get()[c.id] || '').split(',').some(id => id && id !== me)) return // still going: a later leaver writes it
+    const { data } = await supabase.from('messages').select('id').eq('channel_id', c.id).not('call->secs', 'is', null)
+      .gte('created_at', new Date(first - 5000).toISOString()).limit(1) // 5 s of slack for clock skew
+    if (data?.length) return
+    const secs = Math.round((end - first) / 1000)
+    writeLine(c.id, `Call · ${callLength(secs)}`, { secs })
+  }, 2000 + 2500 * Math.max(0, order))
+}
+
 // Tells the people in a call that you declined. A REST broadcast, so there's no need to join the call's topic.
 async function sendDecline(cid, me) {
   if (app.ctx?.voice?.id === cid) return // same topic as our own VoiceConnection: removing it would hang us up
@@ -151,8 +167,7 @@ function CallWatch({ c, me }) {
       callInfo.set(null)
       declines.set([]) // here, not on mount: the declines effect below would already have seen the old list
       const st = s.current
-      // shortcut: only a clean hang-up writes the line (a closed tab doesn't); the last one out writes it.
-      if (st.first && !nRef.current) writeLine(c.id, `Call · ${callLength(((st.last || Date.now()) - st.first) / 1000)}`, { secs: Math.round(((st.last || Date.now()) - st.first) / 1000) })
+      if (st.first) noteCallEnd(c, me, st.first, nRef.current ? Date.now() : st.last || Date.now())
       else missed()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

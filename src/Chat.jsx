@@ -22,7 +22,6 @@ import { TimePicker } from './TimePicker'
 import { openMenu } from './ContextMenu'
 import { ClipIcon, ClockIcon, EyeOffIcon, MicIcon, PollIcon } from './icons'
 import Icon from './icons/Icon'
-import { ThreadsButton } from './Thread'
 import { CallButtons, CallLine, CallPanel } from './DMCalls'
 import { firstUnreadId, mergeRecent } from './lib/cues'
 import { conn } from './ChatCues'
@@ -404,7 +403,6 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
         </>}
         {channel.private && <span className="lock" title="Private"><Icon name="lock" size={14} /></span>}
         <span className="spacer" />
-        {server && channel.kind === 'text' && <ThreadsButton channel={channel} ctx={ctx} />}
         {channel.kind === 'dm' && <CallButtons channel={channel} ctx={ctx} />}
         <button className={`icon-btn${panel === 'pins' ? ' on' : ''}`} onClick={() => setPanel(p => p === 'pins' ? null : 'pins')}
           title="Pinned messages" aria-label="Pinned messages"><Icon name="pin" /></button>
@@ -442,8 +440,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
                 {m.id === firstUnread && <div className="new-divider" ref={dividerRef} role="separator" aria-label="New messages"><span>New messages</span></div>}
                 {m.call ? <CallLine m={m} me={userId} /> : <Message m={m} onRetry={retry} head={newDay || startsGroup(prev, m) || !!prev?.call} me={userId} myName={me.username} serverId={server?.id} canDelete={canModerate} canPin={canPin}
                   replied={m.reply_to ? byId.get(m.reply_to) || refs[m.reply_to] : null} editing={editing === m.id}
-                  onReply={setReplyTo} onEdit={startEdit} onDelete={remove} onReact={react} onPin={togglePin} onSaveEdit={saveEdit} onCancelEdit={cancelEdit}
-                  thread={ctx.threadsByMsg?.get(m.id)} onThread={server && channel.kind === 'text' ? ctx.startThread : null} />}
+                  onReply={setReplyTo} onEdit={startEdit} onDelete={remove} onReact={react} onPin={togglePin} onSaveEdit={saveEdit} onCancelEdit={cancelEdit} />}
               </div>
             )
           })}

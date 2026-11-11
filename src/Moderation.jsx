@@ -171,7 +171,7 @@ function ModDialog({ kind, uid, ctx, onClose }) {
     toast(done)
     onClose()
   }
-  const reasonBox = <label>Reason <span className="muted">(optional, shows in the audit log)</span>
+  const reasonBox = <label><span>Reason <span className="muted">(optional, shows in the audit log)</span></span>
     <input value={reason} maxLength={512} onChange={e => setReason(e.target.value)} /></label>
 
   if (kind === 'nick') return (

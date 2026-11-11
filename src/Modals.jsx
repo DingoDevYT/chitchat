@@ -126,7 +126,7 @@ export function ServerSettingsModal({ ctx, onClose }) {
       {tab === 'rules' && <RulesTab ctx={ctx} />}
       {tab === 'invites' && <InvitesTab ctx={ctx} />}
       {tab === 'bans' && <BansTab ctx={ctx} />}
-      {tab === 'audit' && <AuditTab ctx={ctx} />}}
+      {tab === 'audit' && <AuditTab ctx={ctx} />}
       <form onSubmit={save} className="col" style={tab !== 'general' ? { display: 'none' } : undefined}>
         <div className="row">
           <div className="server-icon-preview">{server.icon_url ? <CropImg src={server.icon_url} crop={server.icon_crop} /> : server.name[0]}</div>
