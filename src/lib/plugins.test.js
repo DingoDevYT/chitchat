@@ -195,6 +195,7 @@ test('docs markdown: headings, code, callouts, tables, links, escaping', () => {
   assert.equal(docHref('javascript:alert(1)', 'x'), '#')
   assert.equal(docHref('#errors', 'bot-api'), '#/docs/bot-api/errors')
   assert.match(inline('[x](https://a.com)'), /target="_blank"/)
+  assert.match(renderMarkdown('| v | x |\n|---|---|\n| `{random:a\\|b}` | y |').html, /<td><code>\{random:a\|b\}<\/code><\/td><td>y<\/td>/)
   const hits = searchDocs([{ slug: 'intro', ...r }], 'part')
   assert.equal(hits[0].heading.id, 'part-one')
 })

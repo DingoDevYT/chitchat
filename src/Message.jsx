@@ -16,6 +16,7 @@ import { isBlocked, useBlocked } from './lib/blocks'
 import LinkPreviews from './LinkPreview'
 import { ForwardHeader } from './Forward'
 import { PollCard } from './Poll'
+import { Embeds, InteractionLine } from './Embed'
 import { CloseIcon } from './icons'
 import Icon from './icons/Icon'
 
@@ -131,6 +132,7 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
   return (
     <div id={`msg-${m.id}`} onContextMenu={menu} className={`msg${head ? ' head' : ''}${m.pending ? ' pending' : ''}${m.failed ? ' failed' : ''}${m.queued ? ' queued' : ''}${mentioned ? ' mentioned' : ''}${typing ? ' typing' : ''}`}>
       {m.reply_to && <ReplyPreview m={replied} />}
+      {m.interaction && <InteractionLine ix={m.interaction} />}
       <div className="msg-row">
         <div className="msg-gutter">
           {head ? <button className="av-btn" data-profile {...personMenu(m.author_id)} onClick={e => openProfile(m.author_id, e.currentTarget)} aria-label="View profile"><Avatar id={m.author_id} size={42} talk={typing} /></button> : <time className="hover-time">{fmtTime(new Date(m.created_at))}</time>}
@@ -139,7 +141,7 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
           {head && <div className="msg-meta"><button className="name-btn" data-profile {...personMenu(m.author_id)} onClick={e => openProfile(m.author_id, e.currentTarget)}><Name id={m.author_id} serverId={serverId} /></button><time className="muted small">{fmtStamp(m.created_at)}</time></div>}
           {m.forward && <ForwardHeader f={m.forward} />}
           {/* a sent message with neither text nor files is a poll (create_poll) */}
-          {!m.content && !m.attachments?.length && !m.forward && typeof m.id === 'number' && <PollCard messageId={m.id} me={me} />}
+          {!m.content && !m.attachments?.length && !m.forward && !m.embeds?.length && typeof m.id === 'number' && <PollCard messageId={m.id} me={me} />}
           {editing
             ? <EditBox initial={m.content} onSave={onSaveEdit} onCancel={onCancelEdit} />
             : m.content && (
@@ -149,8 +151,8 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
               </div>
             )}
           {(m.failed || m.queued) && <div className="msg-retry">
-            <span className={`note small${m.failed ? ' err' : ''}`}>{m.failed ? "Didn't send." : 'Waiting for connection… it sends when you\'re back online.'}</span>
-            {m.failed && onRetry && <button className="btn primary small" onClick={() => onRetry(m)}>Retry</button>}
+            <span className={`note small${m.failed ? ' err' : ''}`}>{m.failed ? m.blocked || "Didn't send." : 'Waiting for connection… it sends when you\'re back online.'}</span>
+            {m.failed && !m.blocked && onRetry && <button className="btn primary small" onClick={() => onRetry(m)}>Retry</button>}
             <button className="btn ghost small" onClick={() => onDelete(m)}>Delete</button>
           </div>}
           {m.pending && !m.queued && m._files?.length > 0 && <div className="upload-bar">
@@ -162,6 +164,7 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
           </div>}
           {m.pinned_at && <div className="pin-mark"><Icon name="pin" size={13} /> pinned</div>}
           <Attachments list={media} />
+          <Embeds list={m.embeds} me={myName} />
           {!typing && !m.suppress_embeds && <LinkPreviews m={m} mine={mine} />}
           {reactions.length > 0 && (
             <div className="reactions">

@@ -84,69 +84,72 @@ export default function Forest() {
     </Canvas>
 
     <Canvas className="v2-forest-canvas">
-        <Wash f={p.brush} fill={['#183028', '#1b342b', '#162c25']} rim={['#2d4c3d', 0, .5]}
-          d={ridge([[0, 66.6], [9, 65.6], [20, 66.4], [32, 65.2], [44, 65.8], [55, 64.8], [66, 65.6], [78, 64.9], [90, 66.2], [100, 65.4]])} />
-        {/* where the moonlight lands */}
-        <At x="58%" y="67%"><g transform="scale(2.4 .5)"><Glaze r={36} fill="#9fbf9a" o={.3} f={p.glow} /></g></At>
-        <Wash f={p.brush} fill={['#0f201b', '#11231e', '#0d1d18']} d={ridge([[0, 80], [16, 78.4], [34, 79.6], [55, 78.2], [76, 79.8], [100, 78.6]])} />
-        {/* two old trunks framing the clearing, roots flaring into the moss */}
-        <Wash f={p.brush} fill={['#0b1916', '#0d1c19', '#0a1614']} rim={['#2c4a3f', -.45, 0]}
-          d="M3.4 -4H8.8C8.6 6 8.9 16 9.4 22C10.6 20.6 12.6 19.4 14.4 19.2C12.8 20.6 11 22.6 9.6 25.4C9.8 34 10 44 10.4 52C10.8 60 11.6 65 14.6 70.6C12 70.2 10.4 69.6 9 70.8C7.4 69.6 4.8 70 2.4 71.2C3.4 64 3.2 56 2.9 48C2.6 32 2.9 14 3.4 -4Z" />
-        <Wash f={p.brush} fill={['#0b1916', '#0d1c19', '#0a1614']} rim={['#28443a', .45, 0]}
-          d="M90.2 -4H95.2C95 10 95.2 26 95.6 40C95.9 52 96.4 62 99.6 71.8C97.6 71.4 95.8 71.2 94.4 72.2C92.8 71.2 90.4 71.4 87.8 72.6C89.2 66 89.6 58 89.6 50C89.5 30 89.8 12 90.2 -4Z" />
-        <g filter={p.fine} stroke="#1f3830" strokeWidth="1.1" fill="none" opacity=".7" strokeLinecap="round">
-          <Pct><path d="M5 8C5.2 16 4.8 26 5.4 34M7.4 30C7.2 38 7.6 46 7.2 54M4.4 44C4.2 50 4.6 58 4.2 64M8.2 4C8 10 8.4 14 8.2 18" vectorEffect="non-scaling-stroke" />
-            <path d="M92 6C91.8 16 92.2 24 91.8 34M94 20C94.2 30 93.8 40 94.2 50M91.4 44C91.2 52 91.6 60 91.2 66" vectorEffect="non-scaling-stroke" /></Pct>
+      <Wash f={p.brush} fill={['#183028', '#1b342b', '#162c25']} rim={['#2d4c3d', 0, .5]}
+        d={ridge([[0, 66.6], [9, 65.6], [20, 66.4], [32, 65.2], [44, 65.8], [55, 64.8], [66, 65.6], [78, 64.9], [90, 66.2], [100, 65.4]])} />
+      {/* where the moonlight lands */}
+      <At x="58%" y="67%"><g transform="scale(2.4 .5)"><Glaze r={36} fill="#9fbf9a" o={.3} f={p.glow} /></g></At>
+      <Wash f={p.brush} fill={['#0f201b', '#11231e', '#0d1d18']} d={ridge([[0, 80], [16, 78.4], [34, 79.6], [55, 78.2], [76, 79.8], [100, 78.6]])} />
+      {/* two old trunks framing the clearing, roots flaring into the moss */}
+      <Wash f={p.brush} fill={['#0b1916', '#0d1c19', '#0a1614']} rim={['#2c4a3f', -.45, 0]}
+        d="M3.4 -4H8.8C8.6 6 8.9 16 9.4 22C10.6 20.6 12.6 19.4 14.4 19.2C12.8 20.6 11 22.6 9.6 25.4C9.8 34 10 44 10.4 52C10.8 60 11.6 65 14.6 70.6C12 70.2 10.4 69.6 9 70.8C7.4 69.6 4.8 70 2.4 71.2C3.4 64 3.2 56 2.9 48C2.6 32 2.9 14 3.4 -4Z" />
+      <Wash f={p.brush} fill={['#0b1916', '#0d1c19', '#0a1614']} rim={['#28443a', .45, 0]}
+        d="M90.2 -4H95.2C95 10 95.2 26 95.6 40C95.9 52 96.4 62 99.6 71.8C97.6 71.4 95.8 71.2 94.4 72.2C92.8 71.2 90.4 71.4 87.8 72.6C89.2 66 89.6 58 89.6 50C89.5 30 89.8 12 90.2 -4Z" />
+      <g filter={p.fine} stroke="#1f3830" strokeWidth="1.1" fill="none" opacity=".7" strokeLinecap="round">
+        <Pct><path d="M5 8C5.2 16 4.8 26 5.4 34M7.4 30C7.2 38 7.6 46 7.2 54M4.4 44C4.2 50 4.6 58 4.2 64M8.2 4C8 10 8.4 14 8.2 18" vectorEffect="non-scaling-stroke" />
+          <path d="M92 6C91.8 16 92.2 24 91.8 34M94 20C94.2 30 93.8 40 94.2 50M91.4 44C91.2 52 91.6 60 91.2 66" vectorEffect="non-scaling-stroke" /></Pct>
+      </g>
+      <Wash f={p.fine} d="M5.2 28.4C5.8 27 7.2 27 7.6 28.6S7.6 32.8 6.4 33 4.8 30 5.2 28.4Z" fill="#060e0c" o={.9} />
+      {/* canopy: dark foliage closing over the top corners */}
+      <Wash f={p.brush} fill={['#0d1d1b', '#10211e', '#0b1918']} rim={['#20372f', .4, .5]}
+        d="M-4 -4H34C33 2 29 4 25 4.6C27 7 24 10 19 9.4C18 13 13 14.6 9 12.6C7 16 2 17.4 -4 15.6Z" />
+      <Wash f={p.brush} fill={['#0d1d1b', '#10211e', '#0b1918']} rim={['#20372f', -.4, .5]}
+        d="M68 -4H104V18.6C99 20 95 18.4 93.4 15.6C90 17.6 85 16.4 84 13C80 13.6 76 11 77 7.6C72.6 7.4 69.4 4 68 -4Z" />
+      {/* mushrooms at the clearing's edge */}
+      <At x="63.2%" y="68.2%">
+        <Glaze r={12} fill="#e9a07c" o={.24} f={p.glow} />
+        <g filter={p.fine} transform="scale(1.7)">
+          <path d="M-2 0C-2.6 -6 -2.2 -12 -1.2 -16.4H4C4.4 -10 5 -5 5.2 0Z" fill="#e2d6c2" />
+          <path d="M-10.5 -15C-9.4 -22.4 -2.4 -26.4 3 -26.4S16.4 -22.4 16.2 -15C10 -13 -4 -13 -10.5 -15Z" fill="#cf7f68" />
+          <path d="M-10.5 -15C-9.4 -22.4 -2.4 -26.4 3 -26.4C-2 -24 -6 -20 -7.4 -14.6Z" fill="#e39a7e" opacity=".8" />
+          <path d="M-15.6 0C-15.8 -4 -15 -7.6 -13.6 -10H-10.6C-10.8 -6 -10.6 -3 -10 0Z" fill="#d9ccb6" />
+          <path d="M-20 -9C-19 -14 -15 -16.4 -12 -16.2S-5 -13.6 -5.6 -9.4C-9.6 -8.4 -16 -8.2 -20 -9Z" fill="#c4705c" />
+          <path d="M12 0C12.2 -3 12.8 -5 13.6 -6.8H15.8C15.8 -4.6 16 -2 16.4 0Z" fill="#d9ccb6" />
+          <path d="M10.4 -6.4C11 -9.4 13 -10.6 15 -10.6S19.4 -9.2 19.2 -6.4C16.6 -5.8 13 -5.8 10.4 -6.4Z" fill="#c97862" />
+          <g fill="#f3e9da"><circle cx="-4" cy="-20" r="1.3" /><circle cx="3.6" cy="-23" r="1" /><circle cx="9" cy="-19" r="1.4" />
+            <circle cx="-15" cy="-12.6" r=".9" /><circle cx="-10" cy="-13.8" r=".7" /><circle cx="15" cy="-8.6" r=".6" /></g>
         </g>
-        <Wash f={p.fine} d="M5.2 28.4C5.8 27 7.2 27 7.6 28.6S7.6 32.8 6.4 33 4.8 30 5.2 28.4Z" fill="#060e0c" o={.9} />
-        {/* canopy: dark foliage closing over the top corners */}
-        <Wash f={p.brush} fill={['#0d1d1b', '#10211e', '#0b1918']} rim={['#20372f', .4, .5]}
-          d="M-4 -4H34C33 2 29 4 25 4.6C27 7 24 10 19 9.4C18 13 13 14.6 9 12.6C7 16 2 17.4 -4 15.6Z" />
-        <Wash f={p.brush} fill={['#0d1d1b', '#10211e', '#0b1918']} rim={['#20372f', -.4, .5]}
-          d="M68 -4H104V18.6C99 20 95 18.4 93.4 15.6C90 17.6 85 16.4 84 13C80 13.6 76 11 77 7.6C72.6 7.4 69.4 4 68 -4Z" />
-        {/* mushrooms at the clearing's edge */}
-        <At x="63.2%" y="68.2%">
-          <Glaze r={12} fill="#e9a07c" o={.24} f={p.glow} />
-          <g filter={p.fine} transform="scale(1.7)">
-            <path d="M-2 0C-2.6 -6 -2.2 -12 -1.2 -16.4H4C4.4 -10 5 -5 5.2 0Z" fill="#e2d6c2" />
-            <path d="M-10.5 -15C-9.4 -22.4 -2.4 -26.4 3 -26.4S16.4 -22.4 16.2 -15C10 -13 -4 -13 -10.5 -15Z" fill="#cf7f68" />
-            <path d="M-10.5 -15C-9.4 -22.4 -2.4 -26.4 3 -26.4C-2 -24 -6 -20 -7.4 -14.6Z" fill="#e39a7e" opacity=".8" />
-            <path d="M-15.6 0C-15.8 -4 -15 -7.6 -13.6 -10H-10.6C-10.8 -6 -10.6 -3 -10 0Z" fill="#d9ccb6" />
-            <path d="M-20 -9C-19 -14 -15 -16.4 -12 -16.2S-5 -13.6 -5.6 -9.4C-9.6 -8.4 -16 -8.2 -20 -9Z" fill="#c4705c" />
-            <path d="M12 0C12.2 -3 12.8 -5 13.6 -6.8H15.8C15.8 -4.6 16 -2 16.4 0Z" fill="#d9ccb6" />
-            <path d="M10.4 -6.4C11 -9.4 13 -10.6 15 -10.6S19.4 -9.2 19.2 -6.4C16.6 -5.8 13 -5.8 10.4 -6.4Z" fill="#c97862" />
-            <g fill="#f3e9da"><circle cx="-4" cy="-20" r="1.3" /><circle cx="3.6" cy="-23" r="1" /><circle cx="9" cy="-19" r="1.4" />
-              <circle cx="-15" cy="-12.6" r=".9" /><circle cx="-10" cy="-13.8" r=".7" /><circle cx="15" cy="-8.6" r=".6" /></g>
-          </g>
-        </At>
+      </At>
     </Canvas>
 
-      <Pin x="63.2%" y="calc(68.2% - 26px)" className="v2-forest-pin a v2-forest-breathe" style={anim(6.3, 2, { '--lo': .45 })}>
-        <Halo k={1.8} sx={1.3} fill="#f0b08a" o={.07} n={4} />
-      </Pin>
-      <Pin x="calc(63.2% - 24px)" y="calc(68.2% - 17px)" className="v2-forest-pin a v2-forest-breathe" style={anim(9.1, 5, { '--lo': .3 })}>
-        <Halo k={1.1} fill="#e8a07e" o={.08} n={3} />
-      </Pin>
+    <Pin x="63.2%" y="calc(68.2% - 26px)" className="v2-forest-pin a v2-forest-breathe" style={anim(6.3, 2, { '--lo': .45 })}>
+      <Halo k={2} sx={1.3} fill="#f0b08a" o={.1} n={4} />
+    </Pin>
+    <Pin x="calc(63.2% - 24px)" y="calc(68.2% - 17px)" className="v2-forest-pin a v2-forest-breathe" style={anim(9.1, 5, { '--lo': .3 })}>
+      <Halo k={1.1} fill="#e8a07e" o={.08} n={3} />
+    </Pin>
 
-      {/* drifting mist: plain soft air, no edge to see */}
-      <i className="v2-forest-mist a v2-forest-drift" style={anim(41, 13, { top: '57.5%', left: '2%', width: '58%', '--x': '30px' })} />
-      <i className="v2-forest-mist a v2-forest-drift" style={anim(59, 33, { top: '61.5%', left: '44%', width: '54%', '--x': '-36px' })} />
-      <i className="v2-forest-mist low a v2-forest-drift" style={anim(73, 51, { top: '67%', left: '14%', width: '50%', '--x': '24px' })} />
+    {/* moonlight falling into the clearing, breathing */}
+    <i className="v2-forest-shaft a v2-forest-breathe" style={anim(12.7, 3, { left: '40%', '--lo': .35 })} />
+    <i className="v2-forest-shaft thin a v2-forest-breathe" style={anim(17.9, 11, { left: '44.5%', '--lo': .2 })} />
+    {/* drifting mist: plain soft air, no edge to see */}
+    <i className="v2-forest-mist a v2-forest-drift" style={anim(41, 13, { top: '57.5%', left: '2%', width: '58%', '--x': '30px' })} />
+    <i className="v2-forest-mist a v2-forest-drift" style={anim(59, 33, { top: '61.5%', left: '44%', width: '54%', '--x': '-36px' })} />
+    <i className="v2-forest-mist low a v2-forest-drift" style={anim(73, 51, { top: '67%', left: '14%', width: '50%', '--x': '24px' })} />
 
-      {CLUMPS.map(([x, y, k, s, fl, d], i) => (
-        <Pin key={i} x={`${x}%`} y={`${y}%`} className="v2-forest-pin a v2-forest-sway" style={anim(d, d * i * .29, { '--r': `${r2(2.6 / s)}deg` })}>
-          <g transform={`scale(${s * fl} ${s})`}>
-            <path d={CLUMP[k]} fill={i % 3 ? '#26493a' : '#2e5644'} />
-            <path d={CLUMP[k]} transform="translate(1.2 .4) scale(.86)" fill="#3c6a50" opacity=".55" />
-          </g>
-        </Pin>
-      ))}
-
-      {/* the owl: once in a long while its eyes open in the hollow, it blinks, and they close again */}
-      <Pin x="6.4%" y="30.4%" className="v2-forest-pin a v2-forest-owl" style={anim(47, 30)}>
-        <g fill="#e8d48e"><path d="M-2.6 -1C-2.6 -2.2 -1.6 -2.8 -.9 -2.4S.2 -.6 -.6 .2-2.6 .2-2.6 -1Z" /><path d="M.8 -1.2C.9 -2.4 2 -2.8 2.6 -2.2S3.2 -.4 2.4 .2 .7 0 .8 -1.2Z" /></g>
-        <circle cx="-1.5" cy="-1.1" r=".5" fill="#1a1608" /><circle cx="1.8" cy="-1.1" r=".5" fill="#1a1608" />
+    {CLUMPS.map(([x, y, k, s, fl, d], i) => (
+      <Pin key={i} x={`${x}%`} y={`${y}%`} className="v2-forest-pin a v2-forest-sway" style={anim(d, d * i * .29, { '--r': `${r2(4 / s)}deg` })}>
+        <g transform={`scale(${s * fl} ${s})`}>
+          <path d={CLUMP[k]} fill={i % 3 ? '#26493a' : '#2e5644'} />
+          <path d={CLUMP[k]} transform="translate(1.2 .4) scale(.86)" fill="#3c6a50" opacity=".55" />
+        </g>
       </Pin>
+    ))}
+
+    {/* the owl: once in a long while its eyes open in the hollow, it blinks, and they close again */}
+    <Pin x="6.4%" y="30.4%" className="v2-forest-pin a v2-forest-owl" style={anim(47, 30)}>
+      <g fill="#e8d48e"><path d="M-2.6 -1C-2.6 -2.2 -1.6 -2.8 -.9 -2.4S.2 -.6 -.6 .2-2.6 .2-2.6 -1Z" /><path d="M.8 -1.2C.9 -2.4 2 -2.8 2.6 -2.2S3.2 -.4 2.4 .2 .7 0 .8 -1.2Z" /></g>
+      <circle cx="-1.5" cy="-1.1" r=".5" fill="#1a1608" /><circle cx="1.8" cy="-1.1" r=".5" fill="#1a1608" />
+    </Pin>
 
     {/* boughs hanging into the top corners, stirring */}
     <Pin x="100%" y="1%" className="v2-forest-pin a v2-forest-bough" style={anim(11.7, 4)}>
@@ -170,8 +173,9 @@ export default function Forest() {
         <Pin key={i} x={`${x}%`} y={`${y}%`} className={`v2-forest-pin a v2-forest-fly w${w}`}
           style={{ '--d': `${dw}s`, '--dl': `${-r2(dw * ((i * .37) % 1))}s`, '--d2': `${db}s`, '--dl2': `${-r2(db * ((i * .61) % 1))}s`, '--d3': `${df}s`, '--dl3': `${-r2(df * ((i * .23) % 1))}s` }}>
           <g transform={`scale(${s})`}>
-            <path d={HALO} transform={`rotate(${i * 29}) scale(1.05)`} fill="#d2e477" opacity=".12" />
-            <path d={HALO} transform={`rotate(${i * 47}) scale(.5)`} fill="#e0ef8e" opacity=".3" />
+            <path d={HALO} transform={`rotate(${i * 29}) scale(1.6)`} fill="#d2e477" opacity=".07" />
+            <path d={HALO} transform={`rotate(${i * 47}) scale(.7)`} fill="#dcec88" opacity=".14" />
+            <path d={HALO} transform={`rotate(${i * 61}) scale(.38)`} fill="#e6f29a" opacity=".45" />
             <path d={HALO} transform={`rotate(${i * 13}) scale(.26)`} fill="#fbfcd2" />
           </g>
         </Pin>

@@ -8,14 +8,16 @@ import '../styles/themes.css'
 const loaders = {
   beach: () => import('./scenes/Beach'),
   night: () => import('./scenes/Night'),
-  rain: () => import('./scenes/Rain'),
+  rain: () => import('./v2/Rain'),
   forest: () => import('./scenes/Forest'),
   snow: () => import('./scenes/Snow'),
   sakura: () => import('./scenes/Sakura'),
-  sea: () => import('./scenes/Sea'),
-  synthwave: () => import('./scenes/Synthwave'),
+  sea: () => import('./v2/Sea'),
+  synthwave: () => import('./v2/Synthwave'),
   campfire: () => import('./scenes/Campfire'),
 }
+// painted redos (src/themes/v2) sit on a shared paper grain
+const PAINTED = new Set(['rain', 'sea', 'synthwave'])
 const scenes = {}
 const sceneOf = id => scenes[id] ||= lazy(loaders[id])
 
@@ -43,6 +45,7 @@ export default function ThemeBackdrop({ theme, variant = 'room', intensity }) {
       style={c ? { '--c1': c[0], '--c2': c[1], '--c3': c[2] } : undefined}>
       {Scene && <Suspense fallback={null}><div className="tb-scene"><Scene variant={variant} /></div></Suspense>}
       <div className="tb-scrim" />
+      {Scene && PAINTED.has(theme) && <div className="tb-grain" />}
     </div>
   )
 }

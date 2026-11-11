@@ -13,6 +13,7 @@ import EmojiSettings from './EmojiSettings'
 import { RolesTab } from './Roles'
 import { AppearanceTab } from './ServerCards'
 import { AuditTab, BansTab, InvitesTab, RulesTab } from './Moderation'
+import { PluginsTab } from './Plugins'
 import Icon from './icons/Icon'
 
 export function CreateJoinModal({ ctx, onClose, joinInvite }) {
@@ -67,7 +68,7 @@ export function CreateJoinModal({ ctx, onClose, joinInvite }) {
 }
 
 const SETTINGS_TABS = [['general', 'General', 'manage_server'], ['appearance', 'Appearance', 'manage_server'], ['emoji', 'Emoji', 'manage_server'],
-  ['roles', 'Roles'], ['rules', 'Rules', 'manage_server'], ['invites', 'Invites', 'manage_invites'], ['bans', 'Bans', 'ban_members'], ['audit', 'Audit log', 'view_audit_log']]
+  ['roles', 'Roles'], ['rules', 'Rules', 'manage_server'], ['invites', 'Invites', 'manage_invites'], ['bans', 'Bans', 'ban_members'], ['audit', 'Audit log', 'view_audit_log'], ['plugins', 'Plugins', 'manage_server']]
 
 export function ServerSettingsModal({ ctx, onClose }) {
   const { server } = ctx
@@ -127,6 +128,7 @@ export function ServerSettingsModal({ ctx, onClose }) {
       {tab === 'invites' && <InvitesTab ctx={ctx} />}
       {tab === 'bans' && <BansTab ctx={ctx} />}
       {tab === 'audit' && <AuditTab ctx={ctx} />}
+      {tab === 'plugins' && <PluginsTab ctx={ctx} />}
       <form onSubmit={save} className="col" style={tab !== 'general' ? { display: 'none' } : undefined}>
         <div className="row">
           <div className="server-icon-preview">{server.icon_url ? <CropImg src={server.icon_url} crop={server.icon_crop} /> : server.name[0]}</div>

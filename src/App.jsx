@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { unlockAudio } from './lib/animalese'
 import Auth from './Auth'
 import Shell from './Shell'
 import { Critter } from './Avatar'
 import DialogHost, { askText, tell } from './Dialog'
+
+// Plugin docs at #/docs (readable signed out too); its own chunk, loaded only when opened.
+const Docs = lazy(() => import('./Docs'))
+const isDocs = () => location.hash.startsWith('#/docs')
 
 // children: a message (and retry) when loading failed; Chit stops chattering then
 export function Splash({ children }) {
@@ -14,6 +18,12 @@ export function Splash({ children }) {
 
 export default function App() {
   const [session, setSession] = useState(undefined)
+  const [docs, setDocs] = useState(isDocs)
+  useEffect(() => {
+    const on = () => setDocs(isDocs())
+    addEventListener('hashchange', on)
+    return () => removeEventListener('hashchange', on)
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -36,7 +46,7 @@ export default function App() {
   }, [])
 
   return <>
-    {session === undefined ? <Splash /> : !session ? <Auth /> : <Shell key={session.user.id} userId={session.user.id} />}
+    {docs ? <Suspense fallback={<Splash />}><Docs /></Suspense> : session === undefined ? <Splash /> : !session ? <Auth /> : <Shell key={session.user.id} userId={session.user.id} />}
     <DialogHost />
   </>
 }

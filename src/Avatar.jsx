@@ -174,5 +174,6 @@ export function Name({ id, serverId }) {
   const p = useProfile(id)
   const roleColor = useMemberColor(serverId, id)
   const nick = useNickname(serverId, id) // per-server nickname wins (032_moderation)
-  return <span className="name" style={{ color: roleColor || p?.color }}>{nick || p?.display_name || p?.username || '…'}</span>
+  const name = <span className="name" style={{ color: roleColor || p?.color }}>{nick || p?.display_name || p?.username || '…'}</span>
+  return p?.is_bot ? <>{name}<span className="bot-badge" title="This is a bot">BOT</span></> : name // styled in styles/plugins.css
 }

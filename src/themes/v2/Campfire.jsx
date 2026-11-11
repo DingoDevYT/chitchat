@@ -153,8 +153,8 @@ export default function Campfire() {
 
       {[[11.3, 0], [12.9, 3.4], [10.1, 6.6], [13.7, 9.1]].map(([d, dl], i) => (
         <Pin key={i} {...at(FIRE, 2, -78)} className="v2-campfire-pin a v2-campfire-smoke" style={anim(d, dl)}>
-          <path d={HALO} transform={`rotate(${i * 53}) scale(.9 .55)`} fill="#6c5d78" opacity=".12" />
-          <path d={HALO} transform={`translate(3 -2) rotate(${i * 53 + 80}) scale(1.6 .8)`} fill="#7c6c86" opacity=".06" />
+          <path d={HALO} transform={`rotate(${i * 53}) scale(.9 .55)`} fill="#6c5d78" opacity=".16" />
+          <path d={HALO} transform={`translate(3 -2) rotate(${i * 53 + 80}) scale(1.6 .8)`} fill="#7c6c86" opacity=".08" />
         </Pin>
       ))}
 

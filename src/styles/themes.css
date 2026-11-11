@@ -307,3 +307,9 @@ body.tb-hidden .theme-backdrop *, .tb-paused * { animation-play-state: paused !i
 /* Rooms: synthwave's neon is loud, so it glows softer behind text */
 .tb-room .syn-sun, .tb-room .syn-sun-glow, .tb-room .syn-horizon { opacity: .5; }
 .tb-room .syn-grid, .tb-room .syn-mtns { opacity: .55; }
+
+/* Paper grain under the painted redos (src/themes/v2), drawn by ThemeBackdrop. */
+.tb-grain { position: absolute; inset: 0; opacity: .075; pointer-events: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='2.4 0 0 0 -.7 2.4 0 0 0 -.72 2.4 0 0 0 -.76 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.009' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1.6 0 0 0 -.3 1.6 0 0 0 -.32 1.6 0 0 0 -.36 0 0 0 0 .6'/%3E%3C/filter%3E%3Crect width='600' height='600' filter='url(%23n)'/%3E%3C/svg%3E"); }

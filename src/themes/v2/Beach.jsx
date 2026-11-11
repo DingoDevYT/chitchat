@@ -156,8 +156,8 @@ export default function Beach({ variant = 'room' }) {
           {[0, 1].map(f => (
             <svg key={f} className="a v2-beach-f2" style={anim(r.d, f * r.d / 2 + i * .37)} opacity={r.o}>
               {r.s.map(([x, y, w], j) => (
-                <At key={j} x={`${x + (f ? .9 + (j % 3) * .3 : 0)}%`} y={y + (f ? (j % 2 ? 1 : -1) : 0)}>
-                  <path d={stroke(w * (f ? 1 - (j % 3) * .12 : 1), r.h)} fill={r.c} />
+                <At key={j} x={`${x + (f ? .9 + (j % 3) * .3 : 0)}%`} y={15 + (y - 15) * 2.2 + (f ? (j % 2 ? 1 : -1) : 0)}>
+                  <path d={stroke(w * (f ? 1 - (j % 3) * .12 : 1) * (.7 + (j * 37 % 50) / 100), r.h)} fill={r.c} opacity={.55 + (j * 29 % 45) / 100} />
                 </At>
               ))}
             </svg>
@@ -202,6 +202,12 @@ export default function Beach({ variant = 'room' }) {
         <Wash f={p.brush} fill={['#d9c091', '#e0c899', '#d1b887']} rim={['#ecd9ac', .4, .5]} d={ridge(DUNE.map(([x, y]) => [x, Y(y)]))} />
         <Wash f={p.brush} fill="#f0ddb0" o={.7} d={lip(DUNE.slice(3).map(([x, y], i) => [x, Y(y + .3), 1.2 + (i % 3) * .5]))} />
         <Wash f={p.haze} fill="#b9a587" o={.4} d={lip([[58, Y(92), 3], [63, Y(85), 4], [68, Y(81), 5], [76, Y(79), 6], [88, Y(80), 5], [103, Y(78), 6]])} />
+        {/* wind ripples dry-brushed across the slope, and a few sprigs too small to sway */}
+        <Wash f={p.brush} fill="#ead6a9" o={.55} d={lip([[69, Y(76.4), .7], [77, Y(73.8), 1.1], [85, Y(72.2), .8], [93, Y(71.8), 1], [102, Y(71.2), .7]])} />
+        <Wash f={p.brush} fill="#c5ad84" o={.4} d={lip([[61, Y(87), .8], [70, Y(83), 1.2], [80, Y(81.2), .9], [90, Y(81.6), 1.1], [102, Y(80), .8]])} />
+        <Wash f={p.brush} fill="#c5ad84" o={.3} d={lip([[74, Y(92), .9], [84, Y(89.6), 1.3], [94, Y(90), 1], [102, Y(89), .8]])} />
+        <g filter={p.fine}>{[[66.5, 80.2, .6], [73.6, 77.4, .5], [88.4, 76.2, .7], [95.6, 78.6, .55], [81, 86.4, .6]].map(([x, y, s], i) => (
+          <At key={i} x={`${x}%`} y={pc(y)}><g transform={`scale(${s})`} fill={i % 2 ? C.grassLo : C.grass}>{TUFTS[i % 3].map((b, j) => <path key={j} d={blade(b)} />)}</g></At>))}</g>
         <g filter={p.fine} fill="#8e7c64">
           {[[71.5, 71.6, -7, 15], [75.2, 69.1, -4, 17], [79, 67.4, -8, 14], [82.8, 65.4, -3, 16]].map(([x, y, r, h], i) => (
             <At key={i} x={`${x}%`} y={pc(y)}><path d={`M-1.6 0L-1 ${-h}L1.2 ${-h - .8}L1.6 0Z`} transform={`rotate(${r})`} /></At>

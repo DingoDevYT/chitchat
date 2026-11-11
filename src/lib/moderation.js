@@ -51,7 +51,9 @@ export const AUDIT_ACTIONS = [
   ['role_update', 'Roles edited'], ['role_delete', 'Roles deleted'], ['channel_create', 'Rooms created'],
   ['channel_update', 'Rooms edited'], ['channel_delete', 'Rooms deleted'], ['invite_create', 'Invites created'],
   ['invite_delete', 'Invites revoked'], ['server_update', 'Server settings'], ['message_delete', 'Messages deleted'],
+  ['automod_block', 'Automod'], ['plugin_install', 'Plugins added'], ['plugin_update', 'Plugin settings'], ['plugin_remove', 'Plugins removed'],
 ]
+const AUTOMOD_RULE = { words: 'blocked word', invites: 'invite link', links: 'link', mentions: 'too many mentions', caps: 'shouting', spam: 'too fast', repeat: 'repeating' }
 
 const FIELD = {
   icon_url: 'icon', icon_crop: 'icon', banner_url: 'banner', banner_crop: 'banner', accent: 'accent colour', motd: 'status line',
@@ -86,6 +88,10 @@ export function describeAudit(e, name) {
     case 'server_update': return `changed server settings${what}`
     case 'message_delete': return `deleted a message by ${t}${d.room ? ` in ${d.room}` : ''}`
     case 'post_delete': return `deleted ${t}'s post${d.title ? ` “${d.title}”` : ''}${d.room ? ` in ${d.room}` : ''}`
+    case 'automod_block': return `held back a message from ${t}${d.room ? ` in ${d.room}` : ''}${AUTOMOD_RULE[d.rule] ? ` (${AUTOMOD_RULE[d.rule]})` : ''}`
+    case 'plugin_install': return `added the ${d.name} plugin`
+    case 'plugin_update': return `changed settings for ${d.name}`
+    case 'plugin_remove': return `removed the ${d.name} plugin`
     default: return e.action.replace(/_/g, ' ')
   }
 }

@@ -79,11 +79,11 @@ export default function Night() {
     <Pin x="78%" y="calc(17% + var(--sky))" className="v2-night-pin">
       <Glaze r={40} fill="#e6dcba" o={.26} f={p.glow} />
     </Pin>
-    <Pin x="78%" y="calc(17% + var(--sky))" className="v2-night-pin a v2-night-breathe" style={anim(13.7, 4, { '--lo': .35 })}>
-      <Halo k={3.6} fill="#efe4c4" o={.05} n={5} />
+    <Pin x="78%" y="calc(17% + var(--sky))" className="v2-night-pin a v2-night-breathe" style={anim(13.7, 4, { '--lo': .2 })}>
+      <Halo k={3.2} fill="#efe4c4" o={.06} n={7} />
     </Pin>
     <Pin x="78%" y="calc(17% + var(--sky))" className="v2-night-pin a v2-night-breathe" style={anim(19.3, 11, { '--lo': .2 })}>
-      <g transform="translate(3 -2)"><Halo k={7} fill="#bfb8e2" o={.03} n={3} /></g>
+      <g transform="translate(3 -2)"><Halo k={7} fill="#bfb8e2" o={.05} n={3} /></g>
     </Pin>
     <Pin x="78%" y="calc(17% + var(--sky))" className="v2-night-pin">
       <g filter={p.fine} transform="scale(1.22)">
@@ -96,18 +96,28 @@ export default function Night() {
     </Pin>
 
     {/* moonlit wisps drifting past */}
-    <Pin x="58%" y="calc(24% + var(--sky))" className="v2-night-pin a v2-night-drift" style={anim(61, 23, { '--x': '38px' })}>
+    <Pin x="58%" y="calc(24% + var(--sky))" className="v2-night-pin a v2-night-drift" style={anim(47, 23, { '--x': '72px' })}>
       <Wash px o={.32} rim={['#625f90', 1, 1.6]} fill={['#3f4277', '#45477c', '#3b3e70']}
         d="M-132 8C-116 2 -100 1 -88 -3S-62 -10 -46 -7-20 -14 0 -11 28 -9 40 -6 70 -9 86 -4 112 1 136 7C110 12 64 12 22 11S-54 12 -92 11-124 11 -132 8Z" />
     </Pin>
-    <Pin x="92%" y="calc(31% + var(--sky))" className="v2-night-pin a v2-night-drift" style={anim(83, 52, { '--x': '-30px' })}>
+    <Pin x="92%" y="calc(31% + var(--sky))" className="v2-night-pin a v2-night-drift" style={anim(67, 52, { '--x': '-56px' })}>
       <Wash px o={.28} rim={['#5a5888', .8, 1.4]} fill={['#3b3d71', '#414377', '#37396b']}
         d="M-88 6C-74 1 -58 -1 -46 -5S-22 -9 -6 -6 18 -10 32 -6 64 -2 90 5C60 9 18 9 -22 9S-74 9 -88 6Z" />
     </Pin>
-    <Pin x="21%" y="calc(13% + var(--sky))" className="v2-night-pin a v2-night-drift" style={anim(47, 9, { '--x': '24px' })}>
+    <Pin x="21%" y="calc(13% + var(--sky))" className="v2-night-pin a v2-night-drift" style={anim(39, 9, { '--x': '48px' })}>
       <Wash px o={.32} rim={['#45467a', .8, 1.2]} fill={['#262a5c', '#2b2e61', '#232756']}
         d="M-72 5C-58 0 -44 -3 -30 -5S-6 -8 10 -5 40 -6 54 -2 70 3 74 5C50 8 10 9 -26 8S-64 7 -72 5Z" />
     </Pin>
+
+    {/* a far bank of cloud sliding slowly across under the stars (two copies, so the loop is seamless) */}
+    <div className="v2-night-bank a" style={anim(190, 70)}>
+      {[0, 50].map(x => (
+        <svg key={x} className="v2-night-bank-tile" style={{ left: `${x}%` }}>
+          <Wash fill={['#4a4a7c', '#504f82', '#454676']} o={.3}
+            d="M2 70C8 50 14 44 22 46S34 32 42 38 50 54 56 62C46 76 30 80 18 78S6 76 2 70ZM62 60C68 46 76 40 84 44S94 52 99 60C92 72 82 74 72 72S64 66 62 60Z" />
+        </svg>
+      ))}
+    </div>
 
     {TWINKLES.map(([x, y, r, d], i) => (
       <Pin key={i} x={`${x}%`} y={`${y}%`} className="v2-night-pin a v2-night-tw" style={anim(d, d * i * .41)}>
@@ -187,7 +197,7 @@ export default function Night() {
 
       {/* the lamp: held-frame flicker, a slow glow, and now and then someone crossing in front of it */}
       <Pin x={atCab(...WIN)[0]} y={atCab(...WIN)[1]} className="v2-night-pin a v2-night-breathe" style={anim(8.7, 2, { '--lo': .5 })}>
-        <Halo k={1.3} sx={1.15} fill="#f2bd6a" o={.08} n={5} />
+        <Halo k={1.2} sx={1.15} fill="#f2bd6a" o={.07} n={6} />
       </Pin>
       <Pin x={atCab(...WIN)[0]} y={atCab(...WIN)[1]} className="v2-night-pin a v2-night-lamp" style={anim(5.3, 1)}>
         <path d="M-5 -5.2H5.2V5H-5.2Z" transform={`scale(${CS})`} fill="#ffd690" opacity=".55" />

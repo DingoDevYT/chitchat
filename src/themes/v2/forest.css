@@ -11,6 +11,10 @@
 
 .v2-forest-mist { height: 34px; margin-top: -17px; border-radius: 50%; background: radial-gradient(closest-side, #b4cbbd26, #b4cbbd10 60%, transparent); }
 .v2-forest-mist.low { height: 26px; background: radial-gradient(closest-side, #a6bfb11c, transparent); }
+.v2-forest-shaft { top: -4%; width: 12%; height: 76%; transform-origin: 50% 0; transform: rotate(-17deg);
+  background: linear-gradient(90deg, transparent, #d4e2c818 30%, #d4e2c826 50%, #d4e2c818 70%, transparent);
+  -webkit-mask: linear-gradient(#000 20%, transparent); mask: linear-gradient(#000 20%, transparent); }
+.v2-forest-shaft.thin { width: 5%; transform: rotate(-15deg); }
 .v2-forest-drift { animation-name: v2-forest-drift; animation-direction: alternate; }
 @keyframes v2-forest-drift { from { transform: translateX(calc(var(--x, 30px) * -1)); } to { transform: translateX(var(--x, 30px)); } }
 
@@ -45,9 +49,9 @@
 .v2-forest-fly.w1 { animation-name: v2-forest-w1, v2-forest-blink, v2-forest-flutter; }
 .v2-forest-fly.w2 { animation-name: v2-forest-w2, v2-forest-blink, v2-forest-flutter; }
 .v2-forest-fly.w3 { animation-name: v2-forest-w3, v2-forest-blink, v2-forest-flutter; }
-@keyframes v2-forest-w0 { 0%, 100% { translate: 0 0; } 23% { translate: 30px -20px; } 51% { translate: 56px 6px; } 77% { translate: 20px 22px; } }
-@keyframes v2-forest-w1 { 0%, 100% { translate: 0 0; } 31% { translate: -42px 14px; } 58% { translate: -16px -28px; } 82% { translate: 20px -8px; } }
-@keyframes v2-forest-w2 { 0%, 100% { translate: 0 0; } 19% { translate: 22px 24px; } 54% { translate: -30px 10px; } 79% { translate: -8px -24px; } }
-@keyframes v2-forest-w3 { 0%, 100% { translate: 0 0; } 27% { translate: -18px -26px; } 49% { translate: 26px -34px; } 73% { translate: 36px 4px; } }
+@keyframes v2-forest-w0 { 0%, 100% { translate: 0 0; } 23% { translate: 40px -26px; } 51% { translate: 72px 8px; } 77% { translate: 26px 30px; } }
+@keyframes v2-forest-w1 { 0%, 100% { translate: 0 0; } 31% { translate: -54px 18px; } 58% { translate: -20px -36px; } 82% { translate: 26px -10px; } }
+@keyframes v2-forest-w2 { 0%, 100% { translate: 0 0; } 19% { translate: 28px 30px; } 54% { translate: -40px 12px; } 79% { translate: -10px -32px; } }
+@keyframes v2-forest-w3 { 0%, 100% { translate: 0 0; } 27% { translate: -24px -34px; } 49% { translate: 34px -44px; } 73% { translate: 46px 6px; } }
 @keyframes v2-forest-blink { 0%, 100% { opacity: .28; } 34% { opacity: .38; } 46%, 58% { opacity: 1; } 72% { opacity: .3; } }
-@keyframes v2-forest-flutter { from { transform: translate(-1.5px, 1px); } to { transform: translate(2px, -3px); } }
+@keyframes v2-forest-flutter { from { transform: translate(-2.5px, 1.5px); } to { transform: translate(3px, -4px); } }

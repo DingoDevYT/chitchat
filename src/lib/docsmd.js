@@ -74,7 +74,7 @@ export function renderMarkdown(md, page = '') {
       out.push(`<${ordered ? 'ol' : 'ul'}>${items.join('')}</${ordered ? 'ol' : 'ul'}>`)
     } else if (l.trim().startsWith('|') && /^\s*\|?[\s:|-]+\|[\s:|-]*$/.test(lines[i + 1] || '')) {
       flush()
-      const cells = r => r.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim())
+      const cells = r => r.trim().replace(/^\||\|$/g, '').split(/(?<!\\)\|/).map(c => c.trim().replace(/\\\|/g, '|')) // "\|" = a literal pipe
       const head = cells(l)
       i += 2
       const rows = []

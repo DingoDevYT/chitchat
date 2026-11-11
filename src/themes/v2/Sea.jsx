@@ -24,7 +24,7 @@ function blob(r, seed, n = 7, j = .2, sy = 1) {
 }
 
 // light shafts (top-left x, top width, bottom-left x, bottom width, bottom y, opacity, duration)
-const RAYS = [[14, 5, 22, 14, 82, .2, 11.3], [24.5, 2.6, 34, 9, 70, .15, 7.9], [33, 5.5, 48, 14, 86, .17, 13.7], [47, 2, 58, 6, 62, .12, 9.1]]
+const RAYS = [[14, 5, 22, 14, 82, .24, 11.3], [24.5, 2.6, 34, 9, 70, .19, 7.9], [33, 5.5, 48, 14, 86, .21, 13.7], [47, 2, 58, 6, 62, .15, 9.1]]
 // the underside of the surface, one seamless half (y in a 0–10 box)
 const SURF = [[0, 5], [9, 6.4], [17, 4.8], [26, 6.8], [36, 5.2], [44, 6], [53, 4.4], [63, 6.6], [72, 5], [81, 6.2], [90, 4.6], [100, 5]]
 // kelp: two hand-drawn fronds (base at 0, 0)
@@ -75,7 +75,7 @@ const caustics = seed => scatter(18, seed).map((q, i) => i < 12
 const glints = seed => scatter(16, seed).map(q => [r2(q.x * 100), r2(1 + q.y * 5), r2(.5 + q.r * .9)])
 // bubbles up a column: px offset from the column's centre line, % height in the tile, radius
 const column = seed => scatter(9, seed).map((q, i) => [r2(35 + Math.sin(i * 1.9 + seed) * 7 + (q.x - .5) * 6), r2((i + q.y * .7) / 9 * 100), r2(2 + q.r * q.t * 5)])
-const SNOW = [{ pts: scatter(26, 5), d: 47, r: [.6, 1.5], o: .35 }, { pts: scatter(12, 9), d: 31, r: [1.1, 2.3], o: .45 }]
+const SNOW = [{ pts: scatter(30, 5), d: 47, r: [.6, 1.5], o: .5 }, { pts: scatter(14, 9), d: 31, r: [1.1, 2.3], o: .6 }]
 
 export default function Sea() {
   const p = usePaint(9)
@@ -102,7 +102,7 @@ export default function Sea() {
     </Canvas>
 
     {RAYS.map(([x, w, bx, bw, by, o, d], i) => (
-      <svg key={i} className="v2-sea-full a v2-sea-ray" width="100%" height="100%" style={anim(d, d * ((i * .43) % 1), { '--lo': .45, transformOrigin: `${x + w / 2}% 0%` })}>
+      <svg key={i} className="v2-sea-full a v2-sea-ray" width="100%" height="100%" style={anim(d, d * ((i * .43) % 1), { '--lo': .3, transformOrigin: `${x + w / 2}% 0%` })}>
         <Wash f={p.haze} o={o} fill={`url(#${p.id}ray)`}
           d={`M${x} -2L${x + w} -2C${x + w + (bx + bw - x - w) * .4} ${by * .4} ${bx + bw - 1} ${by * .8} ${bx + bw} ${by}L${bx} ${by}C${bx - 1} ${by * .7} ${x + (bx - x) * .3} ${by * .3} ${x} -2Z`} />
       </svg>
@@ -176,7 +176,7 @@ export default function Sea() {
     <Fish p={p} top="44%" cls="v2-sea-swim" d={61.7} dl={24} fish={SCHOOL} c="#d29f6c" belly="#ecd3a8" bob={4.3} />
     <Fish p={p} top="27%" cls="v2-sea-back" d={53.9} dl={40} fish={[[0, 0, 2.1]]} c={C.coral} belly="#e8b79c" flip bob={5.9} />
 
-    {[[22, 88, 7.3, 15.7], [79, 76, 9.1, 19.3]].map(([x, y, w, d], i) => (
+    {[[22, 88, 7.3, 15.7], [79, 76, 9.1, 19.3], [63.5, 87, 6.1, 23.9]].map(([x, y, w, d], i) => (
       <div key={i} className="v2-sea-col" style={{ left: `${x}%`, height: `${y}%` }}>
         <div className="v2-sea-wob a" style={anim(w, i * 2)}>
           <div className="v2-sea-plane a v2-sea-up" style={anim(d, i * 5)}>

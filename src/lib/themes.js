@@ -7,12 +7,12 @@ export const THEMES = [
   { id: 'gradient', name: 'Soft gradient', emoji: '🎨', colors: null },
   { id: 'beach', name: 'Beach day', emoji: '🏖️', colors: ['#8fd8f2', '#c9eef7', '#f2d8a2'] },
   { id: 'night', dark: true, name: 'Starry night', emoji: '🌙', colors: ['#10163a', '#262a62', '#4b3a74'] },
-  { id: 'rain', dark: true, name: 'Rainy window', emoji: '🌧️', colors: ['#252e40', '#36435a', '#4f5a76'] },
+  { id: 'rain', dark: true, name: 'Rainy window', emoji: '🌧️', colors: ['#222a3d', '#3a3f55', '#1f2536'] },
   { id: 'forest', dark: true, name: 'Firefly forest', emoji: '🌲', colors: ['#0f1f22', '#173229', '#2a4a32'] },
   { id: 'snow', name: 'Snowfall', emoji: '❄️', colors: ['#7f9dc9', '#b4c9e5', '#e3ecf7'] },
   { id: 'sakura', name: 'Sakura breeze', emoji: '🌸', colors: ['#ffd3e1', '#ffe9ef', '#fff6ee'] },
-  { id: 'sea', dark: true, name: 'Under the sea', emoji: '🐠', colors: ['#1a7aa0', '#0d5677', '#082f4a'] },
-  { id: 'synthwave', dark: true, name: 'Synthwave', emoji: '🌆', colors: ['#14072b', '#3d1160', '#b8327d'] },
+  { id: 'sea', dark: true, name: 'Under the sea', emoji: '🐠', colors: ['#5f9b9b', '#2d6370', '#1e4858'] },
+  { id: 'synthwave', dark: true, name: 'Synthwave', emoji: '🌆', colors: ['#271f4a', '#6e3a6a', '#2a1838'] },
   { id: 'campfire', dark: true, name: 'Campfire', emoji: '🔥', colors: ['#0e0b18', '#22152a', '#46221c'] },
 ]
 export const THEME_IDS = THEMES.map(t => t.id)

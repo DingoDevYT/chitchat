@@ -10,7 +10,7 @@
 .v2-snow-col { top: 0; width: 0; height: 100%; animation-name: v2-snow-fall; animation-timing-function: linear; }
 @keyframes v2-snow-fall { from { transform: translateY(-6%); } to { transform: translateY(104%); } }
 .v2-snow-tree { width: 0; height: 0; transform-origin: 0 0; }
-.v2-snow-room .v2-snow-plane, .v2-snow-room .v2-snow-col { opacity: .7; }
+.v2-snow-room .v2-snow-plane, .v2-snow-room .v2-snow-col { opacity: .85; }
 
 .v2-snow-drift { animation-name: v2-snow-drift; animation-direction: alternate; }
 @keyframes v2-snow-drift { from { transform: translateX(calc(var(--x, 30px) * -1)); } to { transform: translateX(var(--x, 30px)); } }

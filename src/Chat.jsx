@@ -27,6 +27,7 @@ import { firstUnreadId, mergeRecent } from './lib/cues'
 import { conn } from './ChatCues'
 import Markdown from './Markdown'
 import { PostGate } from './Moderation'
+import { Ephemerals, heldBackReason, resolveInteraction, useSlashCommands } from './SlashCommands'
 import { RoomBackdrop, RoomTitle, SlowBadge, roomVars, useSlowLeft } from './Rooms'
 import { slowUntil } from './lib/rooms'
 import ThemeBackdrop, { useRoomTheme } from './themes/ThemeBackdrop'
@@ -93,12 +94,13 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
     const ch = supabase.channel(`${stadium ? 'chat' : 'chan'}:${channel.id}`, { config: { private: true, broadcast: { self: false } } })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter }, ({ new: row }) => {
         ensureProfiles([row.author_id])
+        if (row.interaction?.id) resolveInteraction(row.interaction.id) // a bot answered a slash command publicly
         stadium?.onArrive(row)
         setMsgs(l => mergeIncoming(l, row, { live: !document.hidden }))
         setTypers(t => { if (!t[row.author_id]) return t; const n = { ...t }; delete n[row.author_id]; return n })
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter }, ({ new: row }) =>
-        setMsgs(l => l && l.map(m => m.id === row.id ? { ...m, content: row.content, edited_at: row.edited_at, pinned_at: row.pinned_at, pinned_by: row.pinned_by, suppress_embeds: row.suppress_embeds } : m)))
+        setMsgs(l => l && l.map(m => m.id === row.id ? { ...m, content: row.content, edited_at: row.edited_at, pinned_at: row.pinned_at, pinned_by: row.pinned_by, suppress_embeds: row.suppress_embeds, embeds: row.embeds } : m)))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, ({ old }) =>
         setMsgs(l => l && l.filter(m => m.id !== old.id)))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reactions', filter }, ({ new: r }) =>
@@ -166,6 +168,11 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
       setMsgs(l => mergeIncoming(l, data))
     } catch (e) {
       if (e.name === 'AbortError') return setMsgs(l => l && l.filter(x => x.id !== m.id)) // cancelled from the upload bar
+      if (e.code === 'PGRST116') { // the insert came back empty: Automod held it back (public.plugins_before_message)
+        const why = await heldBackReason(channel.id, userId) || 'Automod held that message back.'
+        toast(why)
+        return mark({ pending: false, failed: true, queued: false, blocked: why })
+      }
       const off = !navigator.onLine
       mark({ pending: off, failed: !off, queued: off })
       if (!off) toast('Message failed: ' + e.message)
@@ -444,6 +451,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
               </div>
             )
           })}
+          <Ephemerals channelId={channel.id} me={me.username} />{/* slash-command replies only you can see */}
         </div>
       </div>
 
@@ -506,6 +514,7 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
   const [text, setText] = useState(() => DRAFTS.get(key) || '')
   const ac = useEmojiAutocomplete(ref, text, setText, serverId)
   const mac = useMentionAutocomplete(ref, text, setText, key) // @people/@roles/@everyone and ~rooms (draftKey is the channel id)
+  const sc = useSlashCommands(ref, text, setText, key, serverId) // plugin slash commands ("/time" below stays a built-in)
   const [files, setFiles] = useState([])
   const [drag, setDrag] = useState(false)
   const [picker, setPicker] = useState(null) // 'emoji' | 'gif' | null
@@ -531,6 +540,8 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
   }
 
   function submit() {
+    const ran = text.trim() && !files.length && sc.submit(text) // a slash command runs instead of sending
+    if (ran) return ran === true && setText('')
     if ((!text.trim() && !files.length) || slowLeft > 0 || mac.guard(text)) return
     const out = mac.encode(ac.encode(text))
     if (overLimit(out)) return toast(`Messages can be up to ${MAX_LEN} characters. That's ${overLimit(out)} too many.`)
@@ -591,7 +602,7 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
       )}
       {tool === 'poll' && createPortal(<PollCreator onCreate={onPoll} onClose={() => { setTool(null); focus() }} />, document.body)}
       {tool === 'time' && createPortal(<TimePicker onInsert={insertAt} onClose={() => { setTool(null); focus() }} />, document.body)}
-      {ac.popup}{mac.popup}{mac.notice}
+      {sc.popup}{ac.popup}{mac.popup}{mac.notice}
       {slow > 0 && <SlowBadge sec={slow} left={slowLeft} exempt={exempt} />}
       {rec !== null ? <VoiceRecorder holdStart={rec} onDone={f => { setRec(null); if (f) onSend('', [f]); requestAnimationFrame(focus) }} /> :
       <div className="composer-row">
@@ -601,7 +612,7 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
           onChange={e => { setText(e.target.value); onTyping(); ac.track(e); mac.track(e) }} onSelect={e => { ac.track(e); mac.track(e) }}
           onPaste={e => { if (e.clipboardData.files.length) { e.preventDefault(); addFiles(e.clipboardData.files) } }}
           onKeyDown={e => {
-            if (e.nativeEvent.isComposing || ac.onKeyDown(e) || mac.onKeyDown(e)) return
+            if (e.nativeEvent.isComposing || sc.onKeyDown(e) || ac.onKeyDown(e) || mac.onKeyDown(e)) return
             const s = e.currentTarget.selectionStart
             if (e.key === 'Enter' && !e.shiftKey && /(^|\s)\/time$/.test(text.slice(0, s))) { // "/time" + Enter opens the timestamp picker
               e.preventDefault(); setText(t => t.slice(0, s - 5) + t.slice(s)); openTool('time', s - 5)

@@ -8,8 +8,8 @@ import './sakura.css'
 
 // palette: warm rose-cream paper, lilac distance, plum-umber bark, three blossom pinks, a sage hint of new leaves
 const C = {
-  sky: '#e9d6d3', skyHi: '#f1e2da', haze: '#e2d8e1', far: '#b7b1c9', mid: '#a397b1', lake: '#c5cdd9', bark: '#5a3f45',
-  barkHi: '#77585a', pink: ['#f0c0cc', '#e9afbf', '#f5d0d8'], rose: '#c46a84', leaf: '#9cab8c', bank: '#b4b29c',
+  sky: '#ead2d2', skyHi: '#f3e3dc', haze: '#e2d8e1', far: '#b7b1c9', mid: '#a397b1', lake: '#c5cdd9', bark: '#5a3f45',
+  barkHi: '#77585a', pink: ['#f0c0cc', '#e9afbf', '#f5d0d8'], rose: '#cf8096', leaf: '#9cab8c', bank: '#b4b29c',
 }
 const r2 = n => Math.round(n * 100) / 100
 
@@ -41,8 +41,8 @@ const SIDE = [[-48, .82], [0, 1], [46, .86]]
 const bloom = (a, side) => (side ? SIDE : OPEN).map(([r, s]) => petal(a + r, s)).join('')
 
 // the branch, in its own box (x -440…40, y -30…250; the top-right corner sits on the scene's corner)
-const LIMB = [[34, -8, 19], [-10, 6, 16], [-40, 18, 15], [-70, 22, 13], [-95, 32, 12.5], [-124, 46, 11], [-150, 58, 10], [-178, 64, 9], [-205, 74, 8],
-  [-232, 90, 7], [-260, 100, 6.2], [-288, 106, 5.4], [-312, 114, 4.6], [-350, 134, 3.6], [-372, 142, 2.6], [-394, 148, 1.6]]
+const LIMB = [[34, -10, 19], [-10, 8, 16], [-40, 15, 15], [-70, 27, 13], [-95, 31, 12.5], [-124, 49, 11], [-150, 55, 10], [-178, 68, 9], [-205, 73, 8],
+  [-232, 92, 7], [-260, 98, 6.2], [-288, 110, 5.4], [-312, 112, 4.6], [-334, 128, 4], [-350, 134, 3.6], [-372, 140, 2.6], [-394, 150, 1.6]]
 const TWIG_A = [[-95, 30, 6], [-108, 16, 5], [-122, 8, 4], [-150, -4, 3], [-180, -4, 1.6]]
 const TWIG_D = [[-40, 18, 6], [-46, 34, 4.6], [-56, 48, 3.6], [-70, 64, 2.6], [-76, 82, 1.4]]
 // twigs that nod on their own: joint, centreline, flowers [x, y, scale, turn, side?], buds [x, y, turn]
@@ -106,10 +106,10 @@ export default function Sakura({ variant = 'room' }) {
         <Wash f={p.sky} d={band(Y(32), Y(56), 2.5, 3.3)} fill={['#e6dce2', '#ebe1e3', '#ddd5e0']} o={.5} />
         {/* the far mountain, off to the left: a long gentle right shoulder, snow streaking down its gullies */}
         <Wash f={p.haze} fill={[C.far, '#bcb6cd', '#b0abc4']}
-          d={ridge([[0, Y(50.5)], [8, Y(46.6)], [16, Y(41.8)], [23, Y(37)], [28, Y(33.8)], [31, Y(32.9)], [34, Y(33.5)], [40, Y(36.8)], [49, Y(41.5)], [58, Y(45.4)], [68, Y(49)], [80, Y(51.6)], [100, Y(52.6)]])} />
+          d={ridge([[0, Y(46.4)], [3, Y(44.4)], [8, Y(41.4)], [15, Y(37)], [20, Y(33.8)], [23, Y(32.9)], [26, Y(33.5)], [32, Y(36.8)], [41, Y(41.5)], [50, Y(45.4)], [60, Y(49)], [72, Y(51.6)], [100, Y(52.6)]])} />
         <Wash f={p.fine} fill={['#f4eeea', '#f7f2ee', '#ece5e4']} o={.9}
-          d={`M24.6 ${Y(36)}C26.6 ${Y(34.4)} 29 ${Y(33.1)} 31 ${Y(32.9)}S35.6 ${Y(34)} 38.4 ${Y(35.8)}L37 ${Y(36.4)} 36.2 ${Y(38.6)} 34.8 ${Y(36.4)} 33.6 ${Y(37.2)} 32.6 ${Y(40)} 31.4 ${Y(36.6)} 29.8 ${Y(38.4)} 28.6 ${Y(36.3)} 27 ${Y(37.8)} 26.2 ${Y(36.2)}Z`} />
-        <Wash f={p.haze} fill="#a49eb9" o={.35} d={`M31 ${Y(33.2)}C34 ${Y(35)} 40 ${Y(38)} 48 ${Y(42)}S62 ${Y(48)} 72 ${Y(50.6)}L60 ${Y(51)}C52 ${Y(46)} 42 ${Y(42)} 31 ${Y(33.2)}Z`} />
+          d={`M16.6 ${Y(36)}C18.6 ${Y(34.4)} 21 ${Y(33.1)} 23 ${Y(32.9)}S27.6 ${Y(34)} 30.4 ${Y(35.8)}L29 ${Y(36.4)} 28.2 ${Y(38.6)} 26.8 ${Y(36.4)} 25.6 ${Y(37.2)} 24.6 ${Y(40)} 23.4 ${Y(36.6)} 21.8 ${Y(38.4)} 20.6 ${Y(36.3)} 19 ${Y(37.8)} 18.2 ${Y(36.2)}Z`} />
+        <Wash f={p.haze} fill="#a49eb9" o={.35} d={`M23 ${Y(33.2)}C26 ${Y(35)} 32 ${Y(38)} 40 ${Y(42)}S54 ${Y(48)} 64 ${Y(50.6)}L52 ${Y(51)}C44 ${Y(46)} 34 ${Y(42)} 23 ${Y(33.2)}Z`} />
         <Wash f={p.haze} d={band(Y(47), Y(54), 1, 1.2)} fill={C.haze} o={.55} />
         {/* mid hills and the far shore of blossom trees */}
         <Wash f={p.brush} fill={[C.mid, '#a99db6', '#9d91ab']} o={.9}
@@ -127,7 +127,7 @@ export default function Sakura({ variant = 'room' }) {
         {/* the lake: still, a faint upside-down mountain, a pale line where it meets the shore */}
         <Wash f={p.fine} fill={[C.lake, '#cad2dd', '#bfc8d5']} d={ridge([[0, Y(59.8)], [30, Y(60.1)], [60, Y(59.9)], [100, Y(60)]], false)} />
         <Wash f={p.haze} fill="#b4b2c8" o={.35}
-          d={`M14 ${Y(60.2)}C20 ${Y(62.4)} 26 ${Y(65.6)} 31 ${Y(67)}C36 ${Y(66)} 44 ${Y(63.6)} 54 ${Y(61.6)}S66 ${Y(60.4)} 70 ${Y(60.2)}Z`} />
+          d={`M6 ${Y(60.2)}C12 ${Y(62.4)} 18 ${Y(65.6)} 23 ${Y(67)}C28 ${Y(66)} 36 ${Y(63.6)} 46 ${Y(61.6)}S58 ${Y(60.4)} 62 ${Y(60.2)}Z`} />
         <Wash f={p.haze} d={band(Y(59.6), Y(61), .3, .5)} fill="#ece6ea" o={.6} />
         <Wash f={p.brush} d={band(Y(64), Y(71), .8, 1.7)} fill="#d3d9e2" o={.5} />
         <Wash f={p.brush} d={band(Y(72), Y(81), .8, 2.9)} fill="#b9c3d1" o={.45} />
@@ -143,14 +143,14 @@ export default function Sakura({ variant = 'room' }) {
       </Canvas>
 
       {/* a pale sun over the mountain's shoulder */}
-      <Pin x="17%" y="calc(15% + var(--sky))" className="a v2-sakura-breathe" style={anim(14.3, 5, { '--lo': .6 })}>
+      <Pin x="9%" y="calc(12% + var(--sky))" className="a v2-sakura-breathe" style={anim(14.3, 5, { '--lo': .6 })}>
         <Glaze r={40} fill="#fbeedd" o={.6} f={p.glow} />
       </Pin>
-      <Pin x="17%" y="calc(15% + var(--sky))">
+      <Pin x="9%" y="calc(12% + var(--sky))">
         <Wash px f={p.fine} fill={['#fcf3e6', '#fff7ec', '#f6eadc']} d="M-17 1C-18 -9 -9 -17 1 -17C10 -17 18 -9 17 0C17 10 9 17 -1 17C-10 17 -17 10 -17 1Z" o={.9} />
       </Pin>
       {/* mist across the mountain's waist, drifting slowly */}
-      <Pin x="30%" y={pc(43)} className="a v2-sakura-drift" style={anim(79, 23, { '--x': '42px' })}>
+      <Pin x="22%" y={pc(43)} className="a v2-sakura-drift" style={anim(79, 23, { '--x': '42px' })}>
         <Wash px f={p.haze} o={.7} fill={['#f1e8ea', '#f5eded', '#ebe2e6']} d="M-200 4C-150 -4 -90 -8 -30 -6S90 -6 150 -2 210 6 196 8C140 12 60 12 -20 10S-170 10 -200 4Z" />
       </Pin>
       <Pin x="64%" y={pc(52)} className="a v2-sakura-drift" style={anim(103, 61, { '--x': '-36px' })}>
@@ -220,7 +220,7 @@ function Flowers({ fl, bud }) {
         <path d={bloom(a, side)} fill={C.pink[i % 3]} opacity=".95" />
         <path d={bloom(a + 8, side)} fill="#fae4ea" opacity=".55" transform="translate(-.8 -1) scale(.82)" />
         <circle r={side ? 1.2 : 1.8} cy={side ? 2 : 0} fill={C.rose} />
-        {!side && <path d="M-2.6 -1.2h.01M2.2 -1.8h.01M.4 2.6h.01" stroke="#a9506d" strokeWidth="1.4" strokeLinecap="round" />}
+        {!side && <path d="M-2.6 -1.2h.01M2.2 -1.8h.01M.4 2.6h.01" stroke="#b8677f" strokeWidth="1.4" strokeLinecap="round" />}
       </g>
     ))}
     {bud.map(([x, y, a], i) => (

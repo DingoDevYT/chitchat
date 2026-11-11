@@ -1,5 +1,5 @@
 import { scatter } from '../../lib/themes'
-import { usePaint, Canvas, Wash, Glaze, Pin, At, ridge, band, anim } from '../paint'
+import { usePaint, Canvas, Wash, Pin, At, ridge, band, anim } from '../paint'
 import './synthwave.css'
 
 // Synthwave, painted: a gouache sunset with a banded sun (the focal point, a little right of centre) sinking behind

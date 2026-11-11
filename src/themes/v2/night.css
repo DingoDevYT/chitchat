@@ -6,6 +6,9 @@
 /* rooms: the hills sit lower so the middle band stays open sky behind messages */
 .tb-room .v2-night-land { transform: translateY(9%); }
 .v2-night-fall { width: 0; height: 0; }
+.v2-night-bank { left: 0; top: calc(30% + var(--sky) * .5); width: 200%; height: 9%; animation-name: v2-night-bank; animation-timing-function: linear; }
+.v2-night-bank-tile { top: 0; width: 50%; height: 100%; }
+@keyframes v2-night-bank { from { transform: none; } to { transform: translateX(-50%); } }
 
 .v2-night-breathe { animation-name: v2-night-breathe; animation-direction: alternate; }
 @keyframes v2-night-breathe { from { opacity: var(--lo, .6); } to { opacity: 1; } }

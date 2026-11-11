@@ -54,9 +54,9 @@ const LANES = [[7, 17.3, 3.2, 34, 0], [12.5, 23.9, 2.4, 20, 1], [21, 13.1, 3.8, 
 // rain sheets: streaks bunch into curtains rather than an even field
 const sheet = (n, seed) => scatter(n, seed).filter(q => q.t < .4 + .6 * Math.abs(Math.sin(q.x * 9.4 + seed)))
 const SHEETS = [
-  { pts: sheet(70, 3), d: 2.6, dl: .7, len: [10, 20], w: 1.2, o: .42 },
-  { pts: sheet(44, 13), d: 1.7, dl: 1.1, len: [20, 34], w: 1.6, o: .5 },
-  { pts: sheet(20, 23), d: 1.15, dl: .4, len: [38, 60], w: 2.1, o: .55 },
+  { pts: sheet(110, 3), d: 2.6, dl: .7, len: [10, 20], w: 1.2, o: .48 },
+  { pts: sheet(66, 13), d: 1.7, dl: 1.1, len: [20, 34], w: 1.6, o: .56 },
+  { pts: sheet(28, 23), d: 1.15, dl: .4, len: [38, 60], w: 2.1, o: .6 },
 ]
 
 function Rainfall({ id, pts, d, dl, len, w, o }) {
@@ -131,7 +131,7 @@ export default function Rain({ variant }) {
       </Pin>
     ))}
     {BOKEH.map(([x, y, r, c, hi, d], i) => (
-      <Pin key={i} x={`${x}%`} y={`${y}%`} className="v2-rain-pin a v2-rain-bokeh" style={anim(d, d * ((i * .61) % 1), { '--lo': .5 })}>
+      <Pin key={i} x={`${x}%`} y={`${y}%`} className="v2-rain-pin a v2-rain-bokeh" style={anim(d, d * ((i * .61) % 1), { '--lo': .35 })}>
         <Wash px f={p.glow} d={blob(r * 1.4, 40 + i)} fill={c} o={.3} />
         <Wash px f={p.fine} d={blob(r, 60 + i, 8, .12)} fill={[c, hi, c]} o={.42} rim={[hi, 1.2, -1]} />
       </Pin>
