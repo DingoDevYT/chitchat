@@ -1,0 +1,70 @@
+import { useEffect, useSyncExternalStore } from 'react'
+import { supabase } from './supabase'
+
+// Tiny global store. Selectors must return existing references or primitives.
+export function createStore(initial) {
+  let state = initial
+  const subs = new Set()
+  const subscribe = cb => (subs.add(cb), () => subs.delete(cb))
+  return {
+    get: () => state,
+    set(next) { state = typeof next === 'function' ? next(state) : next; subs.forEach(f => f()) },
+    use: (sel = s => s) => useSyncExternalStore(subscribe, () => sel(state)),
+  }
+}
+
+// ── profiles cache ──
+export const profiles = createStore({})
+const inflight = new Set()
+export function primeProfiles(list) {
+  profiles.set(s => { const n = { ...s }; for (const p of list) if (p) n[p.id] = p; return n })
+}
+export async function ensureProfiles(ids) {
+  const missing = [...new Set(ids)].filter(id => id && !profiles.get()[id] && !inflight.has(id))
+  if (!missing.length) return
+  missing.forEach(id => inflight.add(id))
+  const { data } = await supabase.from('profiles').select('*').in('id', missing)
+  missing.forEach(id => inflight.delete(id))
+  if (data) primeProfiles(data)
+}
+export function useProfile(id) {
+  const p = profiles.use(s => s[id])
+  useEffect(() => { if (id && !p) ensureProfiles([id]) }, [id, p])
+  return p
+}
+
+// ── who is talking (text typewriter counts, plus 'v:<id>' flags from voice) ──
+export const talking = createStore({})
+export function setTalking(id, on) {
+  talking.set(s => ({ ...s, [id]: Math.max(0, (s[id] || 0) + (on ? 1 : -1)) }))
+}
+export function setVoiceTalking(id, on) {
+  if (!!talking.get()['v:' + id] !== on) talking.set(s => ({ ...s, ['v:' + id]: on }))
+}
+
+// ── presence: id -> { voice: channelId|null } ──
+export const online = createStore({})
+
+// ── local prefs ──
+const PREFS_KEY = 'chitchat:prefs'
+const defaults = { volume: 0.5, animalese: true, muted: {}, showMembers: true }
+function loadPrefs() {
+  try { return { ...defaults, ...JSON.parse(localStorage.getItem(PREFS_KEY)) } } catch { return defaults }
+}
+export const prefs = createStore(loadPrefs())
+export function setPref(k, v) {
+  prefs.set(s => {
+    const n = { ...s, [k]: v }
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(n)) } catch {}
+    return n
+  })
+}
+
+// ── toasts ──
+export const toasts = createStore([])
+let toastId = 0
+export function toast(text) {
+  const id = ++toastId
+  toasts.set(t => [...t, { id, text }])
+  setTimeout(() => toasts.set(t => t.filter(x => x.id !== id)), 3500)
+}
