@@ -43,11 +43,19 @@ const NOTO = 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@v2.047/svg'
 // keycaps | flags | pictographic (+ skin tone / variation selector / tag sequence), joined by ZWJ
 export const EMOJI_RX = /[#*0-9]️?⃣|\p{RI}\p{RI}|\p{Extended_Pictographic}(?:\p{EMod}|️|[\u{E0020}-\u{E007E}]+\u{E007F})*(?:‍\p{Extended_Pictographic}(?:\p{EMod}|️)*)*/gu
 
+// These Noto flag files are git symlinks, which jsDelivr serves as plain text; point at their targets instead.
+const FLAG_ALIAS = { BV: 'NO', CP: 'FR', DG: 'IO', EA: 'ES', HM: 'AU', MF: 'FR', SJ: 'NO', UM: 'US' }
+const RI = 0x1f1e6 - 65
+
 export function emojiUrl(seq) {
-  const cps = [...seq].map(c => c.codePointAt(0))
+  let cps = [...seq].map(c => c.codePointAt(0))
+  const alias = cps.length === 2 && FLAG_ALIAS[String.fromCharCode(cps[0] - RI, cps[1] - RI)]
+  if (alias) cps = [...alias].map(c => c.charCodeAt(0) + RI)
   if (cps.length === 1 && cps[0] < 0x2300) return null // ©, ®, ™, arrows: keep as text
-  if (cps[0] >= 0x1f1e6 && cps[0] <= 0x1f1ff) return null // shortcut: flags aren't in Noto's svg folder; they stay native
-  return `${NOTO}/emoji_u${cps.filter(c => c !== 0xfe0f).map(c => c.toString(16).padStart(4, '0')).join('_')}.svg`
+  // country and subdivision (🏴 + tag) flags live in Noto's waved region-flags folder, not svg/
+  const flag = (cps[0] >= 0x1f1e6 && cps[0] <= 0x1f1ff) || (cps[0] === 0x1f3f4 && cps[1] >= 0xe0020)
+  const dir = flag ? NOTO.replace(/svg$/, 'third_party/region-flags/waved-svg') : NOTO
+  return `${dir}/emoji_u${cps.filter(c => c !== 0xfe0f).map(c => c.toString(16).padStart(4, '0')).join('_')}.svg`
 }
 
 // Splits text into strings and { emoji, url } pieces.

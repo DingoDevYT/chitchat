@@ -2,10 +2,10 @@ import { Fragment, useState } from 'react'
 import { tokenize, isJumbo, splitEmoji, emojiUrl } from './lib/markdown'
 
 // Noto emoji image; falls back to the native character if the image is missing.
-export function Emoji({ e, url = emojiUrl(e) }) {
+export function Emoji({ e, url = emojiUrl(e), lazy }) {
   const [bad, setBad] = useState(false)
   if (!url || bad) return e
-  return <img className="emoji" src={url} alt={e} draggable="false" onError={() => setBad(true)} />
+  return <img className="emoji" src={url} alt={e} draggable="false" loading={lazy ? 'lazy' : undefined} onError={() => setBad(true)} />
 }
 
 export function emojify(text) {

@@ -63,3 +63,34 @@ test('noto emoji', () => {
   const parts = splitEmoji('hi 😂👍🏽 ok™')
   assert.deepEqual(parts.map(p => typeof p === 'string' ? p : p.emoji), ['hi ', '😂', '👍🏽', ' ok™'])
 })
+
+import { withSkin, searchEmoji, normalize } from './emoji.js'
+test('noto flags', () => {
+  const flags = 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@v2.047/third_party/region-flags/waved-svg/'
+  assert.equal(emojiUrl('🇦🇺'), flags + 'emoji_u1f1e6_1f1fa.svg')
+  assert.equal(emojiUrl('🇺🇸'), flags + 'emoji_u1f1fa_1f1f8.svg')
+  assert.equal(emojiUrl('🏴󠁧󠁢󠁥󠁮󠁧󠁿'), flags + 'emoji_u1f3f4_e0067_e0062_e0065_e006e_e0067_e007f.svg')
+  assert.equal(emojiUrl('🇺🇲'), emojiUrl('🇺🇸')) // Noto symlink alias
+  assert.ok(emojiUrl('🏴').includes('/svg/emoji_u1f3f4.svg')) // plain black flag is a normal emoji
+  assert.deepEqual(splitEmoji('go 🇦🇺!').map(p => p.emoji || p), ['go ', '🇦🇺', '!'])
+})
+
+test('emoji picker logic', () => {
+  const thumbs = { label: 'thumbs up', tags: ['+1', 'hand'], unicode: '👍️', hexcode: '1F44D',
+    skins: [{ hexcode: '1F44D-1F3FB', unicode: '👍🏻' }, { hexcode: '1F44D-1F3FD', unicode: '👍🏽' }] }
+  const shake = { label: 'people holding hands', tags: [], unicode: '🧑‍🤝‍🧑', hexcode: '1F9D1-200D-1F91D-200D-1F9D1',
+    skins: [{ hexcode: '1F9D1-1F3FB-200D-1F91D-200D-1F9D1-1F3FD', unicode: 'mixed' }, { hexcode: '1F9D1-1F3FD-200D-1F91D-200D-1F9D1-1F3FD', unicode: 'both' }] }
+  const heart = { label: 'red heart', tags: ['love'], unicode: '❤️', hexcode: '2764' }
+  assert.equal(withSkin(thumbs, 0), '👍') // FE0F dropped so it matches QUICK_EMOJI '👍'
+  assert.equal(withSkin(thumbs, 3), '👍🏽')
+  assert.equal(withSkin(thumbs, 5), '👍') // missing variant falls back to default
+  assert.equal(withSkin(shake, 3), 'both')
+  assert.equal(withSkin(heart, 2), '❤️') // FE0F kept where it's needed
+  assert.equal(normalize('🌡️'), '🌡️')
+  const list = [thumbs, shake, heart]
+  assert.deepEqual(searchEmoji(list, 'love'), [heart])
+  assert.deepEqual(searchEmoji(list, 'Thumbs'), [thumbs])
+  assert.deepEqual(searchEmoji(list, 'hand'), [thumbs, shake])
+  assert.deepEqual(searchEmoji(list, 'red love'), [heart])
+  assert.deepEqual(searchEmoji(list, '  '), [])
+})

@@ -5,6 +5,8 @@ import { applyReaction, mergeIncoming, startsGroup } from './lib/chat'
 import { uploadFile } from './lib/upload'
 import Message from './Message'
 import { dmTitle } from './Sidebar'
+import { Emoji } from './Markdown'
+import EmojiPicker from './EmojiPicker'
 
 const PAGE = 50
 const msgCache = new Map() // channelId -> recent messages, so switching back is instant
@@ -226,6 +228,7 @@ function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancel
   const [text, setText] = useState(() => DRAFTS.get(key) || '')
   const [files, setFiles] = useState([])
   const [drag, setDrag] = useState(false)
+  const [emoji, setEmoji] = useState(false)
   const fileInput = useRef(null)
 
   useEffect(() => { DRAFTS.set(key, text) }, [key, text])
@@ -247,6 +250,13 @@ function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancel
     onSend(text, files)
     setText('')
     setFiles([])
+  }
+
+  function insert(e) {
+    const el = ref.current, s = el.selectionStart, end = el.selectionEnd
+    setText(t => t.slice(0, s) + e + t.slice(end))
+    setEmoji(false)
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + e.length, s + e.length) })
   }
 
   const rp = replyTo && profileMap[replyTo.author_id]
@@ -282,6 +292,8 @@ function Composer({ placeholder, onSend, onTyping, onEditLast, replyTo, onCancel
             else if (e.key === 'ArrowUp' && !text) { e.preventDefault(); onEditLast() }
             else if (e.key === 'Escape' && replyTo) onCancelReply()
           }} />
+        <button className="icon-btn emoji-btn" onMouseDown={e => e.stopPropagation()} onClick={() => setEmoji(o => !o)} title="Emoji" aria-label="Emoji"><Emoji e="😊" /></button>
+        {emoji && <EmojiPicker className="up" onPick={insert} onClose={() => setEmoji(false)} />}
         <button className="send-btn" onClick={submit} disabled={!text.trim() && !files.length} aria-label="Send">➤</button>
       </div>
     </div>

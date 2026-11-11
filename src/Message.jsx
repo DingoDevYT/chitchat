@@ -4,8 +4,9 @@ import { blip } from './lib/animalese'
 import { summarizeReactions } from './lib/chat'
 import Avatar, { Name } from './Avatar'
 import Markdown, { Emoji, emojify } from './Markdown'
+import EmojiPicker from './EmojiPicker'
 
-export const QUICK_EMOJI = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '👀', '✨', '🙏']
+export const QUICK_EMOJI = ['👍', '❤️', '😂']
 
 const fmtTime = d => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 function fmtStamp(iso) {
@@ -135,17 +136,12 @@ function Message({ m, head, me, myName, canDelete, replied, editing, onReply, on
 
       {!m.pending && !m.failed && !editing && (
         <div className="msg-tools">
-          {QUICK_EMOJI.slice(0, 3).map(e => <button key={e} onClick={() => onReact(m, e)} title={`React ${e}`}><Emoji e={e} /></button>)}
-          <button onClick={() => setPicker(p => !p)} title="More reactions"><Emoji e="😊" /></button>
+          {QUICK_EMOJI.map(e => <button key={e} onClick={() => onReact(m, e)} title={`React ${e}`}><Emoji e={e} /></button>)}
+          <button onMouseDown={e => e.stopPropagation()} onClick={e => setPicker(p => !p && (e.currentTarget.getBoundingClientRect().top > innerHeight / 2 ? 'up' : 'down'))} title="More reactions"><Emoji e="😊" /></button>
           <button onClick={() => onReply(m)} title="Reply">↩️</button>
           {mine && <button onClick={() => onEdit(m)} title="Edit">✏️</button>}
           {(mine || canDelete) && <button onClick={e => onDelete(m, e.shiftKey)} title="Delete (Shift = no confirm)">🗑️</button>}
-          {picker && (
-            <div className="emoji-pop pop" onMouseLeave={() => setPicker(false)}>
-              {QUICK_EMOJI.map(e => <button key={e} onClick={() => { onReact(m, e); setPicker(false) }}><Emoji e={e} /></button>)}
-              <button onClick={() => { const e = prompt('Any emoji:'); if (e?.trim()) onReact(m, e.trim().slice(0, 16)); setPicker(false) }}>＋</button>
-            </div>
-          )}
+          {picker && <EmojiPicker className={picker} onPick={e => { onReact(m, e); setPicker(false) }} onClose={() => setPicker(false)} />}
         </div>
       )}
     </div>

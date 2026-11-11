@@ -234,7 +234,7 @@ label.btn { flex-direction: row; color: var(--text); font-size: 14px; cursor: po
 .jumbo { font-size: 44px; line-height: 1.2; }
 .emoji { width: 1.35em; height: 1.35em; vertical-align: -0.3em; margin: 0 .05em; display: inline-block; }
 .jumbo .emoji { width: 48px; height: 48px; vertical-align: middle; margin-right: 4px; }
-.msg-tools .emoji, .emoji-pop .emoji { width: 20px; height: 20px; vertical-align: middle; }
+.msg-tools .emoji { width: 20px; height: 20px; vertical-align: middle; }
 .react-chip .emoji { width: 18px; height: 18px; }
 .mention { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent-2); border-radius: 6px; padding: 0 3px; font-weight: 800; }
 .spoiler { background: var(--bg-4); color: transparent; border-radius: 5px; cursor: pointer; transition: color .2s, background .2s; }
@@ -269,9 +269,25 @@ button.reply-ref::before { left: 34px; }
 .msg:hover .msg-tools, .msg-tools:focus-within { opacity: 1; transform: none; pointer-events: auto; }
 .msg-tools > button { width: 30px; height: 30px; border-radius: 8px; transition: background .12s, transform .18s var(--spring); }
 .msg-tools > button:hover { background: var(--bg-4); transform: scale(1.15); }
-.emoji-pop { position: absolute; right: 0; top: 38px; display: grid; grid-template-columns: repeat(6, 32px); gap: 2px; padding: 6px; background: var(--bg); border-radius: var(--r); box-shadow: var(--shadow); }
-.emoji-pop button { height: 32px; border-radius: 8px; font-size: 18px; }
-.emoji-pop button:hover { background: var(--bg-3); transform: scale(1.2); }
+.emoji-picker { position: absolute; right: 0; z-index: 20; width: 352px; max-width: calc(100vw - 16px); height: 420px; display: flex; flex-direction: column; background: var(--bg); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
+.emoji-picker.down { top: 38px; }
+.emoji-picker.up { bottom: calc(100% + 6px); }
+.ep-top { display: flex; gap: 6px; padding: 8px; align-items: flex-start; }
+.ep-top input { flex: 1; padding: 6px 10px; }
+.ep-tones { display: flex; background: var(--bg-2); border-radius: 10px; }
+.ep-tones button, .ep-tabs button { width: 32px; height: 32px; border-radius: 8px; }
+.ep-tones button.on, .ep-tabs button:hover, .ep-tones button:hover { background: var(--bg-4); }
+.ep-tabs { display: flex; justify-content: space-between; padding: 0 6px 4px; border-bottom: 2px solid var(--line); }
+.ep-grid { flex: 1; overflow-y: auto; padding: 0 6px 8px; }
+.ep-grid h4 { position: sticky; top: 0; margin: 0; padding: 8px 4px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--bg); z-index: 1; }
+.ep-grid p { padding: 12px 4px; margin: 0; }
+.ep-cells { display: grid; grid-template-columns: repeat(9, 1fr); }
+.ep-cells button { aspect-ratio: 1; border-radius: 8px; display: grid; place-items: center; transition: transform .12s var(--spring); }
+.ep-cells button:hover { background: var(--bg-3); transform: scale(1.15); }
+.emoji-picker .emoji { width: 24px; height: 24px; margin: 0; vertical-align: middle; }
+.ep-cells .emoji { width: 26px; height: 26px; }
+.composer { position: relative; }
+.emoji-btn { flex: none; }
 .edit-box textarea { resize: none; margin: 2px 0; }
 
 .jump { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); background: var(--accent); color: var(--accent-ink); font-weight: 800; padding: 8px 16px; border-radius: 999px; box-shadow: var(--shadow); z-index: 4; }

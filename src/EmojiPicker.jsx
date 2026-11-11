@@ -1,0 +1,80 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { prefs, setPref } from './lib/store'
+import { GROUPS, loadEmoji, searchEmoji, withSkin } from './lib/emoji'
+import { Emoji } from './Markdown'
+
+const TONES = ['✋', '✋🏻', '✋🏼', '✋🏽', '✋🏾', '✋🏿']
+
+// Renders its cells only once scrolled near view; until then a same-height spacer (9 cols, ~37px rows).
+function Section({ name, children, count }) {
+  const ref = useRef(null)
+  const [seen, setSeen] = useState(false)
+  useEffect(() => {
+    const io = new IntersectionObserver(([en]) => { if (en.isIntersecting) { setSeen(true); io.disconnect() } }, { root: ref.current.closest('.ep-grid'), rootMargin: '300px' })
+    io.observe(ref.current)
+    return () => io.disconnect()
+  }, [])
+  return (
+    <section ref={ref} data-g={name}>
+      <h4>{name}</h4>
+      {seen ? <div className="ep-cells">{children}</div> : <div style={{ height: Math.ceil(count / 9) * 37 }} />}
+    </section>
+  )
+}
+
+export default function EmojiPicker({ onPick, onClose, className = '' }) {
+  const [list, setList] = useState(null)
+  const [err, setErr] = useState(false)
+  const [q, setQ] = useState('')
+  const [toneOpen, setToneOpen] = useState(false)
+  const { skinTone = 0, recentEmoji = [] } = prefs.use()
+  const root = useRef(null), grid = useRef(null)
+
+  useEffect(() => { loadEmoji().then(setList, () => setErr(true)) }, [])
+  useEffect(() => {
+    const down = e => { if (!root.current?.contains(e.target)) onClose() }
+    document.addEventListener('mousedown', down)
+    return () => document.removeEventListener('mousedown', down)
+  }, [onClose])
+
+  const results = useMemo(() => list && q.trim() ? searchEmoji(list, q).map(e => withSkin(e, skinTone)) : null, [list, q, skinTone])
+  const groups = useMemo(() => list && GROUPS.map(([id, name, icon]) =>
+    [name, icon, list.filter(e => e.group === id).map(e => withSkin(e, skinTone))]), [list, skinTone])
+
+  function pick(e) {
+    setPref('recentEmoji', [e, ...recentEmoji.filter(x => x !== e)].slice(0, 24))
+    onPick(e)
+  }
+  const cells = arr => arr.map(e => <button key={e} onClick={() => pick(e)} title={e}><Emoji e={e} lazy /></button>)
+
+  return (
+    <div ref={root} className={`emoji-picker pop ${className}`} onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }}>
+      <div className="ep-top">
+        <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Find the perfect emoji" aria-label="Search emoji"
+          onKeyDown={e => { if (e.key === 'Enter' && results?.[0]) { e.preventDefault(); pick(results[0]) } }} />
+        <div className="ep-tones">
+          {(toneOpen ? TONES.map((_, i) => i) : [skinTone]).map(i => (
+            <button key={i} className={i === skinTone && toneOpen ? 'on' : ''} title="Skin tone" aria-label={`Skin tone ${i}`}
+              onClick={() => { if (toneOpen) setPref('skinTone', i); setToneOpen(o => !o) }}><Emoji e={TONES[i]} /></button>
+          ))}
+        </div>
+      </div>
+      {!results && list && (
+        <div className="ep-tabs">
+          {groups.map(([name, icon]) => (
+            <button key={name} title={name} onClick={() => grid.current.querySelector(`[data-g="${name}"]`)?.scrollIntoView()}><Emoji e={icon} /></button>
+          ))}
+        </div>
+      )}
+      <div className="ep-grid" ref={grid}>
+        {err ? <p className="muted small">Couldn't load emoji. Close and try again.</p>
+          : !list ? <p className="muted small">Loading emoji…</p>
+          : results ? (results.length ? <div className="ep-cells">{cells(results)}</div> : <p className="muted small">No emoji match “{q}”.</p>)
+          : <>
+            {recentEmoji.length > 0 && <section><h4>Recently used</h4><div className="ep-cells">{cells(recentEmoji)}</div></section>}
+            {groups.map(([name, , arr]) => <Section key={name} name={name} count={arr.length}>{cells(arr)}</Section>)}
+          </>}
+      </div>
+    </div>
+  )
+}
