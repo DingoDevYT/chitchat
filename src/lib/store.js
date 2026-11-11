@@ -95,6 +95,7 @@ const defaults = {
   vadAuto: true, vadThreshold: 50, ptt: false, pttKey: 'Backquote', ns: true, ec: true, agc: true,
   normalise: true, ttsHear: true, // stadiums: level remote voices; read out others' 🔊 TTS messages
   joinSounds: true, // soft chime when someone joins/leaves the stadium you're in
+  ringCalls: true, // ring sound for incoming DM calls
 }
 function loadPrefs() {
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(PREFS_KEY)) } } catch { return defaults }

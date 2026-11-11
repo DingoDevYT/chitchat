@@ -244,7 +244,7 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
             <textarea rows={4} value={welcome} maxLength={WELCOME_MAX} onChange={e => setWelcome(e.target.value)}
               placeholder={`Welcome to ${draft.name}! **Be kind**, share snacks 🍪`} /></label>
           <div className="re-welcome-prev chat-start">
-            <h1>Welcome to {draft.name}!</h1>
+            <h1>Welcome to {draft.name}{/[!?.]$/.test(draft.name) ? "" : "!"}</h1>
             {welcome.trim() ? <div className="room-welcome"><Markdown text={welcome} /></div> : <p className="muted">Shown at the very top of the {word}. Markdown and emoji work.</p>}
           </div>
         </div>}

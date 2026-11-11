@@ -1,5 +1,5 @@
 // Pure helpers for chat cues: mentions, the "New messages" divider, DM card previews, last seen (tested in cues.test.js).
-import { tokenize } from './markdown.js'
+import { tokenize, fmtTimestamp } from './markdown.js'
 
 // "@name" as a whole mention: not inside an email/another mention, not a longer name (@pipx, @pip.other).
 // Mirrors public.mention_counts() in supabase/migrations/023_chat_cues.sql.
@@ -28,7 +28,8 @@ export function mergeRecent(cur, rows) {
 // One-line plain-text preview: markdown and custom emoji stripped, attachments as "📎 image" etc.
 export function previewText(m, max = 80) {
   if (!m) return ''
-  const flat = ts => ts.map(t => t.t === 'cemoji' ? `:${t.name}:` : t.t === 'mention' ? '@' + t.v : t.t === 'spoiler' ? '▒▒▒' : t.c ? flat(t.c) : t.v).join('')
+  const flat = ts => ts.map(t => t.t === 'cemoji' ? `:${t.name}:` : t.t === 'mention' ? '@' + t.v : t.t === 'spoiler' ? '▒▒▒'
+    : t.t === 'time' ? fmtTimestamp(t.v, t.f) : t.c ? flat(t.c) + (/^(li|h|sub|quote)$/.test(t.t) ? ' ' : '') : t.v).join('') // so list items and blocks don't run together
   const text = flat(tokenize(m.content || '')).replace(/\s+/g, ' ').trim()
   if (text) return text.length > max ? text.slice(0, max - 1) + '…' : text
   const a = m.attachments?.[0]

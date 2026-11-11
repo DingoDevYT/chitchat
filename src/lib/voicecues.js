@@ -21,13 +21,13 @@ export function diffMembers(prev, next, meId) {
 
 // Tag under a name for someone in a stadium. Not visible to you -> generic text and nothing to open.
 export function stadiumLabel(voiceId, channels = []) {
-  if (!voiceId) return null
+  if (!voiceId || voiceId.startsWith('call:')) return null // DM calls stay private (the DM's own row shows them)
   const c = channels.find(x => x.id === voiceId)
   return c ? { text: `🏟️ in ${c.name}`, serverId: c.server_id || null, channelId: c.id } : { text: '🏟️ in a stadium' }
 }
 
 // Two soft notes: rising for a join, falling for a leave.
-export const CHIME = { join: [523.25, 783.99], leave: [783.99, 523.25] } // C5 G5
+export const CHIME = { join: [523.25, 783.99], leave: [783.99, 523.25], ring: [659.25, 830.61, 659.25, 830.61] } // C5 G5; ring E5 G#5 trill (incoming DM call)
 
 // Plays a chime on an AudioContext into `dest` (the call's output mix, so output volume/device/deafen apply).
 export function playChime(ctx, dest, kind, peak = 0.06) {

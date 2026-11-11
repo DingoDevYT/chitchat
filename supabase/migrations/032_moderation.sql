@@ -95,6 +95,10 @@ language sql stable security definer set search_path = '' as $$
     when t ~ '^(chan|chat):[0-9a-f-]{36}$' then public.can_view_channel(substr(t, 6)::uuid)
       and not (t like 'chan:%' and exists (select 1 from public.channels c
         where c.id = substr(t, 6)::uuid and c.kind = 'voice' and public.post_block(c.server_id) is not null))
+    -- DM calls (033_dm_calls): members only, not if someone in the DM blocked you.
+    when t ~ '^call:[0-9a-f-]{36}$' then
+      exists (select 1 from public.channels c where c.id = substr(t, 6)::uuid and c.kind = 'dm')
+      and public.can_view_channel(substr(t, 6)::uuid) and not public.dm_blocks_me(substr(t, 6)::uuid)
     else false end
 $$;
 

@@ -2,28 +2,41 @@ import { useProfile } from './lib/store'
 import Avatar from './Avatar'
 import './styles/typing.css'
 
-// Layers, back to front: avatar → paws → laptop lid seen from behind (tilted away from us, towards them).
+// Three-quarter view, like a cat at a laptop: the avatar sits behind; the laptop is angled in the foreground with
+// the BACK of its lid nearest us (left), the keyboard deck running away towards the avatar, and paws on the keys.
+// Layers back to front: avatar → deck → paws → lid.
+const VB = '0 0 44 38'
+
+function Deck() {
+  return (
+    <svg className="tp-layer" viewBox={VB} aria-hidden="true">
+      {/* keyboard deck, receding to the right */}
+      <path className="lt-deck" d="M7 30.5 24.5 24.6l14.8 4.8-17.2 7.1z" />
+      <path className="lt-keys" d="M13.2 30.4l10.6-3.7 8.8 2.9-10.6 4.1z" />
+      <path className="lt-keyline" d="M15.6 31.3l10.5-3.8M18.2 32.3l10.5-3.9" />
+    </svg>
+  )
+}
+
 function Paws({ color }) {
   return (
-    <svg className="tp-paws" viewBox="0 0 34 12" aria-hidden="true">
-      <circle className="paw paw-l" cx="11" cy="6" r="4" fill={color} />
-      <circle className="paw paw-r" cx="23" cy="6" r="4" fill={color} />
+    <svg className="tp-layer" viewBox={VB} aria-hidden="true">
+      <ellipse className="paw paw-l" cx="24.6" cy="28.6" rx="3.3" ry="2.6" fill={color} />
+      <ellipse className="paw paw-r" cx="31.2" cy="30.4" rx="3.3" ry="2.6" fill={color} />
     </svg>
   )
 }
 
 function Lid({ color }) {
   return (
-    <svg className="tp-lid" viewBox="0 0 36 18" aria-hidden="true">
-      {/* back of the lid: narrower at the top because it leans away from us */}
-      <path className="lid-back" d="M6.5 1.5h23a1.5 1.5 0 0 1 1.45 1.1L33.6 14H2.4L5.05 2.6A1.5 1.5 0 0 1 6.5 1.5z" />
-      <path className="lid-edge" d="M6.5 1.5h23" />
-      {/* little critter logo on the lid */}
-      <g className="lid-logo" fill={color}>
-        <circle cx="15.6" cy="5.6" r="1.3" /><circle cx="20.4" cy="5.6" r="1.3" /><circle cx="18" cy="8.2" r="3" />
+    <svg className="tp-layer" viewBox={VB} aria-hidden="true">
+      {/* back of the lid, standing on the hinge and leaning back towards the avatar */}
+      <path className="lt-lid" d="M7 30.5 24.5 24.6 22.4 7.6a1.4 1.4 0 0 0-1.8-1.1L4.6 12.1a1.4 1.4 0 0 0-.9 1.5z" />
+      <path className="lt-rim" d="M24.5 24.6 22.4 7.6" />
+      {/* little Chit logo on the lid, skewed with it */}
+      <g className="lt-logo" fill={color} transform="matrix(.95 -.32 .06 .95 0 0)">
+        <circle cx="9.6" cy="22.1" r="1.1" /><circle cx="13.4" cy="22.1" r="1.1" /><circle cx="11.5" cy="24.3" r="2.5" />
       </g>
-      {/* the base peeking out under the lid */}
-      <rect className="lid-base" x="0.5" y="13.5" width="35" height="3.5" rx="1.75" />
     </svg>
   )
 }
@@ -33,7 +46,8 @@ function Typer({ id, me }) {
   const color = p?.color || '#f4a261'
   return (
     <span className={`typer${me ? ' me' : ''}`} title={me ? 'You' : p?.display_name || p?.username}>
-      <Avatar id={id} size={28} mode="typing" />
+      <Avatar id={id} size={27} mode="typing" />
+      <Deck />
       <Paws color={color} />
       <Lid color={color} />
     </span>

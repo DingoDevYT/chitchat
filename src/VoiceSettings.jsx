@@ -79,6 +79,8 @@ export default function VoiceSettings() {
           <span>Read 🔊 TTS messages aloud in stadiums I've joined</span></label>
         <label className="toggle"><input type="checkbox" checked={p.joinSounds} onChange={e => setPref('joinSounds', e.target.checked)} />
           <span>Join/leave sounds <span className="muted small">· a soft chime when someone joins or leaves your stadium</span></span></label>
+        <label className="toggle"><input type="checkbox" checked={p.ringCalls} onChange={e => setPref('ringCalls', e.target.checked)} />
+          <span>Ring for calls <span className="muted small">· play a ringtone when someone calls you (never in Do Not Disturb)</span></span></label>
       </div>
 
       {canCam && (

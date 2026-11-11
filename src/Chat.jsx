@@ -387,7 +387,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
           <div ref={topRef} />
           {msgs && !hasMore && (
             <div className="chat-start">
-              <h1>{channel.kind === 'dm' ? `This is the start of your chat with ${title}` : channel.kind === 'thread' ? 'The thread starts here 🧵' : `Welcome to ${channel.name}!`}</h1>
+              <h1>{channel.kind === 'dm' ? `This is the start of your chat with ${title}` : channel.kind === 'thread' ? 'The thread starts here 🧵' : `Welcome to ${channel.name}${/[!?.]$/.test(channel.name) ? "" : "!"}`}</h1>
               {channel.welcome && channel.kind !== 'dm'
                 ? <div className="room-welcome"><Markdown text={channel.welcome} me={me.username} /></div>
                 : <p className="muted">Say something nice. Everyone hears it in your voice 🎶</p>}

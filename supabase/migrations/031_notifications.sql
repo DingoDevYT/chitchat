@@ -15,7 +15,7 @@ alter table public.notify_settings enable row level security;
 drop policy if exists "own notify settings" on public.notify_settings;
 create policy "own notify settings" on public.notify_settings for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
-revoke all on public.notify_settings from public, anon;
+revoke all on public.notify_settings from public, anon, authenticated;
 grant select, insert, update, delete on public.notify_settings to authenticated;
 do $$ begin
   if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'notify_settings') then
@@ -37,7 +37,7 @@ create index if not exists message_pings_user_idx on public.message_pings (user_
 alter table public.message_pings enable row level security;
 drop policy if exists "see own pings" on public.message_pings;
 create policy "see own pings" on public.message_pings for select to authenticated using (user_id = (select auth.uid()));
-revoke all on public.message_pings from public, anon;
+revoke all on public.message_pings from public, anon, authenticated;
 grant select on public.message_pings to authenticated; -- written only by the trigger below
 
 -- Role @handle: lower case, runs of anything else become _, trimmed. Mirrors roleHandle() in src/lib/notify.js.

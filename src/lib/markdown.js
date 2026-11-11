@@ -12,6 +12,7 @@ const RX = new RegExp([
   /(?<![\w@])@([a-z0-9_.]{2,32})/.source,             // 11 mention, not inside emails
   /<(a?):([a-z0-9_]{2,32}):([0-9a-f-]{36})>/.source,  // 12-14 custom emoji <:name:id> / <a:name:id>
   /<t:(-?\d{1,13})(?::([tdfr]))?>/.source,            // 15-16 timestamp <t:unix:format>
+  /<~([^<>\n]{1,64}?):([0-9a-f-]{36})>/.source,       // 17-18 room link <~name:id> (lib/notify.js roomToken)
 ].join('|'), 'gi')
 export const CUSTOM_RX = /<(a?):([a-z0-9_]{2,32}):([0-9a-f-]{36})>/gi
 
@@ -20,7 +21,7 @@ function inline(text) {
   let last = 0
   for (const m of text.matchAll(RX)) {
     if (m.index > last) out.push({ t: 'text', v: text.slice(last, m.index) })
-    const [, block, code, bold, spoiler, strike, it1, it2, ltext, lurl, url, mention, anim, ename, eid, unix, fmt] = m
+    const [, block, code, bold, spoiler, strike, it1, it2, ltext, lurl, url, mention, anim, ename, eid, unix, fmt, rname, rid] = m
     if (block != null) out.push({ t: 'codeblock', v: block.replace(/\n$/, '') })
     else if (code != null) out.push({ t: 'code', v: code })
     else if (bold != null) out.push({ t: 'b', c: inline(bold) })
@@ -31,6 +32,7 @@ function inline(text) {
     else if (url != null) out.push({ t: 'url', v: url })
     else if (mention != null) out.push({ t: 'mention', v: mention.toLowerCase() })
     else if (unix != null) out.push({ t: 'time', v: +unix, f: 'tTdDfFR'.includes(fmt) ? fmt : 'f' })
+    else if (rid != null) out.push({ t: 'room', v: rname, id: rid.toLowerCase() }) // v: the name, so plain-text previews read well
     else out.push({ t: 'cemoji', name: ename.toLowerCase(), id: eid.toLowerCase(), animated: !!anim })
     last = m.index + m[0].length
   }
@@ -68,11 +70,11 @@ export function tokenize(text, inQuote = false) {
       out.push({ t: 'sub', c: inline(m[1]) })
     } else if ((m = line.match(LIST))) {
       flush()
-      const ordered = m[2] !== '-' && m[2] !== '*', items = []
+      const ordered = m[2] !== '-' && m[2] !== '*', start = parseInt(m[2]), items = []
       for (; i < lines.length && (m = lines[i].match(LIST)) && (m[2] !== '-' && m[2] !== '*') === ordered; i++)
         items.push({ t: 'li', d: Math.min(3, m[1].length >> 1), c: inline(m[3]) })
       i--
-      out.push(ordered ? { t: 'ol', start: parseInt(lines[i - items.length + 1].trim()), c: items } : { t: 'ul', c: items })
+      out.push(ordered ? { t: 'ol', start, c: items } : { t: 'ul', c: items })
     } else prose.push(line)
   }
   flush()
