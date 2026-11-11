@@ -101,6 +101,7 @@ const defaults = {
   normalise: true, ttsHear: true, // stadiums: level remote voices; read out others' 🔊 TTS messages
   joinSounds: true, // soft chime when someone joins/leaves the stadium you're in
   ringCalls: true, // ring sound for incoming DM calls
+  stageView: 'crowd', streamLayout: 'focus', // stadium: crowd | list people; focus | grid | side streams (Voice.jsx VIEW_OPTS)
   look: 'night', // 'night' | 'day' | 'system' (see lib/look.js)
   uiSounds: true, uiVolume: 0.5, // quiet blips for menus, dialogs, sends, toggles
   gotShown: {}, // "You got…" pop-ups already shown: 'userId:kind' -> 1

@@ -38,7 +38,8 @@ export function justify(ratios, width, { target = 220, gap = 6 } = {}) {
     const h = fullH(start, end)
     if (h > target) continue
     // the row just dropped below target: keep this item, or close the row without it if that lands closer
-    if (end - start > 1 && fullH(start, end - 1) - target < target - h) { place(start, end - 1, fullH(start, end - 1), true); start = end - 1; end-- }
+    // (by ratio, not pixels: 60% of the target looks worse than 140% of it)
+    if (end - start > 1 && fullH(start, end - 1) / target < target / h) { place(start, end - 1, fullH(start, end - 1), true); start = end - 1; end-- }
     else { place(start, end, h, true); start = end }
   }
   if (start < rs.length) place(start, rs.length, Math.min(target, fullH(start, rs.length)), false)

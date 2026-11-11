@@ -1,0 +1,45 @@
+/* Starry night (v2, painted). Static painted layers rasterise once; motion is transform/opacity on small unfiltered parts.
+   Timing comes from the shared .a primitive (--d/--dl, scaled by --k). */
+.v2-night-canvas { left: 0; top: 0; will-change: transform; }
+.v2-night-pin { width: 1px; height: 1px; overflow: visible; }
+.v2-night-land { inset: 0; }
+/* rooms: the hills sit lower so the middle band stays open sky behind messages */
+.tb-room .v2-night-land { transform: translateY(9%); }
+.v2-night-fall { width: 0; height: 0; }
+
+.v2-night-breathe { animation-name: v2-night-breathe; animation-direction: alternate; }
+@keyframes v2-night-breathe { from { opacity: var(--lo, .6); } to { opacity: 1; } }
+
+/* uneven twinkle, never fully out */
+.v2-night-tw { animation-name: v2-night-tw; }
+@keyframes v2-night-tw { 0%, 100% { opacity: .95; } 31% { opacity: .4; } 47% { opacity: .78; } 72% { opacity: .3; } 86% { opacity: .7; } }
+
+/* limited animation: a few held frames */
+.v2-night-glint { animation-name: v2-night-glint; animation-timing-function: steps(1, end); }
+@keyframes v2-night-glint {
+  0% { opacity: .95; transform: none; } 21% { opacity: .5; transform: scale(.78); } 38% { opacity: .85; transform: scale(.95) rotate(8deg); }
+  61% { opacity: .32; transform: scale(.66); } 79% { opacity: .75; transform: scale(1.04) rotate(-4deg); } 100% { opacity: .95; transform: none; } }
+
+.v2-night-drift { animation-name: v2-night-drift; animation-direction: alternate; }
+@keyframes v2-night-drift { from { transform: translateX(calc(var(--x, 30px) * -1)); } to { transform: translateX(var(--x, 30px)); } }
+
+.v2-night-sway { animation-name: v2-night-sway; animation-direction: alternate; transform-origin: 50% 100%; }
+@keyframes v2-night-sway { from { transform: rotate(calc(var(--r, .6deg) * -1)); } to { transform: rotate(var(--r, .6deg)); } }
+
+.v2-night-shoot { opacity: 0; animation-name: v2-night-shoot; animation-timing-function: ease-out; }
+@keyframes v2-night-shoot { 0% { transform: none; opacity: 0; } .5% { opacity: .9; } 2.6%, 100% { transform: translateX(-300px); opacity: 0; } }
+
+.v2-night-lamp { animation-name: v2-night-lamp; animation-timing-function: steps(1, end); }
+@keyframes v2-night-lamp { 0% { opacity: 1; } 17% { opacity: .55; } 29% { opacity: .9; } 53% { opacity: .7; } 71% { opacity: 1; } 87% { opacity: .5; } 100% { opacity: 1; } }
+
+/* someone walks past the lamp: a shadow over the window for about a second */
+.v2-night-pass { opacity: 0; animation-name: v2-night-pass; }
+@keyframes v2-night-pass { 0%, 88% { opacity: 0; } 89.5% { opacity: .55; } 91.5% { opacity: .6; } 93%, 100% { opacity: 0; } }
+
+.v2-night-moth { animation-name: v2-night-moth0; }
+.v2-night-moth.m1 { animation-name: v2-night-moth1; }
+@keyframes v2-night-moth0 { 0%, 100% { transform: translate(0, 0); } 22% { transform: translate(9px, -5px); } 47% { transform: translate(4px, -13px); } 70% { transform: translate(-7px, -6px); } }
+@keyframes v2-night-moth1 { 0%, 100% { transform: translate(0, 0); } 30% { transform: translate(-6px, 7px); } 55% { transform: translate(5px, 9px); } 78% { transform: translate(8px, -3px); } }
+
+.v2-night-puff { opacity: 0; animation-name: v2-night-puff; animation-timing-function: ease-out; }
+@keyframes v2-night-puff { 0% { transform: translate(0, 0) scale(.5); opacity: 0; } 14% { opacity: .7; } 100% { transform: translate(22px, -66px) scale(2); opacity: 0; } }

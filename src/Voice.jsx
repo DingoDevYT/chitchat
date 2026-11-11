@@ -15,6 +15,8 @@ import { openMenu } from './ContextMenu'
 import { app, personMenu, streamItems } from './menus'
 import { RoomTitle, roomVars } from './Rooms'
 import ThemeBackdrop, { useRoomTheme } from './themes/ThemeBackdrop'
+import { fitCrowd, ROW } from './lib/crowd'
+import './styles/stadium-crowd.css'
 
 // shortcut: STUN only, no TURN relay. ~10-20% of strict NAT / mobile networks won't connect; add a TURN server (e.g. Cloudflare Calls TURN) when someone reports it.
 const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }]
@@ -449,35 +451,80 @@ function Bubble({ id }) {
     {b.typing ? <span className="dots"><i /><i /><i /></span> : <span>{emojify(b.text)}</span>}</div>
 }
 
-// The main-area view of a stadium: a big screen for whoever is live, with everyone standing in the crowd below.
+// How you see a stadium: Voice & video settings, or right-click the stage. Yours only.
+export const VIEW_OPTS = {
+  stageView: [['crowd', 'Crowd'], ['list', 'List']],
+  streamLayout: [['focus', 'One big, the rest on the side'], ['grid', 'Grid'], ['side', 'Side by side']],
+}
+const choice = (k, icon, label) => ({ label, icon, submenu: VIEW_OPTS[k].map(([v, l]) => ({ label: l, checked: prefs.get()[k] === v, onClick: () => setPref(k, v) })) })
+const viewItems = () => [choice('stageView', 'friends', 'People'), choice('streamLayout', 'screen', 'Streams')]
+
+function useSize() {
+  const ref = useRef(null), [size, setSize] = useState({ w: 0, h: 0 })
+  useEffect(() => {
+    const ro = new ResizeObserver(([e]) => setSize({ w: Math.round(e.contentRect.width), h: Math.round(e.contentRect.height) }))
+    ro.observe(ref.current)
+    return () => ro.disconnect()
+  }, [])
+  return [ref, size]
+}
+
+function Seat({ id, me, size, back, tile, live, face, style }) {
+  return (
+    <div className={`stage-seat${me ? ' me' : ''}${back ? ' back' : ''}`} style={style} {...personMenu(id)}>
+      {live && <b className="live-badge"><Icon name="live" size="1.25em" /> LIVE</b>}
+      <Bubble id={id} />
+      <Avatar id={id} size={size} full={!tile} mode="stage" vbadge>{face && <Screen stream={face} />}</Avatar>
+      {(!me || tile) && <Name id={id} />}{/* you know your own name */}
+      <PeerState id={id} />
+    </div>
+  )
+}
+
+// The main-area view of a stadium: the screen for whoever is live, and the crowd in front of it.
+// Crowd: you in the bottom-right corner, everyone else flowing left in rows (lib/crowd.js). List: plain tiles under the screen.
 export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, onCam, onMenu }) {
   const ids = online.use(s => Object.keys(s).filter(id => s[id].voice === channel.id).join(','))
   const liveIds = online.use(s => Object.keys(s).filter(id => s[id].voice === channel.id && s[id].live).join(','))
   const all = streams.use()
   const faces = cams.use()
+  const view = prefs.use(s => s.stageView), layout = prefs.use(s => s.streamLayout)
+  const [boxRef, box] = useSize()
   const [pick, setPick] = useState(null)
   const [hidden, setHidden] = useState([]) // streams hidden from the right-click menu, until you leave this view
   const list = ids ? ids.split(',') : []
   const lives = liveIds ? liveIds.split(',') : []
   const shown = joined ? Object.keys(all).filter(id => !hidden.includes(id)) : []
-  const streamMenu = id => e => openMenu(e, () => streamItems(id, {
-    me: id === meId, focused: id === main, focus: () => setPick(id), hide: () => setHidden(h => [...h, id]),
-    video: e.currentTarget.querySelector('video'),
-  }))
   const main = shown.includes(pick) ? pick : shown[0]
-  const size = list.length > 8 ? 88 : 116
+  const tiles = layout !== 'focus' && shown.length > 1
+  const streamMenu = id => e => openMenu(e, () => [...streamItems(id, {
+    me: id === meId, focused: id === main && !tiles, video: e.currentTarget.querySelector('video'),
+    focus: () => { setPick(id); if (tiles) setPref('streamLayout', 'focus') }, hide: () => setHidden(h => [...h, id]),
+  }), { separator: true }, ...viewItems()])
+  const others = list.filter(id => id !== meId)
+  const crowd = view !== 'list' && box.w ? fitCrowd(others.length, box.w, box.h * 0.5, list.includes(meId)) : null
+  const seat = id => ({ id, live: lives.includes(id), face: joined && faces[id] })
   const theme = useRoomTheme(channel, app.ctx?.server)
 
   return (
-    <div className="stage">
+    <div className={`stage view-${view === 'list' ? 'list' : 'crowd'}`} onContextMenu={e => openMenu(e, viewItems)}>
       <ThemeBackdrop theme={theme} variant="stadium" />
       <header className="chat-head room-head" style={roomVars(channel, app.ctx?.server)}>
         <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu"><Icon name="menu" /></button>
         <RoomTitle c={channel} />
       </header>
-      <div className="stadium">
-        <div className={`stage-screen${main ? ' on' : ''}`} onContextMenu={main ? streamMenu(main) : undefined}>
-          {main ? (
+      <div className="stadium" ref={boxRef} style={crowd ? { '--floor': `${crowd.floor}px`, '--s': `${crowd.s}px` } : undefined}>
+        <div className={`stage-screen${main ? ' on' : ''}`} onContextMenu={main && !tiles ? streamMenu(main) : undefined}>
+          {tiles ? (
+            <div className={`stage-tiles ${layout}`}>
+              {shown.map(id => (
+                <div key={id} className="stage-tile" onContextMenu={streamMenu(id)}>
+                  <Screen stream={all[id]} />
+                  <div className="stage-caption"><b className="live-badge"><Icon name="live" size="1.25em" /> LIVE</b> <Name id={id} /></div>
+                </div>
+              ))}
+            </div>
+          ) : main ? (
             <>
               <Screen stream={all[main]} />
               <div className="stage-caption"><b className="live-badge"><Icon name="live" size="1.25em" /> LIVE</b> <Name id={main} /></div>
@@ -500,18 +547,22 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
             </div>
           )}
         </div>
-        <div className="stage-crowd">
-          {list.length === 0 && <p className="muted">Nobody's here yet.</p>}
-          {list.map(id => (
-            <div key={id} className={`stage-seat${id === meId ? ' me' : ''}`} {...personMenu(id)}>
-              {lives.includes(id) && <b className="live-badge"><Icon name="live" size="1.25em" /> LIVE</b>}
-              <Bubble id={id} />
-              <Avatar id={id} size={size} full vbadge>{joined && faces[id] && <Screen stream={faces[id]} />}</Avatar>
-              <Name id={id} />
-              <PeerState id={id} />
-            </div>
-          ))}
-        </div>
+        {view === 'list' ? (
+          <div className="stage-crowd list">
+            {list.length === 0 && <p className="muted">Nobody's here yet.</p>}
+            {list.map(id => <Seat key={id} {...seat(id)} me={id === meId} size={64} tile />)}
+          </div>
+        ) : (
+          <div className="stage-crowd crowd" style={{ height: crowd?.height }}>
+            {list.length === 0 && <p className="muted">Nobody's here yet.</p>}
+            {crowd && others.map((id, i) => {
+              const p = crowd.seats[i]
+              return <Seat key={id} {...seat(id)} size={crowd.s} back={p.row > 0}
+                style={{ right: p.x, bottom: Math.round(p.row * crowd.s * ROW), zIndex: 50 - p.row }} />
+            })}
+            {crowd?.me > 0 && <Seat {...seat(meId)} me size={crowd.me} style={{ right: 0, bottom: 0, zIndex: 60 }} />}
+          </div>
+        )}
       </div>
       <div className="stage-actions">
         {!joined && <button className="btn primary big join-voice" onClick={onJoin}>Join stadium</button>}

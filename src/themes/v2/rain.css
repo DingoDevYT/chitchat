@@ -1,0 +1,54 @@
+/* Rainy window (v2): a painted city at dusk seen through wet glass. Static paintings are composited once;
+   only small separate roots move (transform/opacity), on odd, unsynced loops. */
+.v2-rain-canvas { left: 0; top: 0; will-change: transform; }
+.v2-rain-pin { width: 1px; height: 1px; }
+.v2-rain-full { left: 0; top: 0; width: 100%; height: 100%; }
+
+.v2-rain-breathe { animation-name: v2-rain-breathe; animation-direction: alternate; }
+@keyframes v2-rain-breathe { from { opacity: var(--lo, .6); } to { opacity: 1; } }
+.v2-rain-bokeh { animation-name: v2-rain-bokeh; animation-direction: alternate; }
+@keyframes v2-rain-bokeh { from { opacity: var(--lo, .5); transform: scale(.95); } to { opacity: 1; transform: scale(1.03); } }
+.v2-rain-drift { animation-name: v2-rain-drift; animation-direction: alternate; }
+@keyframes v2-rain-drift { from { transform: translateX(calc(var(--x, 30px) * -1)); } to { transform: translateX(var(--x, 30px)); } }
+
+/* a lit window held on, then off (someone across the street), never a tween */
+.v2-rain-blink { animation-name: v2-rain-blink; animation-timing-function: steps(1, end); }
+@keyframes v2-rain-blink { 0% { opacity: .9; } 47% { opacity: 0; } 71% { opacity: .9; } 100% { opacity: .9; } }
+/* the shop sign: two painted frames held in turn, with a stutter */
+.v2-rain-sa, .v2-rain-sb { animation-timing-function: steps(1, end); }
+.v2-rain-sa { animation-name: v2-rain-sa; }
+.v2-rain-sb { animation-name: v2-rain-sb; }
+@keyframes v2-rain-sa { 0% { opacity: 1; } 58% { opacity: 0; } 61% { opacity: 1; } 83% { opacity: 0; } 84.5% { opacity: 1; } 100% { opacity: 1; } }
+@keyframes v2-rain-sb { 0% { opacity: 0; } 58% { opacity: 1; } 61% { opacity: 0; } 83% { opacity: 1; } 84.5% { opacity: 0; } 100% { opacity: 0; } }
+/* a drip gathering under the transom: three painted frames */
+.v2-rain-d0, .v2-rain-d1, .v2-rain-d2 { animation-timing-function: steps(1, end); }
+.v2-rain-d0 { animation-name: v2-rain-d0; }
+.v2-rain-d1 { animation-name: v2-rain-d1; }
+.v2-rain-d2 { animation-name: v2-rain-d2; }
+@keyframes v2-rain-d0 { 0% { opacity: 1; } 44% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes v2-rain-d1 { 0% { opacity: 0; } 44% { opacity: 1; } 79% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes v2-rain-d2 { 0% { opacity: 0; } 79% { opacity: 1; } 90% { opacity: 0; } 100% { opacity: 0; } }
+
+/* far lightning: a soft double flicker once in a long while */
+.v2-rain-flash { animation-name: v2-rain-flash; animation-timing-function: linear; }
+@keyframes v2-rain-flash { 0% { opacity: 0; } 1% { opacity: .45; } 1.8% { opacity: .08; } 2.7% { opacity: .7; } 5.5% { opacity: 0; } 100% { opacity: 0; } }
+/* a car's lights sliding along the street now and then */
+.v2-rain-car { left: 0; width: 100%; height: 0; animation-name: v2-rain-car; animation-timing-function: linear; }
+.v2-rain-car > svg { left: 0; top: 0; }
+@keyframes v2-rain-car { 0% { transform: translateX(-12%); opacity: 0; } 80% { transform: translateX(-12%); opacity: 0; } 83% { opacity: .85; }
+  97% { opacity: .85; } 100% { transform: translateX(108%); opacity: 0; } }
+
+/* rain sheets: slanted by the wind, each plane loops one tile; the whole lot thickens and thins in gusts */
+.v2-rain-wind { left: -15%; top: -20%; width: 130%; height: 140%; transform: rotate(9deg); }
+.v2-rain-plane { left: 0; top: 0; width: 100%; height: 200%; animation-name: v2-rain-fall; animation-timing-function: linear; }
+@keyframes v2-rain-fall { from { transform: translateY(-50%); } to { transform: none; } }
+
+/* drops on the pane cling, lurch, cling, then run off */
+.v2-rain-lane { top: 0; width: 0; height: 100%; animation-timing-function: ease-in; }
+.v2-rain-lane > svg { left: 0; top: 0; }
+.v2-rain-lane.t0 { animation-name: v2-rain-t0; }
+.v2-rain-lane.t1 { animation-name: v2-rain-t1; }
+@keyframes v2-rain-t0 { 0% { transform: translateY(-6%); } 12% { transform: translateY(8%); } 31% { transform: translateY(9.5%); }
+  38% { transform: translateY(22%); } 54% { transform: translateY(23.5%); } 61% { transform: translateY(40%); } 78% { transform: translateY(42%); } 100% { transform: translateY(108%); } }
+@keyframes v2-rain-t1 { 0% { transform: translateY(-6%); } 9% { transform: translateY(15%); } 40% { transform: translateY(16%); }
+  47% { transform: translateY(35%); } 69% { transform: translateY(36.5%); } 100% { transform: translateY(108%); } }

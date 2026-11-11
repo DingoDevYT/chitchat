@@ -41,9 +41,9 @@ test('covers keep their aspect ratio (to the pixel)', () => {
 })
 
 test('last row is not stretched past the target and is left-aligned', () => {
-  const l = justify([1, 1, 1, 1, 1, 1], 1000, { target: 220, gap: GAP }) // 5 squares fill at 195px (closer than 4 at 245): one left over
+  const l = justify([1, 1, 1, 1, 1], 1000, { target: 220, gap: GAP }) // 4 squares fill at 245px (x1.12, vs 5 at 195px, /1.13): one left over
   assert.equal(l.rows.length, 2)
-  assert.equal(l.rows[0].height, 195)
+  assert.equal(l.rows[0].height, 246)
   const last = l.rows.at(-1)
   assert.equal(last.height, 220)
   assert.equal(last.items[0].left, 0)
@@ -84,8 +84,12 @@ test('empty, zero width and bad ratios', () => {
   checkShape(l, 3, 600)
 })
 
-test('row breaks pick the height closest to the target', () => {
-  // two 3:1 panoramas at 1000px: alone each is 333px tall (113 over), together 166px (54 under) → together
+test('row breaks pick the height closest to the target (by ratio)', () => {
+  // phone: a 16:9 alone is 202px (x1.44 of 140), with a 21:9 beside it only 85px (/1.65) → it stays alone
+  const p = justify([16 / 9, 21 / 9], 359, { target: 140, gap: 8 })
+  assert.deepEqual(p.rows.map(r => r.items.length), [1, 1])
+  assert.equal(p.rows[0].height, 202)
+  // two 3:1 panoramas at 1000px: alone each is 333px tall (x1.51), together 166px (/1.33) → together
   const l = justify([3, 3], 1000, { target: 220, gap: GAP })
   assert.equal(l.rows.length, 1)
   assert.equal(rowWidth(l.rows[0]), 1000)

@@ -82,7 +82,7 @@ body .notify-tab .btn .nf-ico { margin-right: 4px; }
 /* ── keyboard shortcut sheet ── */
 body .shortcuts { display: flex; flex-direction: column; gap: 4px; max-height: 68vh; overflow-y: auto; padding-right: 4px; }
 body .shortcuts h3 { margin: 10px 0 2px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-body .shortcut-row { display: grid; grid-template-columns: 190px 1fr; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--stitch); }
+body .shortcut-row { display: grid; grid-template-columns: 216px 1fr; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--stitch); }
 body .shortcut-keys { white-space: nowrap; }
 body .shortcut-what { font-size: 14px; }
 body .keys { display: inline-flex; gap: 3px; }

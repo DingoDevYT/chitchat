@@ -1,0 +1,49 @@
+/* Stadium seating (lib/crowd.js) and stream layouts. `body` prefix: the main styles.css loads after component CSS.
+   Crowd: you in the bottom-right corner, everyone else flowing left in rows; back rows stand higher, between the heads in front.
+   The screen stops at --floor, so the front row's faces only overlap its bottom third. */
+body .stadium { position: relative; }
+body .stage.view-crowd .stage-screen { margin-bottom: var(--floor, 100px); }
+body .stadium .stage-crowd.crowd {
+  position: absolute; left: 16px; right: 16px; bottom: 0; margin: 0; padding: 0;
+  max-height: none; overflow: visible; display: block; pointer-events: none;
+}
+body .stadium .crowd > .muted { position: absolute; right: 0; bottom: 14px; margin: 0; }
+body .stadium .crowd .stage-seat {
+  position: absolute; margin: 0; zoom: 1; pointer-events: auto;
+  transition: right .35s var(--ease), bottom .35s var(--ease), transform .25s var(--spring);
+}
+body .stadium .crowd .stage-seat .name { max-width: calc(var(--s, 116px) * .9); font-size: 12.5px; }
+/* back rows: name over the head, where the row in front can't cover it */
+body .stadium .crowd .stage-seat.back .name { order: -1; }
+body .stadium .crowd .stage-seat.back .live-badge { top: 22px; }
+
+/* List: plain tiles under the screen, Discord style */
+body .stage.view-list .stage-screen { margin-bottom: 12px; }
+body .stadium .stage-crowd.list { margin: 0; padding: 0 0 10px; max-height: 38%; overflow-y: auto; display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start; gap: 8px; }
+body .stadium .list > .muted { margin: 8px 0; }
+body .stadium .list .stage-seat {
+  margin: 0; min-width: 108px; padding: 12px 12px 8px; border-radius: var(--r-lg); animation: none;
+  background: color-mix(in srgb, var(--bg-2) 90%, transparent); box-shadow: inset 0 0 0 2px var(--line);
+}
+body .stadium .list .stage-seat:has(.talking) { transform: none; }
+body .stadium .list .stage-seat .name { background: none; padding: 0; max-width: 120px; }
+body .stadium .list .stage-seat .live-badge { top: 6px; right: 6px; }
+body .stadium .list .stage-seat .avatar { filter: none; isolation: isolate; }
+/* talking: the same soft halo behind the face as the sidebar */
+body .stadium .list .stage-seat .avatar::before {
+  content: ''; position: absolute; inset: -4px; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: color-mix(in srgb, var(--mint) 30%, transparent); box-shadow: 0 0 6px color-mix(in srgb, var(--mint) 35%, transparent);
+  opacity: 0; transition: opacity .15s;
+}
+body .stadium .list .stage-seat .avatar.talking::before { opacity: 1; }
+
+/* Streams: grid, or side by side (focus keeps the big screen with thumbnails on the right) */
+body .stage-tiles { position: absolute; inset: 6px; display: grid; gap: 6px; align-content: center; }
+body .stage-tiles.grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+body .stage-tiles.side { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+body .stage-tile { position: relative; aspect-ratio: 16 / 9; min-height: 0; border-radius: calc(var(--r-lg) - 6px); overflow: hidden; background: #000; }
+body .stage-tiles.side .stage-tile { aspect-ratio: auto; height: 100%; }
+body .stage-tile > video { width: 100%; height: 100%; object-fit: contain; display: block; }
+body .stage-tile .stage-caption { top: 8px; left: 8px; font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) { body .stadium .crowd .stage-seat { transition: none; } }

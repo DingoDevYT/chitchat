@@ -1,0 +1,68 @@
+/* Responsive pass: spacing, touch targets and fit across window sizes (320px phones to 2560px screens).
+   Imported from main.jsx after styles.css, so it loads last; selectors carry one extra class where the rule
+   they adjust has a `body` prefix. Breakpoints match the app's: 720px = phone drawer, 900px = no member list. */
+
+/* ── header row: sidebar title, chat/room header and stadium chat header share one 56px bottom line ── */
+.sidebar .side-head { display: flex; align-items: center; min-height: 46px; padding-block: 3px; } /* + the sidebar's 10px top margin */
+.sidebar .side-title { padding-block: 6px; }
+.main .chat-head.room-head { padding-block: 6px; } /* title + topic fits in 56px, like a plain header */
+
+/* ── sidebar rows: the whole row is the button, not just the text line in its middle ── */
+.ch-item.room-row { padding-block: 0; padding-left: 0; }
+.ch-item.room-row > .ch-main { align-self: stretch; padding: 7px 0 7px 8px; }
+
+/* ── messages: comfortable line length on very wide windows (hover row stays full width) ── */
+.msg-text { max-width: 110ch; }
+
+/* ── composer ── */
+.composer .composer-row .gif-btn { font-size: 11px; } /* the narrow-composer rule took it to 10px */
+/* small pills keep their look but get a thumb-sized hit area */
+.composer .gif-btn, .composer-sub .tts-toggle { position: relative; }
+.composer .gif-btn::after, .composer-sub .tts-toggle::after { content: ''; position: absolute; inset: -5px -3px; }
+
+/* ── pickers and switcher ── */
+/* emoji category row: tabs shrink a little to fit a 320px phone, then scroll (servers with custom emoji add tabs) */
+.ep-tabs { overflow-x: auto; scrollbar-width: none; }
+.ep-tabs > button { flex: 0 1 32px; min-width: 26px; }
+.quick-item .muted { flex: none; white-space: nowrap; } /* long room names wrap; the server name stays on one line */
+
+/* ── popups ── */
+/* no popup content can push a modal wider than the window */
+.backdrop { grid-template-columns: minmax(0, 1fr); }
+.srv-preview .rail-btn.srv { max-width: 100%; }
+/* dvh = the height the browser's toolbars actually leave on phones (vh can sit under them); also caps the fixed tabbed height */
+.backdrop > .modal { max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); }
+/* scrolled content stays inside the rounded corners instead of poking out at the bottom */
+.backdrop > .modal > .modal-body { border-radius: 0 0 30px 30px; }
+
+/* ── tablets and small windows (no member list below 900px) ── */
+@media (max-width: 900px) {
+  .chat-head [aria-label="Toggle member list"] { display: none; } /* the list it toggles is hidden at this width */
+}
+
+/* ── phones ── */
+@media (max-width: 720px) {
+  /* touch targets: 32px minimum */
+  .composer .composer-row > .icon-btn:not(.gif-btn) { width: 32px; height: 32px; }
+  .btn.small, label.btn.small, .tabs button { min-height: 32px; }
+  .swatch, .srv-swatch, .srv-swatches input[type=color] { width: 32px; height: 32px; }
+  .gif-cell-wrap .fav-star { width: 32px; height: 32px; }
+  .auth-links .link { padding-block: 7px; } /* "Create an account" / "Forgot password" */
+
+  /* composer stand-ins (timeout notice, rules card) line up with the composer's 8px margins */
+  .chat .mod-gate, .chat .mod-rules { margin: 0 8px 8px; }
+}
+
+@media (max-width: 480px) {
+  /* a header with four buttons still leaves room for a short name */
+  .main .chat-head, .main .chat-head.room-head { gap: 4px; padding-inline: 8px; }
+}
+
+/* ── small phones (320–360px): the drawer's server cards shrink to their icons so room names get the width ── */
+@media (max-width: 374px) {
+  .app:has(> nav.rail.cards) { --rail-w: 72px; } /* same specificity as server-cards.css's 168px rule */
+  .rail.cards .pill-label, .rail.cards .srv-text, .rail.cards .dm-card-text { display: none; }
+  .rail.cards > .rail-btn.home, .rail.cards > .rail-btn.add, nav.rail.cards > .rail-btn.inbox-btn,
+  .rail.cards > .rail-btn.srv, nav.rail.cards .dm-cards > .rail-btn.dm-card { justify-content: center; padding: 0; }
+  nav.rail.cards > .home > .badge { top: -4px; right: -4px; transform: none; }
+}

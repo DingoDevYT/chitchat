@@ -50,11 +50,13 @@ export default function PostView({ post, gallery, ctx, onClose, onChange, onDele
   }, [did, last, read]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ←/→ flip through the items, Esc closes (unless you're typing or something else is open on top).
+  // The comment box takes focus when the post opens, so arrows still flip while it's empty.
   const live = useRef({})
   live.current = { go, onClose, many }
   useEffect(() => {
     const onKey = e => {
-      if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, textarea, [contenteditable]')) return
+      const field = e.target.closest?.('input, textarea, [contenteditable]')
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || (field && (e.key === 'Escape' || field.value || field.isContentEditable))) return
       if (document.querySelector('.backdrop, .lightbox, .ctx-menu, .emoji-picker')) return
       if (e.key === 'Escape') live.current.onClose()
       else if (live.current.many && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) { e.preventDefault(); live.current.go(e.key === 'ArrowLeft' ? -1 : 1) }
@@ -100,7 +102,7 @@ export default function PostView({ post, gallery, ctx, onClose, onChange, onDele
               : isVideo(it)
                 ? <Video key={it.url} a={{ url: it.url, name: it.alt || post.title }} />
                 : <button key={it.url} className="g-img" onClick={() => setLb(imgs.indexOf(it))} title={it.alt || 'Open full size'} aria-label={`Open full size${it.alt ? ': ' + it.alt : ''}`}>
-                  <img src={it.url} alt={it.alt || ''} draggable="false" />
+                  <img src={it.url} alt={it.alt || ''} draggable="false" style={{ '--ar': it.w / it.h }} />
                 </button>}
             {many && <>
               <button className="g-nav prev" onClick={() => go(-1)} aria-label="Previous"><Icon name="chevron-left" size={24} /></button>

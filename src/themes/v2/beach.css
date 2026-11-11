@@ -1,0 +1,45 @@
+/* Beach day (v2, gouache): painted static layers + slow, uneven transform/opacity loops. */
+.v2-beach-root { inset: 0; }
+.v2-beach-root .pt-canvas { left: 0; top: 0; will-change: transform; }
+.v2-beach-root .pt-pin { width: 1px; height: 1px; overflow: visible; }
+.v2-beach-row { left: 0; width: 100%; height: 30px; margin-top: -15px; }
+.v2-beach-row > svg, .v2-beach-surf > svg, .v2-beach-sheen > svg { width: 100%; height: 100%; }
+.v2-beach-lane { left: 0; width: 100%; height: 0; }
+.v2-beach-lane > * { left: 0; }
+.v2-beach-surf { left: -2%; width: 104%; }
+.v2-beach-sheen { left: 0; width: 100%; }
+.v2-beach-hole { width: 30px; height: 18px; margin: -18px 0 0 -15px; overflow: hidden; }
+.v2-beach-hole > .pt-pin { left: 15px; top: 17px; }
+/* rooms: whatever crosses the sky behind messages stays faint, and the glitter is gentler */
+.v2-beach-room .v2-beach-lane { opacity: .55; }
+.v2-beach-room .v2-beach-glint { opacity: .7; }
+
+.v2-beach-drift { animation-name: v2-beach-drift; animation-direction: alternate; }
+@keyframes v2-beach-drift { from { transform: translateX(calc(var(--x, 30px) * -1)); } to { transform: translateX(var(--x, 30px)); } }
+.v2-beach-breathe { animation-name: v2-beach-breathe; animation-direction: alternate; }
+@keyframes v2-beach-breathe { from { opacity: var(--lo, .6); } to { opacity: 1; } }
+.v2-beach-sway { animation-name: v2-beach-sway; animation-direction: alternate; }
+@keyframes v2-beach-sway { from { transform: rotate(calc(var(--r, 2deg) * -1)); } to { transform: rotate(var(--r, 2deg)); } }
+.v2-beach-bob { animation-name: v2-beach-bob; animation-direction: alternate; }
+@keyframes v2-beach-bob { from { transform: translateY(calc(var(--y, 3px) * -1)) rotate(calc(var(--r, 0deg) * -1)); } to { transform: translateY(var(--y, 3px)) rotate(var(--r, 0deg)); } }
+/* limited animation: painted frames held in turn (2 or 3 per cycle, offset by the delay) */
+.v2-beach-f2 { animation-name: v2-beach-f2; animation-timing-function: step-end; }
+@keyframes v2-beach-f2 { 0% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.v2-beach-f3 { animation-name: v2-beach-f3; animation-timing-function: step-end; }
+@keyframes v2-beach-f3 { 0% { opacity: 1; } 33.3%, 100% { opacity: 0; } }
+.v2-beach-tw { animation-name: v2-beach-tw; animation-timing-function: steps(2, jump-none); }
+@keyframes v2-beach-tw { 0%, 100% { opacity: 0; } 30% { opacity: .9; } 45% { opacity: .35; } 60% { opacity: 1; } 80% { opacity: 0; } }
+/* rare: a gull crosses in the first ~quarter of a long cycle, then the sky is empty again */
+.v2-beach-cross { animation-name: v2-beach-cross; animation-timing-function: linear; }
+@keyframes v2-beach-cross { 0% { transform: translateX(-6%); } 26%, 100% { transform: translateX(106%); } }
+.v2-beach-flap { animation-name: v2-beach-flap; animation-timing-function: step-end; }
+@keyframes v2-beach-flap { 0%, 18%, 36%, 72% { opacity: 1; } 9%, 27%, 45%, 81% { opacity: 0; } }
+.v2-beach-flap.b { animation-name: v2-beach-flap-b; }
+@keyframes v2-beach-flap-b { 0%, 18%, 36%, 72% { opacity: 0; } 9%, 27%, 45%, 81% { opacity: 1; } }
+/* the shore wash runs up the sand, lingers, and slides back */
+.v2-beach-surf { animation-name: v2-beach-surf; }
+@keyframes v2-beach-surf { 0%, 100% { transform: translateY(-5px); opacity: .85; } 42% { transform: translateY(9px); opacity: 1; } 60% { transform: translateY(7px); opacity: .9; } }
+.v2-beach-sheen { animation-name: v2-beach-sheen; }
+@keyframes v2-beach-sheen { 0%, 40%, 100% { opacity: 0; } 62% { opacity: .9; } 85% { opacity: .2; } }
+.v2-beach-peek { animation-name: v2-beach-peek; }
+@keyframes v2-beach-peek { 0%, 82% { transform: translateY(16px); } 85%, 90% { transform: none; } 91% { transform: translateY(3px); } 92.5%, 95% { transform: none; } 98%, 100% { transform: translateY(16px); } }

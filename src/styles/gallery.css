@@ -51,6 +51,11 @@ body .g-author .name { color: #fff !important; filter: none !important; }
 .g-empty b { color: var(--text); font: 600 17px var(--font-head); }
 
 /* ── one post ── */
+/* the artwork gets the room: the member list steps aside while a post is open */
+@media (min-width: 901px) {
+  body .app.with-members:has(.g-post) { grid-template-columns: 72px 248px 1fr; }
+  body .app:has(.g-post) > .members { display: none; }
+}
 .g-post {
   position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; min-height: 0;
   background: var(--paper), var(--bg);
@@ -62,7 +67,8 @@ body .g-author .name { color: #fff !important; filter: none !important; }
 .g-viewer { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 14px; background: color-mix(in srgb, #000 22%, var(--bg)); }
 .g-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; container-type: size; touch-action: pan-y; }
 .g-img, .g-spoiler-gate { display: grid; place-items: center; width: 100%; height: 100%; padding: 0; cursor: zoom-in; }
-.g-img img { max-width: 100cqw; max-height: 100cqh; object-fit: contain; border-radius: var(--r); box-shadow: var(--shadow); }
+/* sized from the stored w/h before it loads, so flipping never shows a blank or jumps */
+.g-img img { width: min(100cqw, calc(100cqh * var(--ar, 1))); aspect-ratio: var(--ar, 1); height: auto; object-fit: contain; border-radius: var(--r); box-shadow: var(--shadow); background: var(--bg-2); }
 .g-spoiler-gate { position: relative; overflow: hidden; border-radius: var(--r); cursor: pointer; }
 .g-spoiler-gate img { max-width: 100cqw; max-height: 100cqh; filter: blur(28px); opacity: .7; }
 body .g-stage .m-vid { width: min(100cqw, calc(100cqh * var(--ar))); max-height: 100cqh; }

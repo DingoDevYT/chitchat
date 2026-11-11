@@ -4,6 +4,7 @@ import App from './App'
 import { startLook } from './lib/look'
 import { uiSound } from './lib/animalese'
 import './styles.css'
+import './styles/responsive.css' // last: window-size fixes override component and base styles
 
 // Stash invite codes so they survive sign-up / OAuth redirects.
 const invite = location.hash.match(/^#\/invite\/([\w-]+)/)
