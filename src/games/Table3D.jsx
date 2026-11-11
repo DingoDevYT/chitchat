@@ -16,9 +16,9 @@ const CW = 0.56, CH = 0.8 // card size in world units
 
 // ── per-game framing ──
 const LAYOUT = {
-  snack: { shape: 'round', R: 2.35, felt: '#c7836a', seatR: 3.2, cam: [0, 5.4, 6.9], look: [0, -0.2, 0.5], H: 2.0 },
-  highcard: { shape: 'round', R: 2.2, felt: '#3f6b5c', seatR: 3.0, cam: [0, 5.0, 6.4], look: [0, -0.2, 0.5], H: 1.9 },
-  poker: { shape: 'round', R: 2.5, felt: '#2f6b4f', seatR: 3.3, cam: [0, 4.6, 6.6], look: [0, -0.1, 0.4], H: 2.1 },
+  snack: { shape: 'round', R: 2.35, felt: '#c7836a', seatR: 3.2, cam: [0, 6.2, 7.4], look: [0, -0.7, 0.2], H: 2.0 },
+  highcard: { shape: 'round', R: 2.2, felt: '#3f6b5c', seatR: 3.0, cam: [0, 5.8, 7.0], look: [0, -0.7, 0.2], H: 1.9 },
+  poker: { shape: 'round', R: 2.5, felt: '#2f6b4f', seatR: 3.3, cam: [0, 5.6, 7.6], look: [0, -0.6, 0.2], H: 2.1 },
   property: { shape: 'square', R: 3.1, felt: '#d9c7a3', seatR: 4.0, cam: [0, 8.4, 6.4], look: [0, 0, 0.5], H: 2.3 },
 }
 
@@ -234,7 +234,7 @@ function Chair({ x, z, a }) {
 const hashRot = id => (((id * 2654435761) >>> 0) % 1000) / 1000 - 0.5
 function SnackScene({ v, seats, meId }) {
   const [pile, setPile] = useState([])
-  useEffect(() => { setPile(p => (p.at(-1)?.id === v.top ? p : [...p.slice(-5), { id: v.top, from: v.last?.type === 'play' ? v.last.pid : null }])) }, [v.top]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setPile(p => (p.at(-1)?.id === v.top ? p : [...p.slice(-5), { id: v.top, n: v.moves, from: v.last?.type === 'play' ? v.last.pid : null }])) }, [v.top]) // eslint-disable-line react-hooks/exhaustive-deps
   const deckPos = [-1.0, 0.03 + Math.min(v.deck, 60) * 0.004, -0.35]
   const seatOf = pid => seats.find(s => s.pid === pid)
   const ring = useRef()
@@ -246,7 +246,7 @@ function SnackScene({ v, seats, meId }) {
       <CardMesh kind="snack" id={null} up={false} pos={[deckPos[0], deckPos[1] + 0.01, deckPos[2]]} />
       {pile.map((p, i) => {
         const s = p.from && seatOf(p.from)
-        return <CardMesh key={p.id + '-' + i} kind="snack" id={p.id} up pos={[0.2 + hashRot(p.id) * 0.2, 0.03 + i * 0.013, 0.1 + hashRot(p.id + 7) * 0.2]} rot={hashRot(p.id) * 1.2}
+        return <CardMesh key={p.id + '-' + p.n} kind="snack" id={p.id} up pos={[0.2 + hashRot(p.id) * 0.2, 0.03 + i * 0.013, 0.1 + hashRot(p.id + 7) * 0.2]} rot={hashRot(p.id) * 1.2}
           from={s ? [s.x * 0.6, 0.6, s.z * 0.6] : deckPos} speed={5} />
       })}
       <group ref={ring} position={[0.1, 0.04, 0.05]}>
@@ -518,13 +518,13 @@ export default function Table3D({ game, v, people, meIdx, me, turnPid, info, win
         <Lights layout={layout} />
         <Room layout={layout} />
         <TableMesh layout={layout} />
-        {seats.map(s => <Chair key={s.pid} x={s.x * 1.08} z={s.z * 1.08} a={s.a} />)}
+        {seats.filter(s => s.pid !== me).map(s => <Chair key={s.pid} x={s.x * 1.08} z={s.z * 1.08} a={s.a} />)}
         {turnSeat && <TurnGlow x={turnSeat.x * 0.78} z={turnSeat.z * 0.78} color={turnSeat.color} />}
         {v && <Scene v={v} seats={seats} meId={me} />}
         <Projector seats={seats} els={els} H={layout.H} />
       </Canvas>
       {seats.map((p, i) => (
-        <Person key={p.pid} p={p} elRef={el => { els.current[i] = el }} turn={p.pid === turnPid} info={info(p.pid)} me={p.pid === me} won={winners?.includes(p.pid)} />
+        <Person key={p.pid} p={p} far={p.z < -0.3} elRef={el => { els.current[i] = el }} turn={p.pid === turnPid} info={info(p.pid)} me={p.pid === me} won={winners?.includes(p.pid)} />
       ))}
     </div>
   )

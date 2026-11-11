@@ -33,9 +33,9 @@ function BotStandee({ size, thinking, level }) {
 
 // One person at the table: their live PNGtuber avatar (talking, expressions, blinking, webcam), speech bubble and nameplate.
 // elRef lets the 3D table move it every frame; style places it in the flat table.
-export function Person({ p, turn, info, me, elRef, style, won }) {
+export function Person({ p, turn, info, me, elRef, style, won, far }) {
   return (
-    <div ref={elRef} className={`gp${turn ? ' turn' : ''}${me ? ' me' : ''}${won ? ' won' : ''}${p.gone ? ' gone' : ''}`} style={{ '--seat': p.color, ...style }}>
+    <div ref={elRef} className={`gp${turn ? ' turn' : ''}${me ? ' me' : ''}${won ? ' won' : ''}${far ? ' far' : ''}${p.gone ? ' gone' : ''}`} style={{ '--seat': p.color, ...style }}>
       <div className="gp-body">
         {p.user_id && <Bubble id={p.user_id} />}
         {p.user_id ? <Avatar id={p.user_id} size={BASE} full mode="stage" vbadge /> : <BotStandee size={BASE} thinking={turn} level={p.bot} />}

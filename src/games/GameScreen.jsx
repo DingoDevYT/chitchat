@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { GAMES } from './registry.js'
 import { ensureProfiles, profiles } from '../lib/store'
 import { ask } from '../Dialog'
+import { uiSound } from '../lib/animalese'
 import Icon from '../icons/Icon'
 import { Card } from './Card'
 import { LEVEL_NAMES, Person, nameOf, seatList } from './People'
@@ -91,6 +92,9 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
     return () => removeEventListener('keydown', kd)
   }, [playing, turnPid, meId, UI, game.version]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A little blip (the UI-sound setting applies) when it becomes your turn.
+  useEffect(() => { if (playing && turnPid === meId) uiSound('got') }, [playing, turnPid === meId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Screen readers hear every move and whose turn it is.
   const said = v && !lobby ? [UI.lastText(v, nm), UI.banner(v, nm, meId)].filter(Boolean).join(' ') : ''
   const close = async () => { if (await ask({ text: `Close the ${R.meta.name} table for everyone?`, confirm: 'Close table', danger: true })) run('leave') }
@@ -105,7 +109,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
       <div className="gs-top">
         <span className="gs-title"><Icon name="cards" size={18} /> {R.meta.name}</span>
-        {v && !lobby && <span className={`gs-banner${turnPid === meId ? ' mine' : ''}`}>{UI.banner(v, nm, meId)}</span>}
+        {v && !lobby && <span key={turnPid === meId ? 'mine' : 'other'} className={`gs-banner${turnPid === meId ? ' mine' : ''}`}>{UI.banner(v, nm, meId)}</span>}
         <span className="spacer" />
         <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Back to the stadium screen' : 'Full view'} aria-label={full ? 'Back to the stadium screen' : 'Full view'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
         {host && <button className="icon-btn gs-btn" onClick={close} title="Close table" aria-label="Close table"><Icon name="close" size={18} /></button>}

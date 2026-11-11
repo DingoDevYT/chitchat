@@ -504,13 +504,14 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
     me: id === meId, focused: id === main && !tiles, video: e.currentTarget.querySelector('video'),
     focus: () => { setPick(id); if (tiles) setPref('streamLayout', 'focus') }, hide: () => setHidden(h => [...h, id]),
   }), { separator: true }, ...viewItems()])
-  const others = list.filter(id => id !== meId)
-  const crowd = view !== 'list' && box.w ? fitCrowd(others.length, box.w, box.h * 0.5, list.includes(meId)) : null
-  const seat = id => ({ id, live: lives.includes(id), face: joined && faces[id] })
-  const theme = useRoomTheme(channel, app.ctx?.server)
   const gamesOn = GAMES_ON && channel.games_enabled !== false
   const table = useTable(channel.id, meId, gamesOn)
   const g = gamesOn && table.game
+  const atTable = new Set(g ? table.seats.map(s => s.user_id) : []) // seated players walk from the crowd to the table
+  const others = list.filter(id => id !== meId && !atTable.has(id))
+  const crowd = view !== 'list' && box.w ? fitCrowd(others.length, box.w, box.h * 0.5, list.includes(meId) && !atTable.has(meId)) : null
+  const seat = id => ({ id, live: lives.includes(id), face: joined && faces[id] })
+  const theme = useRoomTheme(channel, app.ctx?.server)
   const gameFull = prefs.use(s => !!g && s.gameView?.[g.game] === 'full') // screen or full view, per person per game
   const pickGame = e => openMenu(e, GAME_LIST.map(([id, label]) => ({ label, icon: 'cards', onClick: () => createGame(channel.id, id).then(r => r && table.refresh()) })))
 

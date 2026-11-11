@@ -144,3 +144,11 @@ body .gf-mid b { font-size: 22px; color: #c86f5a; } body .gf-mid em { font-size:
   body .gs-last, body .gs-confetti i, body .btn.bite, body .gp.won .gp-body { animation: none; }
   body .gs-last { opacity: 1; }
 }
+
+/* people across the table: nameplate over the head, so it never covers their cards */
+body .gp.far .gp-plate { top: auto; bottom: calc(100% + 4px); transform-origin: 50% 100%; }
+body .gp.far .stage-bubble { bottom: calc(100% + 90px); }
+
+body .gs-banner.mine { animation: gs-pop .45s var(--spring); }
+@keyframes gs-pop { 0% { transform: scale(.7); } 60% { transform: scale(1.12); } }
+
