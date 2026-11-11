@@ -1,2 +1,3 @@
 .icon { display: inline-block; vertical-align: -0.22em; flex: none; overflow: visible; }
 button > .icon:only-child, a > .icon:only-child { vertical-align: middle; }
+.ch-icon > .icon, .lock > .icon { display: block; margin: 0 auto; } /* glyph slots: centre the drawing, not a text baseline */

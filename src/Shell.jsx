@@ -344,7 +344,7 @@ export default function Shell({ userId }) {
   Object.assign(app, { ctx, members, channels })
 
   return (
-    <div className={`app${navOpen ? ' nav-open' : ''}${server && showMembers ? ' with-members' : ''}`}>
+    <div className={`app${navOpen ? ' nav-open' : ''}${server && showMembers && channel?.kind !== 'voice' ? ' with-members' : ''}`}>
       <ServerRail servers={servers} serverId={route.serverId} go={go} dms={dms} dmBadge={unreadDMs + incoming} unread={unreadServers}
         railDrag={railDrag} onAdd={() => setModal({ type: 'createJoin' })} channels={channels} mentions={serverMentions} dmCards={dmCards} userId={userId} />
 
@@ -366,7 +366,8 @@ export default function Shell({ userId }) {
         {thread && channel?.kind !== 'voice' && <ThreadPanel key={thread.id} thread={thread} ctx={ctx} onClose={closeThread} />}
       </main>
 
-      {server && showMembers && <Members members={members} ctx={ctx} />}
+      {/* stadiums are full-width: the crowd is the member list */}
+      {server && showMembers && channel?.kind !== 'voice' && <Members members={members} ctx={ctx} />}
 
       {voice && <VoiceConnection key={voice.id} channel={voice} me={me} vstate={vstate} setVstate={setVstate}
         onError={msg => { toast(msg); joinVoice(null) }} onCall={onCallSignal} />}

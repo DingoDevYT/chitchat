@@ -9,7 +9,8 @@ const narrow = () => matchMedia('(max-width: 720px)').matches
 // A stadium's stage (children) with its text chat beside it: side panel on desktop, bottom sheet on phones.
 // The chat stays mounted while hidden so typing dots and speech bubbles keep floating over the stage.
 export default function StadiumChat({ channel, ctx, children }) {
-  const [open, setOpen] = useState(() => !narrow())
+  // always starts closed: the stage is the point; the Chat button opens it
+  const [open, setOpen] = useState(false)
   useEffect(() => clearBubbles, [channel.id])
   return (
     <div className={`stadium-split${open ? ' chat-open' : ''}`}>

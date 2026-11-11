@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { prefs } from '../lib/store'
 import { categories } from '../lib/categories'
 import { isScene, normIntensity, resolveTheme, themeMeta } from '../lib/themes'
+import { GradientWash } from './paint'
 import '../styles/themes.css'
 
 // Each scene is its own chunk, fetched the first time something shows it.
@@ -42,7 +43,9 @@ export default function ThemeBackdrop({ theme, variant = 'room', intensity }) {
     <div className={`theme-backdrop tb-${theme} tb-${variant} tb-${level}${meta.dark ? ' tb-dark' : ' tb-light'}`} aria-hidden="true"
       style={c ? { '--c1': c[0], '--c2': c[1], '--c3': c[2] } : undefined}>
       {Scene && <Suspense fallback={null}><div className="tb-scene"><Scene variant={variant} /></div></Suspense>}
+      {theme === 'gradient' && <div className="tb-scene"><GradientWash /></div>}
       <div className="tb-scrim" />
+      <div className="tb-grain" />
     </div>
   )
 }

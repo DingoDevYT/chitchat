@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import { prefs, profiles, setTalking, useProfile } from './lib/store'
+import { prefs, profiles, setTalking, useNickname, useProfile } from './lib/store'
 import { blip } from './lib/animalese'
 import { mediaLinks, summarizeReactions } from './lib/chat'
 import { mentionsMe } from './lib/cues'
@@ -89,10 +89,11 @@ export function flashTo(id) {
 
 function ReplyPreview({ m }) {
   const author = useProfile(m?.author_id)
+  const nick = useNickname(app.ctx?.server?.id, m?.author_id)
   if (!m) return <div className="reply-ref muted small"><Icon name="reply" size={14} /> Original message unavailable</div>
   return (
     <button className="reply-ref small" onClick={() => flashTo(m.id)}>
-      <Icon name="reply" size={14} /> <Avatar id={m.author_id} size={16} /> <b style={{ color: author?.color }}>{author?.display_name || author?.username}</b>
+      <Icon name="reply" size={14} /> <Avatar id={m.author_id} size={16} /> <b style={{ color: author?.color }}>{nick || author?.display_name || author?.username}</b>
       <span className="muted">{m.content.slice(0, 80) || <><Icon name="paperclip" size={13} /> attachment</>}</span>
     </button>
   )

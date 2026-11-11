@@ -90,6 +90,9 @@ export const Glaze = ({ r, fill, o = .5, n = 3, f }) => (
 
 const r2 = n => Math.round(n * 100) / 100
 
+// Inline style for an animated element: duration d (s) and a negative delay dl, so a frozen frame is already mid-scene.
+export const anim = (d, dl = 0, extra) => ({ '--d': `${d}s`, '--dl': `${-Math.abs(dl)}s`, ...extra })
+
 // Silhouette through hand-placed [x, y] points (percent space), closed down past the bottom edge.
 // smooth: Catmull-Rom curves (hills); otherwise straight runs (peaks, rooftops).
 export function ridge(pts, smooth = true, base = 102) {
@@ -115,7 +118,7 @@ export function band(y0, y1, w = 2, t = 0) {
 export function GradientWash() {
   const p = usePaint(11)
   return (
-    <Canvas p={p} className="tb-scene-static">
+    <Canvas p={p}>
       <g style={{ color: 'var(--accent)' }} opacity=".2"><Wash f={p.sky} fill="currentColor" d="M-6 -4H72C60 6 48 10 40 20S20 40 -6 46Z" /></g>
       <g style={{ color: 'var(--mint)' }} opacity=".16"><Wash f={p.sky} fill="currentColor" d="M106 104H30C44 96 56 92 64 82S86 66 106 60Z" /></g>
       <g style={{ color: 'var(--accent)' }} opacity=".08"><Wash f={p.haze} fill="currentColor" d={band(52, 64, 3, 1)} /></g>

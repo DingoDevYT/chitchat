@@ -1,5 +1,6 @@
-/* Animated themes (src/themes/): layered scenes behind room messages and the stadium.
-   Motion is transform/opacity only. --d/--dl (duration/delay) are set inline and scaled by --k (Subtle = slower). */
+/* Animated themes (src/themes/): soft-gouache scenes behind room messages and the stadium.
+   Painted static layers (.pt-canvas) are composited once; motion is slow transform/opacity on small separate elements.
+   --d/--dl (duration/delay) are set inline and scaled by --k (Subtle = slower). */
 
 /* ── container ── */
 .theme-backdrop {
@@ -8,26 +9,35 @@
   position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; contain: strict;
   background: linear-gradient(180deg, var(--c1, var(--bg)), var(--c2, var(--bg)) 55%, var(--c3, var(--bg)));
 }
-.tb-scene, .tb-scrim { position: absolute; inset: 0; }
-.tb-scene * { position: absolute; }
-.tb-scene svg { display: block; overflow: visible; }
-/* only animated SVG parts pivot on themselves (zero specificity so a scene can set its own origin) */
-:where(.tb-scene svg .a) { transform-box: fill-box; transform-origin: center; }
+.tb-scene, .tb-scrim, .tb-grain { position: absolute; inset: 0; }
+.tb-scene > *, .tb-scene div, .pt-pin, .pt-canvas { position: absolute; }
+/* own compositor layer: the filtered painting rasterises once, never again for scrolling or nearby motion */
+.pt-canvas { left: 0; top: 0; will-change: transform; }
+.pt-pin { width: 1px; height: 1px; overflow: visible; }
+.pt-col { top: 0; width: 0; height: 100%; }
+.pt-lane { left: 0; width: 100%; height: 0; }
 .tb-subtle { --k: 1.9; }
 .tb-subtle .tb-scene { opacity: .6; }
+
+/* Paper grain shared by every theme (fine tooth + broad mottling), so they sit on the same paper. */
+.tb-grain {
+  opacity: .075;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='2.4 0 0 0 -.7 2.4 0 0 0 -.72 2.4 0 0 0 -.76 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='600'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.009' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1.6 0 0 0 -.3 1.6 0 0 0 -.32 1.6 0 0 0 -.36 0 0 0 0 .6'/%3E%3C/filter%3E%3Crect width='600' height='600' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.tb-none .tb-grain { display: none; }
 
 /* Rooms: a wash of --bg over the scene keeps message text (and muted timestamps) readable in both colour schemes.
    A theme whose brightness fights the colour scheme gets a stronger scrim. */
 .tb-room .tb-scrim { background: color-mix(in srgb, var(--bg) var(--scrim), transparent); }
-.tb-room.tb-dark { --scrim: 52%; }
-.tb-room.tb-light { --scrim: 72%; }
-:root[data-theme="day"] .tb-room.tb-dark { --scrim: 74%; }
-:root[data-theme="day"] .tb-room.tb-light { --scrim: 48%; }
+.tb-room.tb-dark { --scrim: 50%; }
+.tb-room.tb-light { --scrim: 70%; }
+:root[data-theme="day"] .tb-room.tb-dark { --scrim: 72%; }
+:root[data-theme="day"] .tb-room.tb-light { --scrim: 46%; }
 .tb-room.tb-off { --scrim: 60%; }
 .tb-room { --sky: 96px; }
 .tb-stadium { --sky: 56px; }
-/* things that cross the middle of the room (behind text) stay faint there */
-.tb-room .tb-crossing, .tb-room .frs-path { opacity: .55; }
 
 /* Stadium: the scene shows through the idle screen; just a band under the header for its title. */
 body .stage { isolation: isolate; }
@@ -41,16 +51,11 @@ body .stage:has(> .theme-backdrop) .stage-idle { text-shadow: 0 2px 12px #000a, 
 body .stage:has(> .theme-backdrop) .stage-idle .muted { color: #e6dcef; }
 body .stage:has(> .theme-backdrop) .stage-crowd > .muted { color: var(--text); padding: 2px 12px; border-radius: 999px; background: color-mix(in srgb, var(--bg) 80%, transparent); }
 
-/* Soft gradient: the "boring" option, follows the accent colour. */
-.theme-backdrop.tb-gradient {
-  background:
-    radial-gradient(120% 80% at 0% calc(var(--sky) * 1.4), color-mix(in srgb, var(--accent) 26%, transparent), transparent 62%),
-    radial-gradient(110% 70% at 100% 100%, color-mix(in srgb, var(--mint) 20%, transparent), transparent 60%),
-    var(--bg);
-}
+/* Soft gradient: a painted wash of the accent colour over the page colour (paint.jsx GradientWash). */
+.theme-backdrop.tb-gradient { background: var(--bg); }
 .tb-gradient .tb-scrim { display: none; }
 
-/* ── motion primitives ── */
+/* ── motion primitives (slow, uneven, never in sync) ── */
 :where(.theme-backdrop .a) {
   animation-duration: calc(var(--d, 6s) * var(--k)); animation-delay: calc(var(--dl, 0s) * var(--k));
   animation-iteration-count: infinite; animation-timing-function: ease-in-out; animation-fill-mode: both;
@@ -59,37 +64,23 @@ body .stage:has(> .theme-backdrop) .stage-crowd > .muted { color: var(--text); p
 body.tb-hidden .theme-backdrop *, .tb-paused * { animation-play-state: paused !important; }
 @media (prefers-reduced-motion: reduce) { .theme-backdrop * { animation-play-state: paused !important; } }
 
-.tb-plane { left: 0; top: 0; width: 100%; height: 200%; }
-.tb-plane.tb-left, .tb-plane.tb-right { width: 200%; height: 100%; }
-.tb-plane > * { position: absolute; }
-.tb-down { animation-name: tb-down; animation-timing-function: linear; }
-.tb-up { animation-name: tb-up; animation-timing-function: linear; }
-.tb-left { animation-name: tb-left; animation-timing-function: linear; }
-.tb-right { animation-name: tb-right; animation-timing-function: linear; }
-@keyframes tb-down { from { transform: translateY(-50%); } to { transform: none; } }
-@keyframes tb-up { from { transform: none; } to { transform: translateY(-50%); } }
-@keyframes tb-left { from { transform: none; } to { transform: translateX(-50%); } }
-@keyframes tb-right { from { transform: translateX(-50%); } to { transform: none; } }
-.tb-strip { left: 0; width: 200%; }
-
-/* a full-width lane something crosses (gulls, fish): the child sits at its left edge */
-.tb-crossing { left: 0; width: 100%; height: 0; }
-.tb-crossing > * { position: absolute; left: 0; }
-.tb-cross { animation-name: tb-cross; animation-timing-function: linear; }
-.tb-cross-back { animation-name: tb-cross-back; animation-timing-function: linear; }
-@keyframes tb-cross { from { transform: translateX(-12%); } to { transform: translateX(108%); } }
-@keyframes tb-cross-back { from { transform: translateX(108%); } to { transform: translateX(-12%); } }
-
-.tb-tw { animation-name: tb-tw; }
-@keyframes tb-tw { 0%, 100% { opacity: .1; } 50% { opacity: 1; } }
-.tb-bob { animation-name: tb-bob; animation-direction: alternate; }
-@keyframes tb-bob { from { transform: translateY(-5px); } to { transform: translateY(5px); } }
-.tb-pulse { animation-name: tb-pulse; animation-direction: alternate; }
-@keyframes tb-pulse { from { transform: scale(.96); opacity: .9; } to { transform: scale(1.04); opacity: 1; } }
-.tb-sway { animation-name: tb-sway; animation-direction: alternate; transform-origin: 50% 100%; }
-@keyframes tb-sway { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
-.tb-swayx { animation-name: tb-swayx; animation-direction: alternate; }
-@keyframes tb-swayx { from { transform: translateX(-24px); } to { transform: translateX(24px); } }
+.pt-drift { animation-name: pt-drift; animation-direction: alternate; }
+@keyframes pt-drift { from { transform: translateX(calc(var(--x, 30px) * -1)); } to { transform: translateX(var(--x, 30px)); } }
+.pt-breathe { animation-name: pt-breathe; animation-direction: alternate; }
+@keyframes pt-breathe { from { opacity: var(--lo, .6); } to { opacity: 1; } }
+.pt-sway { animation-name: pt-sway; animation-direction: alternate; }
+@keyframes pt-sway { from { transform: rotate(calc(var(--r, 2deg) * -1)); } to { transform: rotate(var(--r, 2deg)); } }
+.pt-swing { animation-name: pt-swing; animation-direction: alternate; }
+@keyframes pt-swing { from { transform: translateX(calc(var(--x, 12px) * -1)) rotate(calc(var(--r, 0deg) * -1)); } to { transform: translateX(var(--x, 12px)) rotate(var(--r, 0deg)); } }
+.pt-fall { animation-name: pt-fall; animation-timing-function: linear; }
+@keyframes pt-fall { from { transform: translateY(-5%); } to { transform: translateY(105%); } }
+.pt-tumble { animation-name: pt-tumble; animation-timing-function: linear; }
+@keyframes pt-tumble { 0% { transform: rotate(0) scaleX(1); } 25% { transform: rotate(80deg) scaleX(.35); } 50% { transform: rotate(175deg) scaleX(1); } 75% { transform: rotate(265deg) scaleX(.5); } 100% { transform: rotate(360deg) scaleX(1); } }
+/* small lights flicker in a few held steps rather than a smooth tween */
+.pt-twinkle { animation-name: pt-twinkle; animation-timing-function: steps(2, jump-none); }
+@keyframes pt-twinkle { 0%, 100% { opacity: 1; } 30% { opacity: .45; } 45% { opacity: .85; } 70% { opacity: .3; } }
+.pt-rise { animation-name: pt-rise; animation-timing-function: linear; }
+@keyframes pt-rise { 0% { transform: translateY(0); opacity: 0; } 8%, 80% { opacity: var(--o, 1); } 100% { transform: translateY(-100%); opacity: 0; } }
 
 /* ── picker ── */
 .theme-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
@@ -110,200 +101,51 @@ body.tb-hidden .theme-backdrop *, .tb-paused * { animation-play-state: paused !i
 .theme-opt-sub { font-size: 11px; color: var(--muted); margin-top: -4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .theme-modal .theme-picker { max-height: min(60vh, 520px); overflow-y: auto; padding: 4px; }
 
-/* ════════════ Beach day ════════════ */
-.bch-sun { right: 12%; top: calc(8% + var(--sky)); width: 84px; height: 84px; border-radius: 50%;
-  background: radial-gradient(circle, #fffdf0 0 48%, #ffe88f 62%, #ffd96b 70%, transparent 71%);
-  box-shadow: 0 0 70px 26px #fff4b866; }
-.bch-clouds { height: 34%; }
-.bch-cloud { display: block; filter: drop-shadow(0 4px 0 #b6dcec); }
-.bch-gull { display: block; animation-name: bch-flap; animation-direction: alternate; }
-@keyframes bch-flap { from { transform: scaleY(1); } to { transform: scaleY(.35) translateY(3px); } }
-.bch-sea { left: 0; right: 0; top: 47%; bottom: 23%; overflow: hidden;
-  background: linear-gradient(#2e97c4, #48b4d6 45%, #6ccbdf); box-shadow: inset 0 2px 0 #ffffff70; }
-.bch-glint { height: 3px; border-radius: 3px; background: #fff; }
-.bch-roll { bottom: -2px; height: 40px; }
-.bch-sand { left: 0; right: 0; bottom: 0; height: 23%;
-  background:
-    radial-gradient(circle, #c9a265 1.1px, transparent 1.7px) 0 0 / 23px 19px,
-    radial-gradient(circle, #fff6dc 1px, transparent 1.6px) 9px 7px / 31px 27px,
-    radial-gradient(circle, #d8b277 .9px, transparent 1.4px) 4px 13px / 17px 29px,
-    linear-gradient(#e6c58a, #f1d79f 22%, #f6e1b0); }
-.bch-wash, .bch-foam { left: 0; right: 0; top: -12px; height: 30px; animation-name: bch-wash; }
-.bch-foam { animation-name: bch-foam; top: 10px; }
-.bch-wash > svg, .bch-foam > svg { position: absolute; }
-@keyframes bch-wash { 0%, 100% { transform: translateY(-4px); } 45% { transform: translateY(16px); } }
-@keyframes bch-foam { 0%, 30% { transform: translateY(-6px); opacity: 0; } 50% { transform: translateY(12px); opacity: 1; } 100% { transform: translateY(18px); opacity: 0; } }
-.bch-star { width: 34px; left: 76%; top: 46%; transform: rotate(14deg); }
-.bch-shell { left: 58%; top: 70%; width: 18px; height: 14px; border-radius: 50% 50% 4px 4px; transform: rotate(-12deg);
-  background: repeating-linear-gradient(90deg, #ffd9c7 0 3px, #f3b9a0 3px 5px); }
-.bch-crab-hole { left: 18%; top: 22%; width: 64px; height: 44px; }
-.bch-hole { position: absolute; left: 10px; right: 10px; bottom: -6px; height: 12px; border-radius: 50%; background: #b98f55; box-shadow: inset 0 3px 3px #8a6534; }
-.bch-crab-clip { position: absolute; inset: 0; overflow: hidden; }
-.bch-crab { width: 64px; height: 44px; animation-name: bch-peek; animation-timing-function: cubic-bezier(.34, 1.4, .64, 1); }
-@keyframes bch-peek { 0%, 38% { transform: translateY(105%); } 46%, 52% { transform: translateY(0); } 55% { transform: translateY(6%); } 58%, 70% { transform: translateY(0); } 78%, 100% { transform: translateY(105%); } }
-.bch-claw { animation-name: bch-snap; animation-direction: alternate; transform-origin: 30% 90%; }
-.bch-claw.r { transform-origin: 70% 90%; }
-@keyframes bch-snap { from { transform: rotate(-8deg); } to { transform: rotate(10deg); } }
-.bch-eye { animation-name: bch-look; }
-@keyframes bch-look { 0%, 40% { transform: translateX(-1px); } 50%, 90% { transform: translateX(1.2px); } 100% { transform: translateX(-1px); } }
+/* ════════════ scene details ════════════ */
+/* Beach: the shore wash breathes in and out; the crab peeks out of its hole now and then */
+.bch-surf { left: 0; top: 76.5%; width: 100%; height: 6%; animation-name: bch-surf; animation-direction: alternate; }
+@keyframes bch-surf { from { transform: translateY(-3px); opacity: .55; } to { transform: translateY(9px); opacity: 1; } }
+.bch-crab { width: 64px; height: 44px; margin: -42px 0 0 -32px; overflow: hidden; }
+.bch-crab > .pt-pin { left: 32px; top: 42px; animation-name: bch-peek; }
+@keyframes bch-peek { 0%, 84% { transform: translateY(46px); } 87%, 91% { transform: none; } 92% { transform: translateY(5px); } 93.5%, 96% { transform: none; } 98.5%, 100% { transform: translateY(46px); } }
 
-/* ════════════ Starry night ════════════ */
-.ngt-dust { border-radius: 50%; background: #fff; }
-.ngt-star { width: 3px; height: 3px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px 1px #fff8; }
-.ngt-sparkle { animation-name: ngt-sparkle; }
-@keyframes ngt-sparkle { 0%, 100% { transform: scale(.35) rotate(0); opacity: .25; } 50% { transform: scale(1) rotate(45deg); opacity: 1; } }
-.ngt-moon-glow { left: calc(13% - 70px); top: calc(9% - 70px + var(--sky)); width: 210px; height: 210px; border-radius: 50%;
-  background: radial-gradient(circle, #fff1c455 0, #c9b8ff22 45%, transparent 70%); }
-.ngt-moon { left: 13%; top: calc(9% + var(--sky)); width: 70px; height: 70px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #fffaf0, #f6e6bb 70%, #e9d29a); box-shadow: 0 0 24px #fff1c488; }
-.ngt-moon i { border-radius: 50%; background: #e2cb93aa; }
-.ngt-moon i:nth-child(1) { left: 18px; top: 34px; width: 14px; height: 14px; }
-.ngt-moon i:nth-child(2) { left: 40px; top: 16px; width: 9px; height: 9px; }
-.ngt-moon i:nth-child(3) { left: 44px; top: 44px; width: 7px; height: 7px; }
-.ngt-wisps { height: 46%; }
-.ngt-wisp { height: 16px; border-radius: 999px; background: linear-gradient(90deg, transparent, #d8d2ff, transparent); }
-.ngt-shoot { width: 130px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, #fff, #fff0 90%); box-shadow: 0 0 6px #fff8;
-  animation-name: ngt-shoot; animation-timing-function: ease-out; opacity: 0; }
-@keyframes ngt-shoot { 0% { opacity: 0; transform: rotate(-28deg) translateX(0); } 1% { opacity: 1; } 6% { opacity: 0; transform: rotate(-28deg) translateX(-380px); } 100% { opacity: 0; transform: rotate(-28deg) translateX(-380px); } }
-.ngt-hills { left: 0; bottom: 0; width: 100%; height: 24%; }
-.ngt-cabin { left: 68%; bottom: calc(24% * 120 / 220); width: 84px; }
-.ngt-window { animation-name: tb-tw; animation-direction: alternate; filter: drop-shadow(0 0 6px #ffcf6b); }
-.tb-night .ngt-window { animation-name: ngt-flicker; }
-@keyframes ngt-flicker { 0%, 100% { opacity: 1; } 40% { opacity: .82; } 60% { opacity: .95; } 75% { opacity: .78; } }
-.ngt-pine { bottom: 2%; }
+/* Starry night: a shooting star, rarely */
+.ngt-shoot { transform: rotate(-17deg); }
+.ngt-shoot > .pt-pin { animation-name: ngt-shoot; animation-timing-function: ease-out; }
+@keyframes ngt-shoot { 0% { transform: none; opacity: 0; } .5% { opacity: .9; } 2.4%, 100% { transform: translateX(-300px); opacity: 0; } }
 
-/* ════════════ Rainy window ════════════ */
-.rn-city { inset: 0; }
-.rn-bokeh { border-radius: 50%; transform: translate(-50%, -50%);
-  background: radial-gradient(circle, color-mix(in srgb, var(--c) 70%, transparent) 0, color-mix(in srgb, var(--c) 35%, transparent) 45%, transparent 70%);
-  animation-name: rn-glow; animation-direction: alternate; }
-@keyframes rn-glow { from { opacity: .35; transform: translate(-50%, -50%) scale(.92); } to { opacity: .9; transform: translate(-50%, -50%) scale(1.06); } }
-.rn-streaks > i { width: 1.5px; border-radius: 2px; background: linear-gradient(#cfe3ff00, #cfe3ffaa); transform: rotate(8deg); }
-.rn-streaks.far { opacity: .45; }
-.rn-streaks.near { opacity: .7; }
-.rn-bead { border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffffffcc 0 18%, #c8dcff33 40%, #0b142233 75%);
-  box-shadow: 0 1px 1px #0004; }
-.rn-lane { top: 0; height: 100%; width: 0; animation-name: rn-slide; animation-timing-function: linear; }
-.rn-drop { left: 0; top: 0; border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%;
-  background: radial-gradient(circle at 35% 30%, #ffffffee 0 16%, #cfe2ff55 42%, #0b142240 78%); box-shadow: 0 2px 2px #0005; }
-.rn-drop::before { content: ''; position: absolute; left: 50%; bottom: 80%; width: 2px; height: 70px; transform: translateX(-50%);
-  background: linear-gradient(#cfe2ff00, #cfe2ff55); border-radius: 2px; }
-/* a drop clings, lurches, clings, then runs off the pane */
-@keyframes rn-slide { 0% { transform: translateY(-80px); } 18% { transform: translateY(18%); } 30% { transform: translateY(20%); }
-  44% { transform: translateY(46%); } 58% { transform: translateY(49%); } 80% { transform: translateY(80%); } 100% { transform: translateY(calc(100% + 40px)); } }
-.rn-lane { height: 100%; }
-.rn-frame { inset: 0; }
-.rn-frame i { background: linear-gradient(90deg, #1a2030, #2a3246 50%, #1a2030); box-shadow: 0 0 12px #0008; }
-.rn-frame i:nth-child(1) { left: calc(50% - 7px); top: 0; bottom: 0; width: 14px; }
-.rn-frame i:nth-child(2) { left: 0; right: 0; top: 38%; height: 14px; background: linear-gradient(#1a2030, #2a3246 50%, #1a2030); }
-.rn-fog { left: 0; right: 0; bottom: 0; height: 30%; background: linear-gradient(transparent, #c8d6ec2e); }
+/* Rainy window: drops cling, lurch, cling, then run off the pane */
+.rn-trickle { animation-name: rn-trickle; }
+@keyframes rn-trickle { 0% { transform: translateY(-4%); } 12% { transform: translateY(9%); } 30% { transform: translateY(10.5%); }
+  37% { transform: translateY(23%); } 55% { transform: translateY(24.5%); } 62% { transform: translateY(41%); } 79% { transform: translateY(43%); } 100% { transform: translateY(106%); } }
 
-/* ════════════ Firefly forest ════════════ */
-.frs-moon { left: 50%; top: -18%; width: 70%; height: 70%; transform: translateX(-50%); border-radius: 50%;
-  background: radial-gradient(circle, #cfe8d633 0, #9cc9b015 40%, transparent 70%); }
-.frs-trees { left: 0; bottom: 8%; width: 100%; height: 42%; }
-.frs-ground { left: 0; right: 0; bottom: 0; height: 9%; background: linear-gradient(#0e221d, #0b1a16); }
-.frs-shrooms { left: 74%; bottom: 7%; width: 70px; }
-.frs-glow { animation-name: frs-glow; animation-direction: alternate; filter: drop-shadow(0 0 6px #ffb36b88); }
-@keyframes frs-glow { from { opacity: .75; } to { opacity: 1; } }
-.frs-grass { left: 0; right: 0; bottom: 7%; height: 50px; }
-.frs-blade { bottom: 0; width: 4px; border-radius: 4px 4px 0 0; transform-origin: 50% 100%; }
-.frs-path { width: 0; height: 0; }
-.frs-path.p0 { animation-name: frs-wander0; }
-.frs-path.p1 { animation-name: frs-wander1; }
-.frs-path.p2 { animation-name: frs-wander2; }
-@keyframes frs-wander0 { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(40px, -26px); } 50% { transform: translate(80px, 6px); } 75% { transform: translate(30px, 30px); } }
-@keyframes frs-wander1 { 0%, 100% { transform: translate(0, 0); } 30% { transform: translate(-50px, 18px); } 60% { transform: translate(-20px, -34px); } 80% { transform: translate(24px, -10px); } }
-@keyframes frs-wander2 { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(26px, 30px); } 55% { transform: translate(-36px, 12px); } 80% { transform: translate(-10px, -28px); } }
-.frs-fly { left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: #f2ffb0;
-  box-shadow: 0 0 6px 2px #e4ff7acc, 0 0 18px 6px #c8f05a55; animation-name: frs-blink; }
-@keyframes frs-blink { 0%, 100% { opacity: .1; } 40%, 60% { opacity: 1; } }
+/* Firefly forest: three lazy wander loops */
+.frs-w0 { animation-name: frs-w0; } .frs-w1 { animation-name: frs-w1; } .frs-w2 { animation-name: frs-w2; }
+@keyframes frs-w0 { 0%, 100% { transform: none; } 30% { transform: translate(34px, -22px); } 55% { transform: translate(58px, 4px); } 80% { transform: translate(18px, 20px); } }
+@keyframes frs-w1 { 0%, 100% { transform: none; } 25% { transform: translate(-40px, 14px); } 60% { transform: translate(-16px, -30px); } 85% { transform: translate(14px, -8px); } }
+@keyframes frs-w2 { 0%, 100% { transform: none; } 35% { transform: translate(22px, 26px); } 65% { transform: translate(-30px, 10px); } 85% { transform: translate(-8px, -20px); } }
 
-/* ════════════ Snowfall ════════════ */
-.snw-sway { inset: -40px; }
-.snw-flakes > i { border-radius: 50%; background: #fff; box-shadow: 0 0 2px #7b9cc4aa; }
-.snw-hills { left: 0; bottom: 0; width: 100%; height: 30%; }
-.snw-cabin { left: 64%; bottom: calc(30% * 100 / 240); width: 96px; }
-.snw-cabin rect[fill="#ffd27a"] { filter: drop-shadow(0 0 5px #ffcf6b); }
-.snw-smoke { left: calc(64% + 66px); bottom: calc(30% * 100 / 240 + 78px); width: 0; height: 0; }
-.snw-smoke i { left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; background: #f4f7fbcc; animation-name: snw-puff; animation-timing-function: ease-out; }
-@keyframes snw-puff { 0% { transform: translate(0, 0) scale(.5); opacity: 0; } 15% { opacity: .9; } 100% { transform: translate(26px, -70px) scale(2.2); opacity: 0; } }
-.snw-pine { bottom: 3%; }
+/* Snowfall: chimney smoke */
+.snw-puff { animation-name: snw-puff; animation-timing-function: ease-out; }
+@keyframes snw-puff { 0% { transform: translate(0, 0) scale(.5); opacity: 0; } 18% { opacity: .7; } 100% { transform: translate(26px, -78px) scale(2); opacity: 0; } }
 
-/* ════════════ Sakura breeze ════════════ */
-.skr-sun { right: 16%; top: calc(12% + var(--sky)); width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #fff3e6 0 40%, #ffd9cf66 60%, transparent 70%); }
-.skr-hills { left: 0; bottom: 0; width: 100%; height: 30%; }
-.skr-wind { inset: -40px; }
-.skr-petal { width: calc(14px * var(--s)); height: calc(10px * var(--s)); border-radius: 100% 0 100% 0;
-  background: linear-gradient(135deg, #ffd6e3, #ff9fbd); box-shadow: 0 1px 1px #d0607f33; animation-name: skr-tumble; animation-timing-function: linear; }
-@keyframes skr-tumble { 0% { transform: rotate(0) scaleX(1); } 25% { transform: rotate(90deg) scaleX(.3); } 50% { transform: rotate(180deg) scaleX(1); } 75% { transform: rotate(270deg) scaleX(.3); } 100% { transform: rotate(360deg) scaleX(1); } }
-.skr-petals.far { opacity: .75; }
-.skr-branch { left: -10px; top: calc(-6px + var(--sky) * .8); width: min(420px, 60%); animation-name: skr-branch; animation-direction: alternate; }
-.tb-scene .skr-branch { transform-origin: 0 10%; transform-box: view-box; }
-@keyframes skr-branch { from { transform: rotate(-1.5deg); } to { transform: rotate(2deg); } }
+/* Under the sea: one small fish crosses now and then */
+.sea-swim { animation-name: sea-swim; animation-timing-function: linear; }
+@keyframes sea-swim { 0% { transform: translateX(-6%); } 42%, 100% { transform: translateX(106%); } }
 
-/* ════════════ Under the sea ════════════ */
-.sea-surface { top: 0; height: 26px; }
-.sea-ray { top: -5%; height: 85%; transform-origin: 50% 0; background: linear-gradient(#d8f6ff55, #d8f6ff00);
-  clip-path: polygon(35% 0, 65% 0, 100% 100%, 0 100%); animation-name: sea-ray; animation-direction: alternate; }
-@keyframes sea-ray { from { transform: rotate(-6deg); opacity: .5; } to { transform: rotate(6deg); opacity: 1; } }
-.sea-floor { left: 0; bottom: 0; width: 100%; height: 14%; }
-.sea-kelp { left: 0; right: 0; bottom: 6%; height: 0; }
-.sea-weed { bottom: 0; transform-origin: 50% 100%; animation-name: sea-weed; animation-direction: alternate; }
-@keyframes sea-weed { from { transform: skewX(-7deg); } to { transform: skewX(7deg); } }
-.sea-shell { left: 62%; bottom: 4%; width: 34px; }
-.sea-fish { display: block; }
-.sea-fish.back { transform: scaleX(-1); }
-.sea-tail { animation-name: sea-tail; animation-direction: alternate; transform-origin: 100% 50%; }
-@keyframes sea-tail { from { transform: scaleY(.75) rotate(-8deg); } to { transform: scaleY(1.1) rotate(8deg); } }
-.sea-sway { inset: -30px; }
-.sea-bubbles > i { border-radius: 50%; border: 1.5px solid #d9f6ffaa; background: radial-gradient(circle at 32% 30%, #ffffffcc 0 14%, #ffffff10 30%); }
+/* Synthwave: painted floor lines glide slowly toward you under a 3D tilt */
+.syn-floor { left: 0; right: 0; top: 66%; bottom: 0; overflow: hidden; perspective: 260px; perspective-origin: 58% 0; }
+.syn-plane { left: -100%; right: -100%; top: 0; height: 100%; transform-origin: 50% 0; transform: rotateX(66deg); }
+.syn-lines { left: 0; top: -84px; width: 100%; height: calc(300% + 84px); animation-name: syn-glide; animation-timing-function: linear; }
+@keyframes syn-glide { from { transform: none; } to { transform: translateY(84px); } }
 
-/* ════════════ Synthwave ════════════ */
-.syn-star { width: 2px; height: 2px; border-radius: 50%; background: #fff; }
-.syn-sun-glow { left: 50%; top: calc(58% - 190px); width: 380px; height: 380px; margin-left: -190px; border-radius: 50%;
-  background: radial-gradient(circle, #ff5fa255 0, #ff5fa222 40%, transparent 68%); }
-.syn-sun { left: 50%; top: calc(58% - 150px); width: 220px; height: 220px; margin-left: -110px; border-radius: 50%;
-  background: linear-gradient(#ffe66b, #ffa94d 45%, #ff4f9a 80%);
-  -webkit-mask: linear-gradient(#000 0 48%, transparent 48% 52%, #000 52% 60%, transparent 60% 65%, #000 65% 71%, transparent 71% 77%, #000 77% 82%, transparent 82% 89%, #000 89% 92%, transparent 92%);
-          mask: linear-gradient(#000 0 48%, transparent 48% 52%, #000 52% 60%, transparent 60% 65%, #000 65% 71%, transparent 71% 77%, #000 77% 82%, transparent 82% 89%, #000 89% 92%, transparent 92%); }
-.syn-mtns { left: 0; top: calc(58% - 110px); width: 100%; height: 112px; }
-.syn-grid { left: 0; right: 0; top: 58%; bottom: 0; overflow: hidden; perspective: 260px; perspective-origin: 50% 0;
-  background: linear-gradient(#2a0b45, #14062a); }
-.syn-plane { left: -50%; right: -50%; top: 0; height: 100%; transform-origin: 50% 0; transform: rotateX(62deg); }
-.syn-lines { left: 0; right: 0; top: -60px; height: calc(300% + 60px); animation-name: syn-rush; animation-timing-function: linear;
-  background:
-    linear-gradient(90deg, transparent calc(50% - 1.5px), #ff5fc8 calc(50% - 1.5px) calc(50% + 1.5px), transparent calc(50% + 1.5px)) 50% 0 / 60px 100%,
-    linear-gradient(transparent 0 57px, #ff5fc8 57px 60px) 0 0 / 100% 60px; }
-@keyframes syn-rush { from { transform: none; } to { transform: translateY(60px); } }
-.syn-horizon { left: 0; right: 0; top: calc(58% - 2px); height: 4px; background: #ff9ad8; box-shadow: 0 0 18px 4px #ff5fc8aa; }
-.syn-palm { bottom: 0; }
-.syn-fronds { animation-name: syn-fronds; animation-direction: alternate; transform-origin: 55% 30%; }
-@keyframes syn-fronds { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
-
-/* ════════════ Campfire ════════════ */
-.cmp-star { width: 2px; height: 2px; border-radius: 50%; background: #fff; }
-.cmp-trees { left: 0; bottom: 14%; width: 100%; height: 34%; }
-.cmp-ground { left: 0; bottom: 0; width: 100%; height: 22%; }
-.cmp-glow { left: 72%; bottom: -30%; width: 900px; height: 900px; margin-left: -450px; border-radius: 50%;
-  background: radial-gradient(circle, #ff9a4a66 0, #ff7a3a2e 30%, #ff6a3a10 50%, transparent 68%); animation-name: cmp-glow; }
-@keyframes cmp-glow { 0%, 100% { opacity: .85; transform: scale(1); } 20% { opacity: 1; transform: scale(1.03); } 35% { opacity: .78; } 55% { opacity: .95; transform: scale(.98); } 80% { opacity: .82; } }
-.cmp-tent { left: 40%; bottom: calc(22% * 72 / 120); width: 110px; }
-.cmp-fire { left: 72%; bottom: calc(22% * 60 / 120); width: 0; height: 0; }
-.cmp-flames { left: -50px; bottom: 6px; width: 100px; }
-.cmp-flame { transform-origin: 50% 100%; animation-name: cmp-flicker; animation-direction: alternate; }
-.cmp-flame.f2 { animation-name: cmp-flicker2; }
-@keyframes cmp-flicker { 0% { transform: scale(1, 1) skewX(0); } 50% { transform: scale(.94, 1.08) skewX(3deg); } 100% { transform: scale(1.04, .92) skewX(-3deg); } }
-@keyframes cmp-flicker2 { 0% { transform: scale(1.02, .95) skewX(-2deg); } 100% { transform: scale(.96, 1.1) skewX(4deg); } }
-.cmp-logs { left: -62px; bottom: -14px; width: 124px; }
-.cmp-stones { left: -70px; bottom: -18px; width: 140px; height: 14px; }
-.cmp-stones i { bottom: 0; width: 26px; height: 14px; border-radius: 50%; background: #4a3c48; }
-.cmp-stones i:nth-child(1) { left: 0; } .cmp-stones i:nth-child(2) { left: 28px; background: #574656; } .cmp-stones i:nth-child(3) { left: 56px; }
-.cmp-stones i:nth-child(4) { left: 84px; background: #574656; } .cmp-stones i:nth-child(5) { left: 112px; }
-.cmp-ember { left: 0; bottom: 40px; border-radius: 50%; background: #ffcf6b; box-shadow: 0 0 6px 2px #ff8a3daa;
-  animation-name: cmp-ember; animation-timing-function: ease-out; }
-@keyframes cmp-ember { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 60% { opacity: .8; } 100% { transform: translate(var(--x), var(--y)); opacity: 0; } }
-
-/* Rooms: synthwave's neon is loud, so it glows softer behind text */
-.tb-room .syn-sun, .tb-room .syn-sun-glow, .tb-room .syn-horizon { opacity: .5; }
-.tb-room .syn-grid, .tb-room .syn-mtns { opacity: .55; }
+/* Campfire: three painted flame frames held in turn (limited animation), a flickering glow, the odd ember */
+.cmp-f { animation-timing-function: steps(1, end); }
+.cmp-f.f0 { animation-name: cmp-f0; } .cmp-f.f1 { animation-name: cmp-f1; } .cmp-f.f2 { animation-name: cmp-f2; }
+@keyframes cmp-f0 { 0% { opacity: 1; } 34%, 100% { opacity: 0; } }
+@keyframes cmp-f1 { 0% { opacity: 0; } 34% { opacity: 1; } 61%, 100% { opacity: 0; } }
+@keyframes cmp-f2 { 0%, 34% { opacity: 0; } 61%, 100% { opacity: 1; } }
+.cmp-glow { animation-name: cmp-glow; }
+@keyframes cmp-glow { 0%, 100% { opacity: .85; } 18% { opacity: 1; } 31% { opacity: .78; } 52% { opacity: .95; } 74% { opacity: .82; } }
+.cmp-ember { animation-name: cmp-ember; animation-timing-function: ease-out; }
+@keyframes cmp-ember { 0%, 55% { transform: none; opacity: 0; } 60% { opacity: 1; } 100% { transform: translate(var(--x), var(--y)); opacity: 0; } }

@@ -18,7 +18,7 @@ for (const t of ['dragover', 'drop']) addEventListener(t, e => { if (e.dataTrans
 // Night/Day look, and a soft blip for every switch and segmented choice (no per-feature wiring).
 startLook()
 addEventListener('change', e => e.target.type === 'checkbox' && uiSound('toggle'))
-addEventListener('click', e => e.target.closest?.('.tabs button:not(.on)') && uiSound('toggle'))
+addEventListener('click', e => e.target.closest?.('.tabs button:not(.on)') && uiSound('toggle'), true) // capture: before React marks it .on
 
 // Dev-only icon review sheet at #/icons (dropped from production builds).
 const IconGallery = import.meta.env.DEV && location.hash === '#/icons' && lazy(() => import('./icons/IconGallery'))
