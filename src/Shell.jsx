@@ -14,6 +14,7 @@ import ProfileCardHost from './ProfileCard'
 import { useMemberRoles } from './Roles'
 import { hasPerm } from './lib/roles'
 import { VoiceConnection, VoiceStage } from './Voice'
+import { CallHost, onCallSignal } from './DMCalls'
 import StadiumChat from './StadiumChat'
 import QuickSwitch from './QuickSwitch'
 import { CreateJoinModal, ServerSettingsModal, ChannelModal, NewDMModal } from './Modals'
@@ -44,7 +45,18 @@ export default function Shell({ userId }) {
   const [modal, setModal] = useState(null)
   const [voice, setVoice] = useState(null)
   const [vstate, setVstate] = useState({ muted: false, deafened: false, live: false, cam: false })
-  const joinVoice = c => { setVoice(c); setVstate(v => ({ ...v, live: false, cam: false })) }
+  const joinVoice = c => {
+    // Switching between a stadium and a DM call (either way) hangs up the old one, so ask first.
+    if (c && voice && voice.id !== c.id && (c.kind === 'dm' || voice.kind === 'dm') &&
+      !confirm(voice.kind === 'dm' ? 'Hang up your current call first?' : `Leave ${voice.name} to start the call?`)) return false
+    setVoice(c); setVstate(v => ({ ...v, live: false, cam: false }))
+  }
+  // DM calls: join (or start, which rings everyone in the DM) and open the DM, where the call panel is.
+  const startCall = (c, video) => {
+    if (voice?.id !== c.id && joinVoice(c) === false) return
+    if (video) setVstate(v => ({ ...v, cam: true }))
+    go(null, c.id)
+  }
   // Others see your muted/deafened avatar expressions.
   useEffect(() => { trackVoice({ muted: !!voice && vstate.muted, deaf: !!voice && vstate.deafened }) }, [voice, vstate.muted, vstate.deafened])
   // Hang up if the stadium goes away under you (deleted, kicked, server deleted).
@@ -309,7 +321,7 @@ export default function Shell({ userId }) {
   if (!me || !servers) return <Splash />
 
   const ctx = { me, userId, server, role, can: perm => !!server && hasPerm(roleData, role, userId, perm), go, openDM, setModal, load, setChannels, markRead, markUnread, joinVoice,
-    threads, threadsByMsg, startThread, openThread: setThreadId, channels, reads, mentionOf, serverMentions }
+    voice, vstate, setVstate, startCall, threads, threadsByMsg, startThread, openThread: setThreadId, channels, reads, mentionOf, serverMentions }
   Object.assign(app, { ctx, members, channels })
 
   return (
@@ -338,7 +350,8 @@ export default function Shell({ userId }) {
       {server && showMembers && <Members members={members} ctx={ctx} />}
 
       {voice && <VoiceConnection key={voice.id} channel={voice} me={me} vstate={vstate} setVstate={setVstate}
-        onError={msg => { toast(msg); joinVoice(null) }} />}
+        onError={msg => { toast(msg); joinVoice(null) }} onCall={onCallSignal} />}
+      <CallHost ctx={ctx} />
 
       <QuickSwitch servers={servers} channels={channels.filter(c => c.kind !== 'thread')} go={go} />
       <ProfileCardHost ctx={ctx} members={members} />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { online, prefs, pttDown, setPref, talking, toast, useProfile } from './lib/store'
+import { online, prefs, profiles, pttDown, setPref, talking, toast, useProfile } from './lib/store'
 import { setCategories, useCategories } from './lib/categories'
 import { applyItems, byPosition, groupChannels, moveCategory, moveChannel, step } from './lib/reorder'
 import { useDrag } from './lib/useDrag'
@@ -10,6 +10,7 @@ import Avatar, { Name, CustomStatus } from './Avatar'
 import MeStatus, { MeSub } from './StatusPicker'
 import { canShare, canCam } from './Voice'
 import { InStadium, LiveTag, PeerState } from './VoiceCues'
+import { CallTag } from './DMCalls'
 import { useIncomingCount } from './Friends'
 import { openMenu } from './ContextMenu'
 import { channelItems, chanMuted, dmItems, personMenu, serverItems } from './menus'
@@ -34,6 +35,7 @@ function DMItem({ c, meId, active, unread, onClick, ctx }) {
         </span>
         {others.length === 1 && <CustomStatus id={others[0]} />}
         {others.length === 1 && <InStadium id={others[0]} ctx={ctx} />}
+        <CallTag c={c} ctx={ctx} />
       </span>
       {others.length > 1 && <span className="muted small">{others.length + 1}</span>}
       <MentionBadge n={ctx?.mentionOf?.(c)} />
@@ -232,7 +234,10 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
 
       {voice && (
         <div className="voice-panel pop">
-          <div><b className="ok">● Stadium connected</b><div className="muted small">{voice.name}</div><Ptt /></div>
+          {voice.kind === 'dm'
+            ? <div><b className="ok">● In a call</b><button className="muted small call-with" onClick={() => go(null, voice.id)} title="Open this call">
+              Call with {dmTitle(voice, userId, profiles.get())}</button><Ptt /></div>
+            : <div><b className="ok">● Stadium connected</b><div className="muted small">{voice.name}</div><Ptt /></div>}
           <div className="row">
             {canShare && <button className={`icon-btn${vstate.live ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, live: !v.live }))}
               title={vstate.live ? 'Stop sharing' : 'Go live'}>{vstate.live ? '⏹️' : '📺'}</button>}
@@ -244,7 +249,7 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
               title={vstate.deafened ? 'Undeafen' : 'Deafen'}>{vstate.deafened ? '🙉' : '🎧'}</button>
             <button className="icon-btn" onClick={() => setModal({ type: 'settings', tab: 'media' })} title="Voice & video settings"
               aria-label="Voice & video settings">⚙️</button>
-            <button className="icon-btn danger" onClick={onLeaveVoice} title="Leave stadium">📞</button>
+            <button className="icon-btn danger" onClick={onLeaveVoice} title={voice.kind === 'dm' ? 'Hang up' : 'Leave stadium'}>📞</button>
           </div>
         </div>
       )}

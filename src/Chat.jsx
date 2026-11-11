@@ -12,10 +12,11 @@ import EmojiPicker from './EmojiPicker'
 import { useEmojiAutocomplete } from './EmojiAutocomplete'
 import GifPicker from './GifPicker'
 import { ThreadsButton } from './Thread'
+import { CallButtons, CallLine, CallPanel } from './DMCalls'
 import { firstUnreadId, mergeRecent } from './lib/cues'
 import { conn } from './ChatCues'
 import Markdown from './Markdown'
-import { RoomBackdrop, RoomTitle, SlowBadge, roomVars, useBannerShrink, useSlowLeft } from './Rooms'
+import { RoomBackdrop, RoomTitle, SlowBadge, roomVars, useSlowLeft } from './Rooms'
 import { slowUntil } from './lib/rooms'
 import ThemeBackdrop, { useRoomTheme } from './themes/ThemeBackdrop'
 
@@ -355,7 +356,6 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
   const room = !!server && channel.kind === 'text' && !stadium
   const theme = useRoomTheme(room ? channel : null, server) // animated theme (src/themes); 'none' if the room has a background image
   const headRef = useRef(null)
-  useBannerShrink(scrollRef, headRef, room)
   const exempt = role === 'owner' || ctx.can('manage_messages') || ctx.can('manage_channels')
   const slow = server && channel.kind !== 'dm' ? channel.slowmode_sec || 0 : 0
 
@@ -371,6 +371,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
         {channel.private && <span className="lock">🔒</span>}
         <span className="spacer" />
         {server && channel.kind === 'text' && <ThreadsButton channel={channel} ctx={ctx} />}
+        {channel.kind === 'dm' && <CallButtons channel={channel} ctx={ctx} />}
         <button className={`icon-btn${panel === 'pins' ? ' on' : ''}`} onClick={() => setPanel(p => p === 'pins' ? null : 'pins')}
           title="Pinned messages" aria-label="Pinned messages">📌</button>
         <button className={`icon-btn${panel === 'search' ? ' on' : ''}`} onClick={() => setPanel(p => p === 'search' ? null : 'search')}
@@ -381,6 +382,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
         )}
         {stadium && <button className="icon-btn" onClick={stadium.onClose} title="Hide chat" aria-label="Hide chat">✕</button>}
       </header>}
+      {channel.kind === 'dm' && <CallPanel channel={channel} ctx={ctx} />}
 
       <div className="scroller" ref={scrollRef} onScroll={e => setAtBottom(e.currentTarget.scrollTop > -200)}>
         <div className="msgs">
@@ -401,10 +403,10 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
               <div key={m.key}>
                 {newDay && <div className="day-sep"><span>{new Date(m.created_at).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</span></div>}
                 {m.id === firstUnread && <div className="new-divider" ref={dividerRef} role="separator" aria-label="New messages"><span>New messages</span></div>}
-                <Message m={m} onRetry={retry} head={newDay || startsGroup(prev, m)} me={userId} myName={me.username} serverId={server?.id} canDelete={canModerate} canPin={canPin}
+                {m.call ? <CallLine m={m} me={userId} /> : <Message m={m} onRetry={retry} head={newDay || startsGroup(prev, m) || !!prev?.call} me={userId} myName={me.username} serverId={server?.id} canDelete={canModerate} canPin={canPin}
                   replied={m.reply_to ? byId.get(m.reply_to) || refs[m.reply_to] : null} editing={editing === m.id}
                   onReply={setReplyTo} onEdit={startEdit} onDelete={remove} onReact={react} onPin={togglePin} onSaveEdit={saveEdit} onCancelEdit={cancelEdit}
-                  thread={ctx.threadsByMsg?.get(m.id)} onThread={server && channel.kind === 'text' ? ctx.startThread : null} />
+                  thread={ctx.threadsByMsg?.get(m.id)} onThread={server && channel.kind === 'text' ? ctx.startThread : null} />}
               </div>
             )
           })}

@@ -102,6 +102,9 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
   const typing = n !== Infinity
   const mine = m.author_id === me
   const reactions = summarizeReactions(m.reactions || [], me)
+  // chips already there when the message appeared don't pop, so opening a room or loading history doesn't bounce them all
+  const oldChips = useRef(null)
+  oldChips.current ??= new Set(reactions.map(r => r.emoji))
   const allProfiles = profiles.get()
   const media = useMemo(() => [...(m.attachments || []), ...(typing ? [] : mediaLinks(m.content))], [m.attachments, m.content, typing])
   const mentioned = mentionsMe(m.content, myName) // same rule as the mention badges
@@ -139,13 +142,14 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
             {m.failed && onRetry && <button className="btn primary small" onClick={() => onRetry(m)}>Retry</button>}
             <button className="btn ghost small" onClick={() => onDelete(m)}>Delete</button>
           </div>}
+          {m.pending && !m.queued && m._files?.length > 0 && <div className="muted small" role="status">Uploading {m._files.length === 1 ? m._files[0].name : `${m._files.length} files`}…</div>}
           {m.pinned_at && <div className="pin-mark">📌 pinned</div>}
           <Attachments list={media} />
           {!typing && !m.suppress_embeds && <LinkPreviews m={m} mine={mine} />}
           {reactions.length > 0 && (
             <div className="reactions">
               {reactions.map(r => (
-                <button key={r.emoji} className={`react-chip pop${r.mine ? ' mine' : ''}`} onClick={() => onReact(m, r.emoji)}
+                <button key={r.emoji} className={`react-chip${oldChips.current.has(r.emoji) ? '' : ' pop'}${r.mine ? ' mine' : ''}`} onClick={() => onReact(m, r.emoji)}
                   title={r.users.map(u => allProfiles[u]?.display_name || allProfiles[u]?.username || '…').join(', ')}>
                   <Emoji e={r.emoji} /> <b>{r.count}</b>
                 </button>

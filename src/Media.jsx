@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Emoji } from './Markdown'
+import { cleanWave, nextSpeed } from './lib/voicenote'
+import { PlayIcon, PauseIcon, EyeOffIcon } from './icons'
+import { FavStar } from './GifPicker'
 import './styles/typing.css'
 
 const fmtSize = b => b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${Math.ceil(b / 1e3)} KB`
@@ -110,6 +113,29 @@ function Audio({ a }) {
   )
 }
 
+// Voice message bubble: real waveform and duration from the sender (attachment JSON), 1x/1.5x/2x, starts at half volume.
+function VoiceNote({ a }) {
+  const { ref, s, events, toggle, seek } = useMedia()
+  const [rate, setRate] = useState(1)
+  const bars = useMemo(() => cleanWave(a.waveform) || waveform(a.url, 48), [a.waveform, a.url])
+  const dur = +a.duration > 0 ? +a.duration : s.d
+  const p = dur ? Math.min(1, s.t / dur) : 0
+  useEffect(() => { ref.current.volume = 0.5 }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const speed = () => { const r = nextSpeed(rate); ref.current.playbackRate = r; setRate(r) }
+  return (
+    <div className={`voice-note${a.uploading ? ' uploading' : ''}${s.paused ? '' : ' playing'}`}>
+      <audio ref={ref} src={a.url} preload="none" {...events} onRateChange={e => setRate(e.currentTarget.playbackRate)} />
+      <button className="vn-play" onClick={toggle} aria-label={s.paused ? 'Play voice message' : 'Pause voice message'}>{s.paused ? <PlayIcon /> : <PauseIcon />}</button>
+      <div className="m-wave vn-wave">
+        {bars.map((h, i) => <i key={i} className={i / bars.length < p ? 'on' : ''} style={{ height: h + '%' }} />)}
+        <Seek s={{ ...s, d: dur }} seek={seek} label="Seek voice message" />
+      </div>
+      <span className="vn-time">{fmtTime(s.paused && !s.t ? dur : s.t)}</span>
+      <button className="vn-speed" onClick={speed} aria-label={`Playback speed ${rate}x`} title="Playback speed">{rate}x</button>
+    </div>
+  )
+}
+
 const ICONS = [[/pdf/, '📕'], [/zip|rar|7z|tar|gz/, '🗜️'], [/text|json|xml|javascript|csv|md$/, '📝'], [/sheet|excel/, '📊'], [/presentation|powerpoint/, '📽️'], [/word|document/, '📘']]
 function FileCard({ a }) {
   const icon = ICONS.find(([rx]) => rx.test(`${a.type} ${a.name}`.toLowerCase()))?.[1] || '📄'
@@ -139,7 +165,7 @@ function Lightbox({ items, i, setI, onClose }) {
         else if (many && e.key === 'ArrowLeft') go(-1)
         else if (many && e.key === 'ArrowRight') go(1)
       }}>
-      <img key={it.url} src={it.url} alt={it.name} />
+      <img key={it.url} src={it.url} alt={it.alt || it.name} title={it.alt} />
       {many && <button className="lb-nav prev" onClick={e => { stop(e); go(-1) }} aria-label="Previous image">‹</button>}
       {many && <button className="lb-nav next" onClick={e => { stop(e); go(1) }} aria-label="Next image">›</button>}
       <div className="lb-bar" onClick={stop}>
@@ -158,6 +184,7 @@ const hide = img => { img.parentElement.style.display = 'none' }
 
 function Gallery({ imgs }) {
   const [open, setOpen] = useState(null)
+  const [shown, setShown] = useState({}) // spoiler images clicked open
   const n = imgs.length
   const one = n === 1 && imgs[0]
   // Size a single image from its stored dimensions so nothing jumps when it loads.
@@ -165,13 +192,18 @@ function Gallery({ imgs }) {
   return (
     <>
       <div className={`m-gallery n${Math.min(n, 5)}`}>
-        {imgs.map((a, i) => (
-          <button key={i} className={`m-img${a.uploading ? ' uploading' : ''}${one && !a.w ? ' natural' : ''}`} style={one ? style : undefined}
-            onClick={() => setOpen(i)} aria-label={`Open ${a.name}`}>
-            <img src={a.url} alt={a.name} loading="lazy"
-              onError={a.link ? e => hide(e.currentTarget) : undefined} ref={a.link ? el => el?.complete && !el.naturalWidth && hide(el) : undefined} />
-          </button>
-        ))}
+        {imgs.map((a, i) => {
+          const hidden = a.spoiler && !shown[i]
+          return (
+            <button key={i} className={`m-img${a.uploading ? ' uploading' : ''}${one && !a.w ? ' natural' : ''}${hidden ? ' spoiler-img' : ''}`} style={one ? style : undefined}
+              onClick={() => hidden ? setShown(s => ({ ...s, [i]: true })) : setOpen(i)} aria-label={hidden ? 'Show spoiler image' : `Open ${a.alt || a.name}`} title={hidden ? undefined : a.alt}>
+              <img src={a.url} alt={hidden ? '' : a.alt || a.name} loading="lazy"
+                onError={a.link ? e => hide(e.currentTarget) : undefined} ref={a.link ? el => el?.complete && !el.naturalWidth && hide(el) : undefined} />
+              {hidden && <span className="spoiler-tag"><EyeOffIcon size={15} /> Spoiler</span>}
+            </button>
+          )
+        })}
+        {one && (one.gif || one.type === 'image/gif') && !one.uploading && !one.spoiler && <FavStar gif={one} />}
       </div>
       {open != null && <Lightbox items={imgs} i={open} setI={setOpen} onClose={() => setOpen(null)} />}
     </>
@@ -186,7 +218,7 @@ export default function Attachments({ list }) {
       {imgs.length > 0 && <Gallery imgs={imgs} />}
       {list.map((a, i) => a.type?.startsWith('image/') ? null
         : a.type?.startsWith('video/') ? <Video key={i} a={a} />
-        : a.type?.startsWith('audio/') ? <Audio key={i} a={a} />
+        : a.type?.startsWith('audio/') ? (a.voice ? <VoiceNote key={i} a={a} /> : <Audio key={i} a={a} />)
         : <FileCard key={i} a={a} />)}
     </div>
   )

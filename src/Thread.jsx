@@ -85,7 +85,7 @@ export function ThreadsButton({ channel, ctx }) {
 
 export function ThreadPill({ thread, onOpen }) {
   return (
-    <button className="thread-pill pop" onClick={onOpen}>
+    <button className="thread-pill" onClick={onOpen}>
       🧵 <b>{thread.name}</b>
       <span className="muted">· {replies(thread.reply_count)}{thread.last_reply_at && ` · last reply ${timeAgo(thread.last_reply_at)}`}</span>
     </button>

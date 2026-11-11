@@ -146,3 +146,6 @@ body .re-welcome-prev .room-welcome { margin: 0; }
   body .chat-head.room-head { transition: none; }
   body .room-dot { transition: none; }
 }
+
+/* Static header: one fixed, compact height that never grows or shrinks with scrolling (user preference). */
+body .room-head { --shrink: 0 !important; --extra: 28px; }

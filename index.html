@@ -3,13 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#231d2b" />
+    <meta name="theme-color" content="#162833" />
     <title>Chitchat</title>
+    <!-- Night/Day look before first paint (lib/look.js keeps it in sync afterwards) -->
+    <script>try { var l = (JSON.parse(localStorage.getItem('chitchat:prefs')) || {}).look || 'night'; document.documentElement.dataset.theme = l === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'day' : 'night') : l } catch (e) { document.documentElement.dataset.theme = 'night' }</script>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='16' cy='16' r='9' fill='%23ff9f6b'/><circle cx='48' cy='16' r='9' fill='%23ff9f6b'/><circle cx='32' cy='36' r='24' fill='%23ff9f6b'/><ellipse cx='24' cy='33' rx='3' ry='4' fill='%23231d2b'/><ellipse cx='40' cy='33' rx='3' ry='4' fill='%23231d2b'/><ellipse cx='32' cy='45' rx='5' ry='4' fill='%23231d2b'/></svg>" />
     <link rel="preconnect" href="https://nilludyavkfqwastghmw.supabase.co" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>

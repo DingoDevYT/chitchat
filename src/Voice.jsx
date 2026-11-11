@@ -180,7 +180,9 @@ export function makeOut(ctx, deafened = () => false) {
 // Headless: full-mesh WebRTC audio + screen shares. Supabase Realtime only carries the handshake.
 // Uses "perfect negotiation": either side may (re)offer whenever its tracks change; on a collision
 // the polite peer (higher id) rolls back and answers, the impolite one ignores the incoming offer.
-export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
+// DM calls (channel.kind 'dm') use their own 'call:' topic, since a DM's 'chan:' topic is its chat; onCall gets their 'call' broadcasts (declines).
+export function VoiceConnection({ channel, me, vstate, setVstate, onError, onCall }) {
+  const where = channel.kind === 'dm' ? 'the call' : 'the stadium'
   const streamRef = useRef(null) // what we send: the mic send graph's output, not the raw mic
   const outRef = useRef(null)
   const shareRef = useRef(null)
@@ -301,7 +303,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
         await mic.acquire()
       } catch {
         mic.stop()
-        return onError('Microphone access was blocked. Allow it in your browser to join a stadium.')
+        return onError(`Microphone access was blocked. Allow it in your browser to join ${where}.`)
       }
       if (closed) return mic.stop()
       stops.push(() => { mic.stop(); setVoiceTalking(me.id, false) })
@@ -313,8 +315,9 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       // Presence and media travel separately; re-sort video whenever someone's cam/live ids change.
       stops.push(online.subscribe(() => { for (const [id, p] of peers) for (const a of p.media.values()) route(id, a.srcObject) }))
 
-      ch = supabase.channel(`chan:${channel.id}`, { config: { private: true, presence: { key: me.id } } })
+      ch = supabase.channel(`${channel.kind === 'dm' ? 'call' : 'chan'}:${channel.id}`, { config: { private: true, presence: { key: me.id } } })
       ch.on('broadcast', { event: 'signal' }, onSignal)
+      ch.on('broadcast', { event: 'call' }, ({ payload }) => onCall?.(payload))
       // 🔊 TTS messages in this stadium's chat are read aloud to everyone who joined (lib/stadium.js queues them).
       ch.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `channel_id=eq.${channel.id}` },
         ({ new: row }) => { if (row.tts && !vstateRef.current.deafened) speakTTS(row) })
@@ -334,9 +337,9 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       ch.subscribe(status => {
         if (status === 'SUBSCRIBED') {
           ch.track({})
-          trackVoice({ voice: channel.id, live: shareRef.current?.id || false, cam: camRef.current?.id || null })
+          trackVoice({ voice: channel.kind === 'dm' ? callKey(channel.id, me.id) : channel.id, live: shareRef.current?.id || false, cam: camRef.current?.id || null })
         }
-        if (status === 'CHANNEL_ERROR') onError("Couldn't connect to the stadium.")
+        if (status === 'CHANNEL_ERROR') onError(`Couldn't connect to ${where}.`)
       })
     }
     start()
@@ -430,7 +433,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
   return null
 }
 
-function Screen({ stream }) {
+export function Screen({ stream }) {
   const ref = useRef(null)
   useEffect(() => { ref.current.srcObject = stream }, [stream])
   // Always muted: audio plays through VoiceConnection's hidden <audio> elements (so deafen applies).

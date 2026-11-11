@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { supabase } from './supabase'
+import { friendly } from './errors'
 
 // Tiny global store. Selectors must return existing references or primitives.
 export function createStore(initial) {
@@ -96,6 +97,9 @@ const defaults = {
   normalise: true, ttsHear: true, // stadiums: level remote voices; read out others' 🔊 TTS messages
   joinSounds: true, // soft chime when someone joins/leaves the stadium you're in
   ringCalls: true, // ring sound for incoming DM calls
+  look: 'night', // 'night' | 'day' | 'system' (see lib/look.js)
+  uiSounds: true, uiVolume: 0.5, // quiet blips for menus, dialogs, sends, toggles
+  gotShown: {}, // "You got…" pop-ups already shown: 'userId:kind' -> 1
 }
 function loadPrefs() {
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(PREFS_KEY)) } } catch { return defaults }
@@ -113,8 +117,10 @@ export function setPref(k, v) {
 export const toasts = createStore([])
 let toastId = 0
 export function toast(text) {
+  text = friendly(text)
   const id = ++toastId
-  toasts.set(t => [...t, { id, text }])
+  // the same message again replaces the old one, and at most 3 show, so repeats don't pile up
+  toasts.set(t => [...t.filter(x => x.text !== text), { id, text }].slice(-3))
   setTimeout(() => toasts.set(t => t.filter(x => x.id !== id)), 3500)
 }
 
