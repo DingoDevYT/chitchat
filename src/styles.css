@@ -232,6 +232,10 @@ label.btn { flex-direction: row; color: var(--text); font-size: 14px; cursor: po
 .caret { display: inline-block; width: 2px; height: 1em; background: var(--accent); vertical-align: -2px; margin-left: 1px; animation: caret .6s steps(1) infinite; }
 .edited { font-size: 11px; }
 .jumbo { font-size: 44px; line-height: 1.2; }
+.emoji { width: 1.35em; height: 1.35em; vertical-align: -0.3em; margin: 0 .05em; display: inline-block; }
+.jumbo .emoji { width: 48px; height: 48px; vertical-align: middle; margin-right: 4px; }
+.msg-tools .emoji, .emoji-pop .emoji { width: 20px; height: 20px; vertical-align: middle; }
+.react-chip .emoji { width: 18px; height: 18px; }
 .mention { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent-2); border-radius: 6px; padding: 0 3px; font-weight: 800; }
 .spoiler { background: var(--bg-4); color: transparent; border-radius: 5px; cursor: pointer; transition: color .2s, background .2s; }
 .spoiler.shown { background: var(--bg-3); color: inherit; cursor: auto; }

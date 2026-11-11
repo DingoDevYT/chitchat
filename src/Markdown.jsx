@@ -1,5 +1,16 @@
-import { useState } from 'react'
-import { tokenize, isJumbo } from './lib/markdown'
+import { Fragment, useState } from 'react'
+import { tokenize, isJumbo, splitEmoji, emojiUrl } from './lib/markdown'
+
+// Noto emoji image; falls back to the native character if the image is missing.
+export function Emoji({ e, url = emojiUrl(e) }) {
+  const [bad, setBad] = useState(false)
+  if (!url || bad) return e
+  return <img className="emoji" src={url} alt={e} draggable="false" onError={() => setBad(true)} />
+}
+
+export function emojify(text) {
+  return splitEmoji(text).map((p, i) => typeof p === 'string' ? p : <Emoji key={i} e={p.emoji} url={p.url} />)
+}
 
 function Spoiler({ children }) {
   const [shown, setShown] = useState(false)
@@ -9,7 +20,7 @@ function Spoiler({ children }) {
 function render(tokens, me) {
   return tokens.map((tk, i) => {
     switch (tk.t) {
-      case 'text': return tk.v
+      case 'text': return <Fragment key={i}>{emojify(tk.v)}</Fragment>
       case 'code': return <code key={i}>{tk.v}</code>
       case 'codeblock': return <pre key={i}><code>{tk.v}</code></pre>
       case 'b': return <strong key={i}>{render(tk.c, me)}</strong>
@@ -24,6 +35,6 @@ function render(tokens, me) {
 }
 
 export default function Markdown({ text, me }) {
-  if (isJumbo(text)) return <span className="jumbo">{text}</span>
+  if (isJumbo(text)) return <span className="jumbo">{emojify(text)}</span>
   return <>{render(tokenize(text), me)}</>
 }

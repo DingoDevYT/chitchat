@@ -50,3 +50,16 @@ test('reactions', () => {
   list = applyReaction(list, { message_id: 1, user_id: 'u', emoji: '👍' }, false)
   assert.equal(list[0].reactions.length, 1)
 })
+
+import { emojiUrl, splitEmoji } from './markdown.js'
+test('noto emoji', () => {
+  const base = 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@v2.047/svg/'
+  assert.equal(emojiUrl('😂'), base + 'emoji_u1f602.svg')
+  assert.equal(emojiUrl('❤️'), base + 'emoji_u2764.svg')
+  assert.equal(emojiUrl('👍🏽'), base + 'emoji_u1f44d_1f3fd.svg')
+  assert.equal(emojiUrl('👨‍👩‍👧'), base + 'emoji_u1f468_200d_1f469_200d_1f467.svg')
+  assert.equal(emojiUrl('#️⃣'), base + 'emoji_u0023_20e3.svg')
+  assert.equal(emojiUrl('™'), null)
+  const parts = splitEmoji('hi 😂👍🏽 ok™')
+  assert.deepEqual(parts.map(p => typeof p === 'string' ? p : p.emoji), ['hi ', '😂', '👍🏽', ' ok™'])
+})

@@ -37,3 +37,30 @@ export function isJumbo(text) {
   if (!t || !/^(?:\p{Extended_Pictographic}|\p{Emoji_Modifier}|‍|️|\s)+$/u.test(t)) return false
   return [...t.matchAll(/\p{Extended_Pictographic}/gu)].length <= 6
 }
+
+// ── Noto emoji ──
+const NOTO = 'https://cdn.jsdelivr.net/gh/googlefonts/noto-emoji@v2.047/svg'
+// keycaps | flags | pictographic (+ skin tone / variation selector / tag sequence), joined by ZWJ
+export const EMOJI_RX = /[#*0-9]️?⃣|\p{RI}\p{RI}|\p{Extended_Pictographic}(?:\p{EMod}|️|[\u{E0020}-\u{E007E}]+\u{E007F})*(?:‍\p{Extended_Pictographic}(?:\p{EMod}|️)*)*/gu
+
+export function emojiUrl(seq) {
+  const cps = [...seq].map(c => c.codePointAt(0))
+  if (cps.length === 1 && cps[0] < 0x2300) return null // ©, ®, ™, arrows: keep as text
+  if (cps[0] >= 0x1f1e6 && cps[0] <= 0x1f1ff) return null // shortcut: flags aren't in Noto's svg folder; they stay native
+  return `${NOTO}/emoji_u${cps.filter(c => c !== 0xfe0f).map(c => c.toString(16).padStart(4, '0')).join('_')}.svg`
+}
+
+// Splits text into strings and { emoji, url } pieces.
+export function splitEmoji(text) {
+  const out = []
+  let last = 0
+  for (const m of text.matchAll(EMOJI_RX)) {
+    const url = emojiUrl(m[0])
+    if (!url) continue
+    if (m.index > last) out.push(text.slice(last, m.index))
+    out.push({ emoji: m[0], url })
+    last = m.index + m[0].length
+  }
+  if (last < text.length) out.push(text.slice(last))
+  return out
+}

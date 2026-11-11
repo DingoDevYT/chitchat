@@ -3,7 +3,7 @@ import { prefs, profiles, setTalking, useProfile } from './lib/store'
 import { blip } from './lib/animalese'
 import { summarizeReactions } from './lib/chat'
 import Avatar, { Name } from './Avatar'
-import Markdown from './Markdown'
+import Markdown, { Emoji, emojify } from './Markdown'
 
 export const QUICK_EMOJI = ['👍', '❤️', '😂', '😮', '😢', '🎉', '🔥', '👀', '✨', '🙏']
 
@@ -113,7 +113,7 @@ function Message({ m, head, me, myName, canDelete, replied, editing, onReply, on
             ? <EditBox initial={m.content} onSave={onSaveEdit} onCancel={onCancelEdit} />
             : m.content && (
               <div className="msg-text">
-                {typing ? m.content.slice(0, n) : <Markdown text={m.content} me={myName} />}
+                {typing ? emojify(m.content.slice(0, n)) : <Markdown text={m.content} me={myName} />}
                 {typing && <span className="caret" />}
                 {m.edited_at && !typing && <span className="muted small edited"> (edited)</span>}
               </div>
@@ -125,7 +125,7 @@ function Message({ m, head, me, myName, canDelete, replied, editing, onReply, on
               {reactions.map(r => (
                 <button key={r.emoji} className={`react-chip pop${r.mine ? ' mine' : ''}`} onClick={() => onReact(m, r.emoji)}
                   title={r.users.map(u => allProfiles[u]?.display_name || allProfiles[u]?.username || '…').join(', ')}>
-                  {r.emoji} <b>{r.count}</b>
+                  <Emoji e={r.emoji} /> <b>{r.count}</b>
                 </button>
               ))}
             </div>
@@ -135,14 +135,14 @@ function Message({ m, head, me, myName, canDelete, replied, editing, onReply, on
 
       {!m.pending && !m.failed && !editing && (
         <div className="msg-tools">
-          {QUICK_EMOJI.slice(0, 3).map(e => <button key={e} onClick={() => onReact(m, e)} title={`React ${e}`}>{e}</button>)}
-          <button onClick={() => setPicker(p => !p)} title="More reactions">😊</button>
+          {QUICK_EMOJI.slice(0, 3).map(e => <button key={e} onClick={() => onReact(m, e)} title={`React ${e}`}><Emoji e={e} /></button>)}
+          <button onClick={() => setPicker(p => !p)} title="More reactions"><Emoji e="😊" /></button>
           <button onClick={() => onReply(m)} title="Reply">↩️</button>
           {mine && <button onClick={() => onEdit(m)} title="Edit">✏️</button>}
           {(mine || canDelete) && <button onClick={e => onDelete(m, e.shiftKey)} title="Delete (Shift = no confirm)">🗑️</button>}
           {picker && (
             <div className="emoji-pop pop" onMouseLeave={() => setPicker(false)}>
-              {QUICK_EMOJI.map(e => <button key={e} onClick={() => { onReact(m, e); setPicker(false) }}>{e}</button>)}
+              {QUICK_EMOJI.map(e => <button key={e} onClick={() => { onReact(m, e); setPicker(false) }}><Emoji e={e} /></button>)}
               <button onClick={() => { const e = prompt('Any emoji:'); if (e?.trim()) onReact(m, e.trim().slice(0, 16)); setPicker(false) }}>＋</button>
             </div>
           )}
