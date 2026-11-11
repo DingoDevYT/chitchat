@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { supabase } from './lib/supabase'
 import { createStore, prefs, profiles, setPref, toast, useProfile } from './lib/store'
 import Avatar, { Name } from './Avatar'
+import { acceptFriend, addFriend, friendships, friendStatus, removeFriend } from './Friends'
 
 export const ROLE_BADGE = { owner: '👑', admin: '⭐' }
 
@@ -61,6 +62,7 @@ function Card({ id, role, ctx, onClose }) {
   const self = id === ctx.userId
   const myRole = ctx.role
   const muted = prefs.use(s => !!s.muted[id])
+  const vol = prefs.use(s => s.peerVol[id] ?? 1)
 
   async function setRole(r) {
     const { error } = await supabase.from('members').update({ role: r }).eq('server_id', ctx.server.id).eq('user_id', id)
@@ -84,8 +86,12 @@ function Card({ id, role, ctx, onClose }) {
       <div className="col">
         {self && <button className="btn ghost" onClick={() => { ctx.setModal({ type: 'settings' }); onClose() }}>Edit profile</button>}
         {!self && <button className="btn primary" onClick={() => { ctx.openDM([id]); onClose() }}>Message</button>}
+        {!self && <FriendButton id={id} />}
         {!self && <button className="btn ghost" onClick={() => setPref('muted', { ...prefs.get().muted, [id]: !muted || undefined })}>
-          {muted ? '🔊 Unmute their voice' : '🔇 Mute their voice'}</button>}
+          {muted ? '🔊 Unmute their typing voice' : '🔇 Mute their typing voice'}</button>}
+        {!self && <label>Voice call volume {Math.round(vol * 100)}%
+          <input type="range" min="0" max="2" step="0.05" value={vol}
+            onChange={e => setPref('peerVol', { ...prefs.get().peerVol, [id]: +e.target.value })} /></label>}
         {ctx.server && myRole === 'owner' && !self && role === 'member' && <button className="btn ghost" onClick={() => setRole('admin')}>Make admin</button>}
         {ctx.server && myRole === 'owner' && !self && role === 'admin' && <button className="btn ghost" onClick={() => setRole('member')}>Remove admin</button>}
         {ctx.server && role && !self && role !== 'owner' && (myRole === 'owner' || (myRole === 'admin' && role === 'member')) &&
@@ -93,4 +99,14 @@ function Card({ id, role, ctx, onClose }) {
       </div>
     </>
   )
+}
+
+function FriendButton({ id }) {
+  friendships.use() // re-render when friendships change
+  const s = friendStatus(id)
+  const p = profiles.get()[id]
+  if (s === 'friends') return <button className="btn ghost" onClick={() => removeFriend(id, `Remove ${p?.username} as a friend?`)}>✓ Friends</button>
+  if (s === 'incoming') return <button className="btn ghost" onClick={() => acceptFriend(id)}>Accept friend request</button>
+  if (s === 'outgoing') return <button className="btn ghost" onClick={() => removeFriend(id)}>Request sent (cancel)</button>
+  return <button className="btn ghost" onClick={() => p && addFriend(p.username)}>👋 Add friend</button>
 }

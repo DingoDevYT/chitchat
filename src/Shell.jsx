@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { ensureProfiles, prefs, toast, toasts, useProfile } from './lib/store'
 import { startPresence } from './lib/presence'
+import FriendsHome, { friendships, startFriends, useIncomingCount } from './Friends'
 import { Splash } from './App'
 import Avatar from './Avatar'
 import Sidebar from './Sidebar'
@@ -66,6 +67,9 @@ export default function Shell({ userId }) {
 
   useEffect(() => { load() }, [load])
   useEffect(() => startPresence(userId), [userId])
+  useEffect(() => startFriends(userId), [userId])
+  const incoming = useIncomingCount()
+  const hasFriends = friendships.use(r => r.length > 0)
 
   useEffect(() => {
     const onHash = () => {
@@ -175,7 +179,7 @@ export default function Shell({ userId }) {
     <div className={`app${navOpen ? ' nav-open' : ''}${server && showMembers ? ' with-members' : ''}`}>
       <nav className="rail" aria-label="Servers">
         <button className={`rail-btn home${!route.serverId ? ' active' : ''}`} onClick={() => go(null, dms[0]?.id)} title="Direct messages">
-          <span>💬</span>{unreadDMs > 0 && <b className="badge">{unreadDMs}</b>}
+          <span>💬</span>{unreadDMs + incoming > 0 && <b className="badge">{unreadDMs + incoming}</b>}
         </button>
         <hr />
         {servers.map(s => (
@@ -197,7 +201,9 @@ export default function Shell({ userId }) {
             cam={vstate.cam} onCam={() => setVstate(v => ({ ...v, cam: !v.cam }))} onMenu={() => setNavOpen(true)} />
           : channel
             ? <Chat key={channel.id} channel={channel} ctx={ctx} members={members} onMenu={() => setNavOpen(true)} />
-            : <Welcome ctx={ctx} onMenu={() => setNavOpen(true)} hasServers={servers.length > 0} />}
+            : !server && (servers.length > 0 || hasFriends)
+              ? <FriendsHome ctx={ctx} onMenu={() => setNavOpen(true)} />
+              : <Welcome ctx={ctx} onMenu={() => setNavOpen(true)} hasServers={servers.length > 0} />}
       </main>
 
       {server && showMembers && <Members members={members} ctx={ctx} />}
@@ -212,7 +218,7 @@ export default function Shell({ userId }) {
       {modal?.type === 'serverSettings' && server && <ServerSettingsModal ctx={ctx} onClose={() => setModal(null)} />}
       {modal?.type === 'channel' && server && <ChannelModal ctx={ctx} members={members} channel={modal.channel} onClose={() => setModal(null)} />}
       {modal?.type === 'newDM' && <NewDMModal ctx={ctx} onClose={() => setModal(null)} />}
-      {modal?.type === 'settings' && <Settings me={me} onClose={() => setModal(null)} />}
+      {modal?.type === 'settings' && <Settings me={me} tab={modal.tab} onClose={() => setModal(null)} />}
 
       <div className="toasts" aria-live="polite">
         {toastList.map(t => <div key={t.id} className="toast pop">{t.text}</div>)}

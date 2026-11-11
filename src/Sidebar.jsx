@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabase'
-import { online, toast, useProfile } from './lib/store'
+import { online, prefs, pttDown, toast, useProfile } from './lib/store'
+import { keyLabel } from './lib/voice'
 import Avatar, { Name } from './Avatar'
 import { canShare, canCam } from './Voice'
+import { useIncomingCount } from './Friends'
 
 export function dmTitle(channel, meId, profileMap) {
   const others = channel.channel_members.map(m => m.user_id).filter(id => id !== meId)
@@ -37,6 +39,13 @@ function VoiceRoster({ channelId }) {
   )
 }
 
+// Push-to-talk hint, lit while you're transmitting.
+function Ptt() {
+  const ptt = prefs.use(s => s.ptt), key = prefs.use(s => s.pttKey), on = pttDown.use()
+  if (!ptt) return null
+  return <div className={`ptt small${on ? ' on' : ''}`}>{on ? '📡 Transmitting' : <>Hold <kbd>{keyLabel(key)}</kbd> to talk</>}</div>
+}
+
 function CamOn({ id }) {
   return online.use(s => !!s[id]?.cam) && <span title="Camera on" aria-label="Camera on">📷</span>
 }
@@ -45,6 +54,7 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
   const { server, role, me, userId, go, setModal } = ctx
   const [menu, setMenu] = useState(false)
   const isAdmin = role === 'owner' || role === 'admin'
+  const incoming = useIncomingCount()
 
   async function leave() {
     setMenu(false)
@@ -84,9 +94,12 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
       )}
 
       <div className="ch-list">
-        {!server && (
+        {!server && <>
+          <button className={`ch-item friends-btn${!current ? ' active' : ''}`} onClick={() => go(null)}>
+            👯 <span className="ch-name">Friends</span>{incoming > 0 && <b className="badge inline">{incoming}</b>}
+          </button>
           <button className="ch-item new-dm" onClick={() => setModal({ type: 'newDM' })}>✏️ <span className="ch-name">New message</span></button>
-        )}
+        </>}
         {channels.map(c => c.kind === 'dm'
           ? <DMItem key={c.id} c={c} meId={userId} active={current?.id === c.id} unread={isUnread(c)} onClick={() => go(null, c.id)} />
           : (
@@ -107,7 +120,7 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
 
       {voice && (
         <div className="voice-panel pop">
-          <div><b className="ok">● Stadium connected</b><div className="muted small">{voice.name}</div></div>
+          <div><b className="ok">● Stadium connected</b><div className="muted small">{voice.name}</div><Ptt /></div>
           <div className="row">
             {canShare && <button className={`icon-btn${vstate.live ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, live: !v.live }))}
               title={vstate.live ? 'Stop sharing' : 'Go live'}>{vstate.live ? '⏹️' : '📺'}</button>}
@@ -117,6 +130,8 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
               title={vstate.muted ? 'Unmute' : 'Mute'}>{vstate.muted ? '🔇' : '🎙️'}</button>
             <button className={`icon-btn${vstate.deafened ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, deafened: !v.deafened }))}
               title={vstate.deafened ? 'Undeafen' : 'Deafen'}>{vstate.deafened ? '🙉' : '🎧'}</button>
+            <button className="icon-btn" onClick={() => setModal({ type: 'settings', tab: 'media' })} title="Voice & video settings"
+              aria-label="Voice & video settings">⚙️</button>
             <button className="icon-btn danger" onClick={onLeaveVoice} title="Leave stadium">📞</button>
           </div>
         </div>

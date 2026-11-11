@@ -5,12 +5,13 @@ import { sayPreview } from './lib/animalese'
 import { uploadFile } from './lib/upload'
 import Modal from './Modal'
 import Avatar, { Critter } from './Avatar'
+import VoiceSettings from './VoiceSettings'
 
 const WAVES = [['square', 'Chirpy'], ['triangle', 'Soft'], ['sawtooth', 'Buzzy'], ['sine', 'Gentle']]
 const COLORS = ['#ff9f6b', '#f4a261', '#e76f51', '#ff6b8b', '#c77dff', '#7b9cff', '#4cc9f0', '#7ed6b1', '#b5e48c', '#ffd166']
 
-export default function Settings({ me, onClose }) {
-  const [tab, setTab] = useState('profile')
+export default function Settings({ me, onClose, tab: firstTab }) {
+  const [tab, setTab] = useState(firstTab || 'profile')
   const [form, setForm] = useState({
     username: me.username, display_name: me.display_name || '', bio: me.bio || '', color: me.color,
     avatar_idle: me.avatar_idle, avatar_talk: me.avatar_talk, voice: { pitch: 1, speed: 1, wave: 'square', ...me.voice },
@@ -47,7 +48,7 @@ export default function Settings({ me, onClose }) {
   return (
     <Modal title="Settings" onClose={onClose} wide>
       <div className="tabs">
-        {[['profile', 'Profile'], ['voice', 'Avatar & voice'], ['app', 'App']].map(([k, l]) =>
+        {[['profile', 'Profile'], ['voice', 'Avatar & voice'], ['media', 'Voice & video'], ['app', 'App']].map(([k, l]) =>
           <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
       </div>
 
@@ -95,11 +96,13 @@ export default function Settings({ me, onClose }) {
         </div>
       )}
 
+      {tab === 'media' && <VoiceSettings />}
+
       {tab === 'app' && (
         <div className="col">
           <label className="toggle"><input type="checkbox" checked={p.animalese} onChange={e => setPref('animalese', e.target.checked)} />
             <span>Animalese voices on new messages</span></label>
-          <label>Voice volume <input type="range" min="0" max="1" step="0.05" value={p.volume} onChange={e => setPref('volume', +e.target.value)} /></label>
+          <label>Typing voice volume <input type="range" min="0" max="1" step="0.05" value={p.volume} onChange={e => setPref('volume', +e.target.value)} /></label>
           {Object.keys(p.muted).length > 0 && (
             <button className="btn ghost" onClick={() => setPref('muted', {})}>Unmute everyone ({Object.keys(p.muted).length})</button>
           )}
@@ -109,7 +112,7 @@ export default function Settings({ me, onClose }) {
         </div>
       )}
 
-      {tab !== 'app' && <div className="modal-foot"><button className="btn primary" onClick={save}>Save changes</button></div>}
+      {(tab === 'profile' || tab === 'voice') && <div className="modal-foot"><button className="btn primary" onClick={save}>Save changes</button></div>}
     </Modal>
   )
 }

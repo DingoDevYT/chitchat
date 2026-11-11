@@ -114,3 +114,30 @@ test('giphy mapping', () => {
     downsized: { url: 'b.gif', width: '400', height: '300' }, original: { url: 'c.gif', width: '800', height: '600' } } })
   assert.deepEqual(g, { id: 'x', title: 'GIF', preview: 'a.webp', pw: 200, ph: 150, url: 'b.gif', w: 400, h: 300 })
 })
+
+import { level, gateUntil, trackFloor, autoThreshold, keyLabel, missingDevice } from './voice.js'
+test('voice gate', () => {
+  assert.equal(level(1), 100)
+  assert.equal(Math.round(level(0.01)), 60)
+  assert.equal(level(0), 0)
+  // loud at 0s, then quiet: the gate hangs open for 0.3s after the last loud moment
+  let until = gateUntil(70, 50, 0, 0)
+  until = gateUntil(20, 50, until, 0.1)
+  assert.ok(0.25 < until && 0.35 > until)
+  assert.equal(gateUntil(20, 50, 0, 1), 0)
+  assert.ok(trackFloor(40, 20) < 40 && trackFloor(40, 90) > 40 && trackFloor(40, 90) < 41) // falls fast, rises slowly
+  assert.equal(autoThreshold(40), 55)
+  assert.equal(autoThreshold(90), 75)
+})
+test('voice keys and devices', () => {
+  assert.equal(keyLabel('Backquote'), '`')
+  assert.equal(keyLabel('KeyV'), 'V')
+  assert.equal(keyLabel('Digit3'), '3')
+  assert.equal(keyLabel('ShiftLeft'), 'Left Shift')
+  assert.equal(keyLabel('F5'), 'F5')
+  const ds = [{ kind: 'audioinput', deviceId: 'a' }, { kind: 'audiooutput', deviceId: '' }]
+  assert.equal(missingDevice(ds, 'audioinput', 'a'), false)
+  assert.equal(missingDevice(ds, 'audioinput', 'gone'), true)
+  assert.equal(missingDevice(ds, 'audioinput', ''), false)
+  assert.equal(missingDevice(ds, 'audiooutput', 'x'), false) // no permission yet: ids are blank
+})

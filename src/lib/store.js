@@ -54,9 +54,18 @@ export function dropStream(id, ms, store = streams) {
   if (store.get()[id] === ms) store.set(s => { const n = { ...s }; delete n[id]; return n })
 }
 
+// ── your mic while it is open (call or mic test): { lvl, thr, open } on voice.js's 0..100 scale ──
+export const micLevel = createStore(null)
+export const pttDown = createStore(false)
+
 // ── local prefs ──
 const PREFS_KEY = 'chitchat:prefs'
-const defaults = { volume: 0.5, animalese: true, muted: {}, showMembers: true }
+const defaults = {
+  volume: 0.5, animalese: true, muted: {}, showMembers: true,
+  // voice & video ('' device = system default; volumes are 0..2; vadThreshold is on voice.js's 0..100 level scale)
+  micId: '', speakerId: '', camId: '', inVol: 1, outVol: 1, peerVol: {},
+  vadAuto: true, vadThreshold: 50, ptt: false, pttKey: 'Backquote', ns: true, ec: true, agc: true,
+}
 function loadPrefs() {
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(PREFS_KEY)) } } catch { return defaults }
 }

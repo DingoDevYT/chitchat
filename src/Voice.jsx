@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { online, setVoiceTalking, streams, cams, dropStream, toast } from './lib/store'
+import { online, setVoiceTalking, streams, cams, dropStream, toast, prefs, setPref, micLevel, pttDown } from './lib/store'
 import { trackVoice } from './lib/presence'
+import { TALK, missingDevice } from './lib/voice'
+import gateUrl from './lib/voice.js?url'
 import Avatar, { Name } from './Avatar'
 
 // shortcut: STUN only, no TURN relay. ~10-20% of strict NAT / mobile networks won't connect; add a TURN server (e.g. Cloudflare Calls TURN) when someone reports it.
@@ -51,11 +53,91 @@ function watchLevel(audioCtx, stream, id) {
   return () => { clearInterval(t); src.disconnect(); setVoiceTalking(id, false) }
 }
 
+// Safari can't pick an output device.
+export const canPickOut = typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype
+
+const micAudio = () => {
+  const p = prefs.get()
+  return { deviceId: p.micId || undefined, echoCancellation: p.ec, noiseSuppression: p.ns, autoGainControl: p.agc }
+}
+// A bare deviceId is only "ideal", so an unplugged camera/mic falls back to the default instead of failing.
+export const camVideo = () => {
+  const id = prefs.get().camId
+  return { width: 320, height: 320, frameRate: 20, ...(id ? { deviceId: id } : { facingMode: 'user' }) }
+}
+
+// Saved device unplugged → back to the default, once (a second caller finds the pref already cleared).
+const KINDS = [['micId', 'audioinput', 'microphone'], ['speakerId', 'audiooutput', 'speaker'], ['camId', 'videoinput', 'camera']]
+export function checkDevices(ds) {
+  for (const [k, kind, name] of KINDS) {
+    if (missingDevice(ds, kind, prefs.get()[k])) { setPref(k, ''); toast(`Your ${name} disappeared, so we switched to the default.`) }
+  }
+}
+
+// Mic send graph: raw mic → "gate" worklet (input volume + voice gate / push-to-talk) → whatever the caller connects.
+// Switching mic or processing only swaps the source node, so the outgoing track never changes.
+export async function makeMic(ctx, onLevel) {
+  await ctx.audioWorklet.addModule(gateUrl)
+  const node = new AudioWorkletNode(ctx, 'gate')
+  let raw = null, src = null, held = false, stopped = false, key = ''
+  const keyOf = () => JSON.stringify(micAudio())
+  const sync = () => {
+    const p = prefs.get()
+    node.port.postMessage({ gain: p.inVol, thr: p.vadAuto ? null : p.vadThreshold, ptt: p.ptt, held })
+    if (raw && keyOf() !== key) mic.acquire().catch(() => toast("Couldn't switch your microphone."))
+  }
+  const hold = down => e => {
+    if (e.code !== prefs.get().pttKey || e.repeat) return
+    held = down; pttDown.set(down); sync()
+  }
+  const kd = hold(true), ku = hold(false), blur = () => { held = false; pttDown.set(false); sync() }
+  addEventListener('keydown', kd); addEventListener('keyup', ku); addEventListener('blur', blur)
+  const unsub = prefs.subscribe(sync)
+  node.port.onmessage = e => { micLevel.set(e.data); onLevel?.(e.data) }
+  const mic = {
+    node,
+    async acquire() {
+      key = keyOf()
+      const s = await navigator.mediaDevices.getUserMedia({ audio: micAudio() })
+      if (stopped) return s.getTracks().forEach(t => t.stop())
+      src?.disconnect(); raw?.getTracks().forEach(t => t.stop())
+      raw = s; src = ctx.createMediaStreamSource(s); src.connect(node)
+      s.getAudioTracks()[0].onended = () => mic.acquire().catch(() => {}) // unplugged: picks the default mic
+    },
+    stop() {
+      stopped = true
+      removeEventListener('keydown', kd); removeEventListener('keyup', ku); removeEventListener('blur', blur)
+      unsub(); src?.disconnect(); node.disconnect()
+      raw?.getTracks().forEach(t => t.stop())
+      pttDown.set(false); micLevel.set(null)
+    },
+  }
+  sync()
+  return mic
+}
+
+// Everything you hear is mixed into one gain → one <audio>, so output volume (up to 200%), device and deafen live in one place.
+export function makeOut(ctx, deafened = () => false) {
+  const master = ctx.createGain(), dest = ctx.createMediaStreamDestination(), el = new Audio()
+  master.connect(dest)
+  el.autoplay = true
+  el.srcObject = dest.stream
+  const apply = () => {
+    const p = prefs.get()
+    master.gain.value = deafened() ? 0 : p.outVol
+    if (canPickOut && el.sinkId !== p.speakerId) el.setSinkId(p.speakerId).catch(() => {})
+  }
+  const unsub = prefs.subscribe(apply)
+  apply()
+  return { master, apply, stop() { unsub(); el.srcObject = null } }
+}
+
 // Headless: full-mesh WebRTC audio + screen shares. Supabase Realtime only carries the handshake.
 // Uses "perfect negotiation": either side may (re)offer whenever its tracks change; on a collision
 // the polite peer (higher id) rolls back and answers, the impolite one ignores the incoming offer.
 export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
-  const streamRef = useRef(null)
+  const streamRef = useRef(null) // what we send: the mic send graph's output, not the raw mic
+  const outRef = useRef(null)
   const shareRef = useRef(null)
   const camRef = useRef(null)
   const peersRef = useRef(new Map())
@@ -67,21 +149,29 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
     let ch = null
     let chain = Promise.resolve()
     const audioCtx = new AudioContext()
-    const stops = []
+    const out = outRef.current = makeOut(audioCtx, () => vstateRef.current.deafened)
+    const stops = [out.stop]
     const peers = peersRef.current
     const send = (to, data) => ch?.send({ type: 'broadcast', event: 'signal', payload: { from: me.id, to, ...data } })
+    // Per-person call volume (profile popover) and unplugged devices, live.
+    stops.push(prefs.subscribe(() => { for (const [id, p] of peers) p.vol.gain.value = prefs.get().peerVol[id] ?? 1 }))
+    const onDevices = () => navigator.mediaDevices.enumerateDevices().then(checkDevices, () => {})
+    navigator.mediaDevices.addEventListener?.('devicechange', onDevices)
+    stops.push(() => navigator.mediaDevices.removeEventListener?.('devicechange', onDevices))
 
     function close(id) {
       const p = peers.get(id)
       if (!p) return
-      p.pc.close(); p.stop?.()
+      p.pc.close(); p.stop?.(); p.vol.disconnect()
       for (const a of p.media.values()) { a.remove(); dropStream(id, a.srcObject); dropStream(id, a.srcObject, cams) }
       peers.delete(id)
     }
 
     function makePeer(id) {
       const pc = new RTCPeerConnection({ iceServers: ICE })
-      const p = { pc, pending: [], media: new Map(), polite: me.id > id, makingOffer: false, ignoreOffer: false }
+      const p = { pc, pending: [], media: new Map(), polite: me.id > id, makingOffer: false, ignoreOffer: false, vol: audioCtx.createGain() }
+      p.vol.gain.value = prefs.get().peerVol[id] ?? 1
+      p.vol.connect(out.master)
       peers.set(id, p)
       streamRef.current.getTracks().forEach(t => pc.addTrack(t, streamRef.current))
       const share = shareRef.current // late joiners get the current screen share too
@@ -97,12 +187,13 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       pc.onicecandidate = e => e.candidate && send(id, { candidate: e.candidate.toJSON() })
       pc.ontrack = ({ track, streams: [ms] }) => {
         if (!ms) return
-        // Every remote stream (mic, camera, or screen video+audio) plays through a hidden <audio> so deafen covers all.
+        // Every remote stream (mic, camera, or screen video+audio) sits on a muted hidden <audio> (Chrome only feeds
+        // WebRTC audio into WebAudio while an element holds it); you hear it via p.vol → `out`, so deafen covers all.
         if (!p.media.has(ms.id)) {
           const a = new Audio()
           a.autoplay = true
+          a.muted = true
           a.srcObject = ms
-          a.muted = vstateRef.current.deafened
           document.body.appendChild(a)
           p.media.set(ms.id, a)
           ms.onremovetrack = () => {
@@ -110,6 +201,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
             if (!ms.getTracks().length) { a.remove(); p.media.delete(ms.id) }
           }
         }
+        if (track.kind === 'audio') audioCtx.createMediaStreamSource(new MediaStream([track])).connect(p.vol)
         if (track.kind === 'video') {
           route(id, ms)
           track.onunmute = track.onmute = track.onended = () => route(id, ms)
@@ -142,16 +234,28 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
     const onSignal = ({ payload }) => { chain = chain.then(() => handle(payload)).catch(() => {}) }
 
     async function start() {
+      let mic
       try {
-        streamRef.current = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-        })
+        // Your own avatar follows the raw mic level, but only while it's actually going out (unmuted, gate open).
+        mic = await makeMic(audioCtx, ({ lvl, open }) =>
+          setVoiceTalking(me.id, open && lvl > TALK && !vstateRef.current.muted && !vstateRef.current.deafened))
       } catch {
+        return onError("This browser can't do voice here.")
+      }
+      if (closed) return mic.stop()
+      try {
+        await mic.acquire()
+      } catch {
+        mic.stop()
         return onError('Microphone access was blocked. Allow it in your browser to join a stadium.')
       }
-      if (closed) return streamRef.current.getTracks().forEach(t => t.stop())
+      if (closed) return mic.stop()
+      stops.push(() => { mic.stop(); setVoiceTalking(me.id, false) })
+      audioCtx.resume() // the send graph only flows while the context runs
+      const dest = audioCtx.createMediaStreamDestination()
+      mic.node.connect(dest)
+      streamRef.current = dest.stream
       streamRef.current.getAudioTracks().forEach(t => { t.enabled = !vstateRef.current.muted })
-      stops.push(watchLevel(audioCtx, streamRef.current, me.id))
       // Presence and media travel separately; re-sort video whenever someone's cam/live ids change.
       stops.push(online.subscribe(() => { for (const [id, p] of peers) for (const a of p.media.values()) route(id, a.srcObject) }))
 
@@ -187,7 +291,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
 
   useEffect(() => {
     streamRef.current?.getAudioTracks().forEach(t => { t.enabled = !vstate.muted && !vstate.deafened })
-    for (const p of peersRef.current.values()) for (const a of p.media.values()) a.muted = vstate.deafened
+    outRef.current?.apply()
   }, [vstate])
 
   // Go live: share a screen/tab to everyone in the stadium; adding/removing tracks triggers renegotiation.
@@ -222,7 +326,20 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
     if (!vstate.cam) return
     let cam = null, stopped = false
     const end = () => setVstate(v => ({ ...v, cam: false }))
-    navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 320, frameRate: 20, facingMode: 'user' } }).then(s => {
+    // Camera picked in settings mid-call: swap the track in place on every peer (replaceTrack needs no renegotiation,
+    // and the stream id peers route by stays the same).
+    let camId = prefs.get().camId
+    const unsub = prefs.subscribe(async () => {
+      if (!cam || prefs.get().camId === camId) return
+      camId = prefs.get().camId
+      const s = await navigator.mediaDevices.getUserMedia({ video: camVideo() }).catch(() => null)
+      if (!s || stopped) return s?.getTracks().forEach(t => t.stop())
+      const [old] = cam.getVideoTracks(), [t] = s.getVideoTracks()
+      t.onended = end
+      for (const p of peersRef.current.values()) for (const x of p.camSenders) if (x.track === old) x.replaceTrack(t).catch(() => {})
+      cam.removeTrack(old); cam.addTrack(t); old.stop()
+    })
+    navigator.mediaDevices.getUserMedia({ video: camVideo() }).then(s => {
       if (stopped) return s.getTracks().forEach(t => t.stop())
       cam = camRef.current = s
       s.getVideoTracks()[0].onended = end // unplugged
@@ -232,6 +349,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
     }, () => { toast("Couldn't turn on your camera."); end() })
     return () => {
       stopped = true
+      unsub()
       if (!cam) return
       cam.getTracks().forEach(t => t.stop()) // camera light off
       camRef.current = null

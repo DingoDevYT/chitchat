@@ -295,3 +295,47 @@ revoke execute on function public.server_role(uuid), public.is_member(uuid), pub
 revoke execute on function public.handle_new_user(), public.handle_new_server(), public.bump_last_message() from authenticated;
 grant execute on function public.server_role(uuid), public.is_member(uuid), public.can_view_channel(uuid),
   public.join_server(text), public.open_dm(uuid[]) to authenticated;
+
+-- ───────── friends ─────────
+create table public.friendships (
+  user_a uuid not null references public.profiles on delete cascade, -- who asked
+  user_b uuid not null references public.profiles on delete cascade, -- who was asked
+  status text not null default 'pending' check (status in ('pending','accepted')),
+  created_at timestamptz not null default now(),
+  primary key (user_a, user_b),
+  check (user_a <> user_b)
+);
+create unique index friendships_pair on public.friendships (least(user_a, user_b), greatest(user_a, user_b));
+create index on public.friendships (user_b);
+alter table public.friendships enable row level security;
+create policy "see own friendships" on public.friendships for select to authenticated
+  using ((select auth.uid()) in (user_a, user_b));
+create policy "accept requests to me" on public.friendships for update to authenticated
+  using (user_b = (select auth.uid()) and status = 'pending') with check (status = 'accepted');
+create policy "decline, cancel or unfriend" on public.friendships for delete to authenticated
+  using ((select auth.uid()) in (user_a, user_b));
+revoke update on public.friendships from authenticated;
+grant update (status) on public.friendships to authenticated;
+
+-- Send a request by username. If they already asked you, it becomes a friendship.
+create function public.add_friend(uname text) returns text
+language plpgsql security definer set search_path = '' as $$
+declare target uuid; me uuid := auth.uid();
+begin
+  if me is null then raise exception 'not signed in'; end if;
+  select id into target from public.profiles where username = lower(trim(both '@ ' from uname));
+  if target is null then raise exception 'No one with that username.'; end if;
+  if target = me then raise exception 'That''s you!'; end if;
+  if exists (select 1 from public.friendships where user_a = me and user_b = target) then
+    return (select status from public.friendships where user_a = me and user_b = target);
+  end if;
+  if exists (select 1 from public.friendships where user_a = target and user_b = me) then
+    update public.friendships set status = 'accepted' where user_a = target and user_b = me;
+    return 'accepted';
+  end if;
+  insert into public.friendships (user_a, user_b) values (me, target);
+  return 'pending';
+end $$;
+revoke execute on function public.add_friend(text) from public, anon;
+grant execute on function public.add_friend(text) to authenticated;
+alter publication supabase_realtime add table public.friendships;
