@@ -23,11 +23,11 @@ export const themeMeta = id => byId[id] || byId.none
 // a scene theme draws something animated; 'none' and 'gradient' don't
 export const isScene = id => !!byId[id]?.colors
 
-// Effective theme of a room or stadium: its own → its category's → its server's → none. DMs and threads: none.
+// Effective theme of a room or stadium: its own → its category's → its server's → none. DMs and post discussions: none.
 // Returns { id, from } where from is 'channel' | 'category' | 'server' | null (nothing set anywhere).
 // Pass channel = null to ask what a new/inheriting channel would get.
 export function resolveTheme({ channel, category, server }) {
-  if (channel && (channel.kind === 'dm' || channel.kind === 'thread' || !channel.server_id)) return { id: 'none', from: null }
+  if (channel && (channel.kind === 'dm' || channel.kind === 'post' || !channel.server_id)) return { id: 'none', from: null }
   for (const [from, row] of [['channel', channel], ['category', category], ['server', server]])
     if (isTheme(row?.theme)) return { id: row.theme, from }
   return { id: 'none', from: null }

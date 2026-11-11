@@ -3,6 +3,7 @@ import { prefs, profiles, setTalking, useNickname, useProfile } from './lib/stor
 import { blip } from './lib/animalese'
 import { mediaLinks, summarizeReactions } from './lib/chat'
 import { mentionsMe } from './lib/cues'
+import { CUSTOM_RX } from './lib/markdown'
 import Avatar, { Name } from './Avatar'
 import Markdown, { Emoji, emojify } from './Markdown'
 import { openProfile } from './ProfileCard'
@@ -11,7 +12,6 @@ import EmojiPicker from './EmojiPicker'
 import Attachments from './Media'
 import { openMenu } from './ContextMenu'
 import { app, chanMuted, messageItems, personMenu } from './menus'
-import { ThreadPill } from './Thread'
 import { isBlocked, useBlocked } from './lib/blocks'
 import LinkPreviews from './LinkPreview'
 import { ForwardHeader } from './Forward'
@@ -43,10 +43,13 @@ function useTypewriter(m) {
     const voice = () => profiles.get()[id]?.voice || {}
     const speed = voice().speed || 1
     const step = Math.max(1, Math.ceil(text.length / (80 * speed))) // long messages finish in ~2.5s
+    const codes = [...text.matchAll(CUSTOM_RX)].map(c => [c.index, c.index + c[0].length])
     let i = 0, done = false
     setTalking(id, true)
     const t = setInterval(() => {
       i = Math.min(text.length, i + step)
+      i = codes.find(([a, b]) => i > a && i < b)?.[1] ?? i // jump over a custom emoji's code so it pops in at once
+
       if (!muted) blip(text[i - 1], voice())
       setN(i)
       if (i >= text.length) {
@@ -99,7 +102,7 @@ function ReplyPreview({ m }) {
   )
 }
 
-function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, editing, onReply, onEdit, onDelete, onReact, onPin, onSaveEdit, onCancelEdit, thread, onThread, onRetry }) {
+function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, editing, onReply, onEdit, onDelete, onReact, onPin, onSaveEdit, onCancelEdit, onRetry }) {
   const n = useTypewriter(m)
   const blocked = useBlocked(m.author_id)
   const [reveal, setReveal] = useState(false)
@@ -114,7 +117,7 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
   const media = useMemo(() => [...(m.attachments || []), ...(typing ? [] : mediaLinks(m.content))], [m.attachments, m.content, typing])
   const mentioned = mentionsMe(m.content, myName) || (m.mentions_everyone && !mine) // same rule as the mention badges; the DB sets mentions_everyone only when allowed
   const menu = e => !m.pending && !m.failed && !editing && openMenu(e, () => messageItems(m, {
-    mine, canDelete, canPin, onReply, onEdit, onDelete, onReact, onPin, onThread, thread,
+    mine, canDelete, canPin, onReply, onEdit, onDelete, onReact, onPin,
     quick: [...new Set([...(prefs.get().recentEmoji || []), ...QUICK_EMOJI, '😮', '😢', '🎉'])].slice(0, 6),
     openPicker: () => setPicker(document.getElementById('msg-' + m.id)?.getBoundingClientRect().top > innerHeight / 2 ? 'up' : 'down'),
   }))
@@ -170,7 +173,6 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
               ))}
             </div>
           )}
-          {thread && <ThreadPill thread={thread} onOpen={() => onThread?.(m)} />}
         </div>
       </div>
 
@@ -179,7 +181,6 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
           {QUICK_EMOJI.map(e => <button key={e} onClick={() => onReact(m, e)} title={`React ${e}`}><Emoji e={e} /></button>)}
           <button onMouseDown={e => e.stopPropagation()} onClick={e => setPicker(p => !p && (e.currentTarget.getBoundingClientRect().top > innerHeight / 2 ? 'up' : 'down'))} title="More reactions" aria-label="More reactions"><Icon name="smile" size={18} /></button>
           <button onClick={() => onReply(m)} title="Reply" aria-label="Reply"><Icon name="reply" size={18} /></button>
-          {onThread && <button onClick={() => onThread(m)} title={thread ? 'Open thread' : 'Start thread'} aria-label={thread ? 'Open thread' : 'Start thread'}><Icon name="thread" size={18} /></button>}
           {canPin && <button onClick={() => onPin(m)} title={m.pinned_at ? 'Unpin' : 'Pin'} aria-label={m.pinned_at ? 'Unpin' : 'Pin'}><Icon name="pin" size={18} /></button>}
           {mine && m.content && !m.forward && <button onClick={() => onEdit(m)} title="Edit" aria-label="Edit"><Icon name="edit" size={18} /></button>}
           {(mine || canDelete) && <button onClick={e => onDelete(m, e.shiftKey)} title="Delete (Shift = no confirm)" aria-label="Delete"><Icon name="trash" size={18} /></button>}

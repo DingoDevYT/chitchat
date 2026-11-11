@@ -19,15 +19,9 @@ export const BellIcon = ({ size = 18 }) => <Icon name="bell" size={size} classNa
 export const inbox = createStore(false)     // inbox panel open?
 export const shortcuts = createStore(false) // Ctrl+/ sheet open?
 
-// Opens a message: rooms and DMs through their message link (Chat jumps to it), threads beside their room.
+// Opens a message: rooms and DMs through their message link (Chat jumps to it).
 export function openMessage(c, id) {
-  const ctx = app.ctx
-  if (!c || !ctx) return
-  if (c.kind === 'thread') {
-    ctx.go(c.server_id, c.parent_channel_id)
-    setTimeout(() => ctx.openThread(c.id), 120) // after Shell's "new room closes the thread" effect
-    return
-  }
+  if (!c || !app.ctx) return
   location.hash = c.server_id ? `#/s/${c.server_id}/${c.id}/${id}` : `#/dm/${c.id}/${id}`
 }
 
@@ -81,7 +75,7 @@ export function InboxPanel({ ctx, servers, isUnread }) {
 
   const forYou = (rows || []).filter(r => chan(r.messages.channel_id) && !blocked[r.messages.author_id])
   const groups = useMemo(() => {
-    const list = ctx.channels.filter(c => c.kind !== 'voice' && c.kind !== 'thread' && isUnread(c))
+    const list = ctx.channels.filter(c => c.kind !== 'voice' && isUnread(c))
     const dms = list.filter(c => !c.server_id)
     return [
       ...(dms.length ? [{ id: 'dm', name: 'Direct messages', list: dms }] : []),

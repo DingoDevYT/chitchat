@@ -724,7 +724,5 @@ button.mention:hover { background: color-mix(in srgb, var(--accent) 35%, transpa
 
 /* feature panels that join the speech-bubble / stitched-paper look (their own CSS loads first, hence `body`) */
 body .ps-panel { background: var(--paper), var(--bubble); border-radius: 26px; outline: 2px dashed var(--stitch); outline-offset: -6px; animation: pop .26s var(--spring) both; transform-origin: 100% 0; }
-body .thread-panel { background: var(--paper), var(--bg); border-left: 2px dashed var(--stitch); }
-body .thread-parent { border-bottom: 2px dashed var(--stitch); }
 body .stadium-chat { background: var(--paper), var(--bg); border-left: 2px dashed var(--stitch); }
 body .stage-bubble { background: var(--bubble); box-shadow: var(--shadow), inset 0 0 0 2px var(--line); }

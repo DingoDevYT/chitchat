@@ -395,7 +395,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
   return (
     <div className={`chat${server && channel.kind !== 'dm' ? ' room-chat' : ''}`} ref={rootRef} style={server && channel.kind !== 'dm' ? roomVars(channel, server) : undefined}>
       {room && <RoomBackdrop c={channel}><ThemeBackdrop theme={theme} /></RoomBackdrop>}
-      {channel.kind !== 'thread' && <header className={`chat-head${room ? ' room-head' : ''}`} ref={headRef}>
+      {channel.kind !== 'post' && <header className={`chat-head${room ? ' room-head' : ''}`} ref={headRef}>
         {!stadium && <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu"><Icon name="menu" /></button>}
         {room ? <RoomTitle c={channel} /> : <>
           <span className="ch-icon"><Icon name={stadium ? 'chat' : 'at'} size={18} /></span>
@@ -421,7 +421,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
           <div ref={topRef} />
           {msgs && !hasMore && (
             <div className="chat-start">
-              <h1>{channel.kind === 'dm' ? `This is the start of your chat with ${title}` : channel.kind === 'thread' ? 'The thread starts here 🧵' : `Welcome to ${channel.name}${/[!?.]$/.test(channel.name) ? "" : "!"}`}</h1>
+              <h1>{channel.kind === 'dm' ? `This is the start of your chat with ${title}` : channel.kind === 'post' ? 'Comments start here' : `Welcome to ${channel.name}${/[!?.]$/.test(channel.name) ? "" : "!"}`}</h1>
               {channel.welcome && channel.kind !== 'dm'
                 ? <div className="room-welcome"><Markdown text={channel.welcome} me={me.username} /></div>
                 : <p className="muted">Say something nice. Everyone hears it in your voice 🎶</p>}
@@ -537,6 +537,7 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
     onSend(out, files, [], canTTS && tts)
     setText('')
     setFiles([])
+    setAltFor(null)
   }
 
   function insert(e) {

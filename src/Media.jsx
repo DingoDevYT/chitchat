@@ -45,7 +45,7 @@ function Seek({ s, seek, label }) {
   )
 }
 
-function Video({ a }) {
+export function Video({ a }) {
   const box = useRef(null)
   const { ref, s, events, toggle, seek } = useMedia()
   const [ar, setAr] = useState(16 / 9)
@@ -148,7 +148,7 @@ function FileCard({ a }) {
   )
 }
 
-function Lightbox({ items, i, setI, onClose }) {
+export function Lightbox({ items, i, setI, onClose }) {
   const ref = useRef(null)
   const it = items[i], many = items.length > 1
   const go = d => setI((i + d + items.length) % items.length)

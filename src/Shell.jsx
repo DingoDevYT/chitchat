@@ -22,7 +22,6 @@ import QuickSwitch from './QuickSwitch'
 import { CreateJoinModal, ServerSettingsModal, ChannelModal, NewDMModal } from './Modals'
 import { ForwardModal } from './Forward'
 import Settings from './Settings'
-import { ThreadPanel } from './Thread'
 import ServerRail from './ServerCards'
 import ContextMenuHost, { openMenu } from './ContextMenu'
 import YouGotHost, { youGot } from './YouGot'
@@ -99,7 +98,7 @@ export default function Shell({ userId }) {
   const load = useCallback(async () => {
     const [s, c, r, m] = await Promise.all([
       supabase.from('servers').select('*').order('created_at'),
-      supabase.from('channels').select('*, channel_members(user_id)').order('position').order('created_at'),
+      supabase.from('channels').select('*, channel_members(user_id)').neq('kind', 'post').order('position').order('created_at'),
       supabase.from('read_states').select('channel_id, last_read_id'),
       supabase.from('members').select('server_id, position').eq('user_id', userId),
     ])
@@ -169,9 +168,10 @@ export default function Shell({ userId }) {
       ensureProfiles(data.channel_members.map(m => m.user_id))
     }
     const ch = supabase.channel('shell')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'channels' }, add)
+      // post discussions (kind 'post') live inside their gallery, never in the sidebar or unread counts
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'channels', filter: 'kind=neq.post' }, add)
       // an UPDATE for a channel we don't have yet means we were just given access to a private one
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'channels' }, e => chRef.current.some(c => c.id === e.new.id)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'channels', filter: 'kind=neq.post' }, e => chRef.current.some(c => c.id === e.new.id)
         ? setChannels(cs => cs.map(c => c.id === e.new.id ? { ...c, ...e.new } : c)) : add(e))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'channels' }, ({ old }) =>
         setChannels(cs => cs.filter(c => c.id !== old.id)))
@@ -192,7 +192,7 @@ export default function Shell({ userId }) {
   }, [userId, load])
 
   const server = servers?.find(s => s.id === route.serverId) || null
-  const serverChannels = useMemo(() => channels.filter(c => c.server_id === route.serverId && c.server_id && c.kind !== 'thread')
+  const serverChannels = useMemo(() => channels.filter(c => c.server_id === route.serverId && c.server_id)
     .sort((a, b) => (a.kind === 'voice') - (b.kind === 'voice') || a.position - b.position), [channels, route.serverId])
   const dms = useMemo(() => channels.filter(c => c.kind === 'dm' && (!dmHidden(c, closedDMs) || c.id === route.channelId))
     .sort((a, b) => (b.last_message_id || 0) - (a.last_message_id || 0)), [channels, closedDMs, route.channelId])
@@ -201,21 +201,6 @@ export default function Shell({ userId }) {
   const member = members.find(m => m.user_id === userId) // your own row here: nickname, timeout, rules agreement
   const role = member?.role
   const roleData = useMemberRoles(route.serverId)
-
-  // Threads: kind 'thread' channels, shown in a side panel next to their parent channel.
-  const [threadId, setThreadId] = useState(null)
-  useEffect(() => setThreadId(null), [channel?.id])
-  const threads = useMemo(() => channels.filter(c => c.kind === 'thread' && c.server_id === route.serverId), [channels, route.serverId])
-  const threadsByMsg = useMemo(() => new Map(threads.filter(t => t.parent_message_id).map(t => [t.parent_message_id, t])), [threads])
-  const thread = threads.find(t => t.id === threadId && t.parent_channel_id === channel?.id) || null
-  const closeThread = useCallback(() => setThreadId(null), [])
-  const startThread = useCallback(async m => {
-    const { data: id, error } = await supabase.rpc('start_thread', { message_id: m.id })
-    if (error) return toast(error.message)
-    const { data } = await supabase.from('channels').select('*, channel_members(user_id)').eq('id', id).maybeSingle()
-    if (data) setChannels(cs => cs.some(c => c.id === id) ? cs : [...cs, data]) // don't wait for realtime
-    setThreadId(id)
-  }, [])
 
   // Fill in a sensible channel when the route doesn't name one.
   useEffect(() => {
@@ -269,7 +254,7 @@ export default function Shell({ userId }) {
   // server id -> number of unread channels (a Map, so .has/.size read like the old Set)
   const unreadServers = useMemo(() => {
     const m = new Map()
-    for (const c of channels) if (c.server_id && c.kind !== 'thread' && isUnread(c) && !quiet(c)) m.set(c.server_id, (m.get(c.server_id) || 0) + 1)
+    for (const c of channels) if (c.server_id && isUnread(c) && !quiet(c)) m.set(c.server_id, (m.get(c.server_id) || 0) + 1)
     return m
   }, [channels, isUnread, quiet])
   const unreadDMs = dms.filter(c => isUnread(c) && !quiet(c)).length
@@ -294,7 +279,7 @@ export default function Shell({ userId }) {
   // server id -> mention count; the rail cards read it (prop), and ctx.serverMentions for anyone else
   const serverMentions = useMemo(() => {
     const m = new Map()
-    for (const c of channels) if (c.server_id && c.kind !== 'thread') { const n = mentionOf(c); if (n) m.set(c.server_id, (m.get(c.server_id) || 0) + n) }
+    for (const c of channels) if (c.server_id) { const n = mentionOf(c); if (n) m.set(c.server_id, (m.get(c.server_id) || 0) + n) }
     return m
   }, [channels, mentionOf])
   const mentionTotal = [...serverMentions.values()].reduce((a, b) => a + b, 0)
@@ -340,7 +325,7 @@ export default function Shell({ userId }) {
     <button className="btn primary" onClick={load}>Try again</button></>}</Splash>
 
   const ctx = { me, userId, server, role, member, can: perm => !!server && hasPerm(roleData, role, userId, perm), go, openDM, setModal, load, setChannels, markRead, markUnread, joinVoice,
-    voice, vstate, setVstate, startCall, threads, threadsByMsg, startThread, openThread: setThreadId, channels, reads, mentionOf, serverMentions, quiet }
+    voice, vstate, setVstate, startCall, channels, reads, mentionOf, serverMentions, quiet }
   Object.assign(app, { ctx, members, channels })
 
   return (
@@ -351,7 +336,7 @@ export default function Shell({ userId }) {
       <Sidebar ctx={ctx} channels={server ? serverChannels : dms} current={channel} isUnread={isUnread}
         voice={voice} vstate={vstate} setVstate={setVstate} onLeaveVoice={() => joinVoice(null)} />
 
-      <main className={`main${thread && channel?.kind !== 'voice' ? ' with-thread' : ''}`}>
+      <main className="main">
         {channel?.kind === 'voice'
           ? <StadiumChat key={channel.id} channel={channel} ctx={ctx}>
             <VoiceStage channel={channel} meId={userId} joined={voice?.id === channel.id} onJoin={() => joinVoice(channel)}
@@ -363,7 +348,6 @@ export default function Shell({ userId }) {
             : !server && (servers.length > 0 || hasFriends || location.hash.startsWith('#/dm')) // #/dm = picked Friends, even with none yet
               ? <FriendsHome ctx={ctx} onMenu={() => setNavOpen(true)} />
               : <Welcome ctx={ctx} onMenu={() => setNavOpen(true)} hasServers={servers.length > 0} />}
-        {thread && channel?.kind !== 'voice' && <ThreadPanel key={thread.id} thread={thread} ctx={ctx} onClose={closeThread} />}
       </main>
 
       {/* stadiums are full-width: the crowd is the member list */}
@@ -373,7 +357,7 @@ export default function Shell({ userId }) {
         onError={msg => { toast(msg); joinVoice(null) }} onCall={onCallSignal} />}
       <CallHost ctx={ctx} />
 
-      <QuickSwitch servers={servers} channels={channels.filter(c => c.kind !== 'thread')} go={go} />
+      <QuickSwitch servers={servers} channels={channels} go={go} />
       <ProfileCardHost ctx={ctx} members={members} />
       <ModHost ctx={ctx} />
       <NotifyHost ctx={ctx} servers={servers} isUnread={isUnread} visible={visible} current={channel} />

@@ -20,7 +20,7 @@ export default function IconGallery() {
               </div>
             ))}
           </div>
-          <p style={{ fontSize: 14, marginTop: 16 }}>In text: <Icon name="pin" size="1.15em" /> pinned · <Icon name="thread" size="1.15em" /> thread ·
+          <p style={{ fontSize: 14, marginTop: 16 }}>In text: <Icon name="pin" size="1.15em" /> pinned · <Icon name="gallery" size="1.15em" /> gallery ·
             <Icon name="lock" size="1.15em" /> private · <Icon name="live" size="1.15em" /> live · <Icon name="stadium" size="1.15em" /> in Hangout</p>
         </section>
       ))}

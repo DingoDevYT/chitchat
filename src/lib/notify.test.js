@@ -6,7 +6,7 @@ import { previewText } from './cues.js'
 
 const ID = '11111111-2222-3333-4444-555555555555'
 
-test('levels: room > category > server > default; threads follow their room; DMs default to all', () => {
+test('levels: room > category > server > default; post discussions follow their gallery; DMs default to all', () => {
   const room = { id: 'r', server_id: 's', category_id: 'k', kind: 'text' }
   assert.equal(effectiveLevel({}, room, { s: 3 }), 'all')
   assert.equal(effectiveLevel({}, room, { s: 16 }), 'mentions')
@@ -16,8 +16,8 @@ test('levels: room > category > server > default; threads follow their room; DMs
   assert.equal(effectiveLevel({ k: { level: 'mentions' }, r: { level: 'all' } }, room, {}), 'all')
   assert.equal(effectiveLevel({ k: { level: 'mentions' }, r: { level: 'all' } }, room, {}, undefined, true), 'mentions')
   assert.equal(effectiveLevel({ s: { suppress_everyone: true } }, room, {}), 'all') // a server row with no level inherits
-  const thread = { id: 't', server_id: 's', kind: 'thread', parent_channel_id: 'r' }
-  assert.equal(effectiveLevel({ r: { level: 'none' } }, thread, {}, id => id === 'r' ? room : null), 'none')
+  const post = { id: 't', server_id: 's', kind: 'post', parent_channel_id: 'r' }
+  assert.equal(effectiveLevel({ r: { level: 'none' } }, post, {}, id => id === 'r' ? room : null), 'none')
   assert.equal(effectiveLevel({ d: { level: 'mentions' } }, { id: 'd', kind: 'dm' }, {}), 'mentions')
 })
 

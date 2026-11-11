@@ -37,7 +37,7 @@ body .cat-head .room-icon .emoji, body .cat-head .room-icon img { width: 15px; h
 
 /* ── header banner ── */
 body .chat-head.room-head {
-  --shrink: 0; --extra: 76px; position: relative; isolation: isolate; /* no overflow:hidden: the threads menu drops out of it */
+  --shrink: 0; --extra: 76px; position: relative; isolation: isolate; /* no overflow:hidden: header menus drop out of it */
   height: calc(56px + (1 - var(--shrink)) * var(--extra)); align-items: flex-end; padding-bottom: 10px;
   border-bottom-color: color-mix(in srgb, var(--room-accent, var(--accent)) 25%, var(--line));
   transition: height .12s linear, border-color .3s;

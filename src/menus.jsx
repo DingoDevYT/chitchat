@@ -97,6 +97,7 @@ export const personMenu = id => ({ onContextMenu: e => openMenu(e, () => personI
 const markRead = list => app.ctx?.markRead(list.filter(c => c.kind !== 'voice'))
 
 // ── channel (sidebar) ──
+const noun = c => c.kind === 'voice' ? 'stadium' : c.kind === 'gallery' ? 'gallery' : 'room'
 export function channelItems(c) {
   const { ctx } = app
   const admin = ctx.can('manage_channels')
@@ -112,8 +113,8 @@ export function channelItems(c) {
     c.kind !== 'voice' && muteItem(c.id, 'room'),
     { label: 'Copy link', icon: 'link', onClick: () => copy(`${base()}#/s/${c.server_id}/${c.id}`, 'Link copied') },
     admin && { separator: true },
-    admin && { label: c.kind === 'voice' ? 'Edit stadium' : 'Edit room', icon: 'settings', onClick: () => ctx.setModal({ type: 'channel', channel: c }) },
-    admin && { label: c.kind === 'voice' ? 'Delete stadium' : 'Delete room', icon: 'trash', danger: true, onClick: destroy },
+    admin && { label: `Edit ${noun(c)}`, icon: 'settings', onClick: () => ctx.setModal({ type: 'channel', channel: c }) },
+    admin && { label: `Delete ${noun(c)}`, icon: 'trash', danger: true, onClick: destroy },
     ...extras('channel', c),
   ]
 }
@@ -194,7 +195,7 @@ export function streamItems(id, { me, focused, focus, hide, video }) {
 }
 
 // ── message ──
-export function messageItems(m, { mine, canDelete, canPin, onReply, onEdit, onDelete, onReact, onPin, onThread, thread, openPicker, quick }) {
+export function messageItems(m, { mine, canDelete, canPin, onReply, onEdit, onDelete, onReact, onPin, openPicker, quick }) {
   const { ctx } = app
   const link = `${base()}#/${ctx?.server ? 's/' + ctx.server.id : 'dm'}/${m.channel_id}/${m.id}`
   const speak = () => { speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(m.content)) }
@@ -205,7 +206,6 @@ export function messageItems(m, { mine, canDelete, canPin, onReply, onEdit, onDe
       { label: 'More reactions…', icon: 'plus', onClick: openPicker },
     ] },
     { label: 'Reply', icon: 'reply', onClick: () => onReply(m) },
-    onThread && { label: thread ? 'Open thread' : 'Start thread', icon: 'thread', onClick: () => onThread(m) },
     mine && m.content && !m.forward && { label: 'Edit message', icon: 'edit', onClick: () => onEdit(m) },
     // polls are the only messages with neither text nor files; they can't be forwarded (the DB says so too)
     (m.content || m.attachments?.length > 0) && { label: 'Forward', icon: <ForwardIcon size={16} />, onClick: () => ctx?.setModal({ type: 'forward', message: m }) },

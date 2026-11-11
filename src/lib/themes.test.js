@@ -19,10 +19,10 @@ test("an explicit 'none' stops inheritance", () => {
   assert.equal(resolveTheme({ channel: room(null), category: { theme: 'none' }, server: { theme: 'night' } }).from, 'category')
 })
 
-test('stadiums inherit too; DMs and threads never get a theme', () => {
+test('stadiums inherit too; DMs and post discussions never get a theme', () => {
   assert.equal(resolveTheme({ channel: room(null, { kind: 'voice' }), server: { theme: 'campfire' } }).id, 'campfire')
   assert.equal(resolveTheme({ channel: { kind: 'dm', server_id: null, theme: 'beach' }, server: { theme: 'night' } }).id, 'none')
-  assert.equal(resolveTheme({ channel: room('beach', { kind: 'thread' }), server: { theme: 'night' } }).id, 'none')
+  assert.equal(resolveTheme({ channel: room('beach', { kind: 'post' }), server: { theme: 'night' } }).id, 'none')
 })
 
 test('unknown ids are ignored (an old client meeting a new theme falls through to the next level)', () => {

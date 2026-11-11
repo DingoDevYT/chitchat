@@ -191,7 +191,7 @@ function ModDialog({ kind, uid, ctx, onClose }) {
   if (kind === 'timeout') return (
     <Modal title={`Time out ${name}`} onClose={onClose}>
       <form className="col" onSubmit={e => { e.preventDefault(); run('timeout_member', { secs, reason }, `${name} is in a timeout`) }}>
-        <p className="muted small">They can still read, but can't post, react, start threads or join stadiums here until it ends.</p>
+        <p className="muted small">They can still read, but can't post, react, share in galleries or join stadiums here until it ends.</p>
         {timedOut(m) && <div className="note row">Timed out for {leftText(Date.parse(m.timeout_until) - Date.now())} more.
           <span className="spacer" /><button type="button" className="btn ghost small" disabled={busy} onClick={() => run('timeout_member', { secs: 0 }, 'Timeout ended')}>End it now</button></div>}
         <div className="mod-pills" role="radiogroup" aria-label="How long">

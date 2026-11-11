@@ -7,10 +7,10 @@ export const BIG = 15 // servers with more members default to Only @mentions; @e
 
 export const defaultLevel = (c, sizes) => !c?.server_id ? 'all' : (sizes?.[c.server_id] || 0) > BIG ? 'mentions' : 'all'
 
-// Room → category → server → default. Threads follow their parent room. skipOwn: what the room would inherit.
+// Room → category → server → default. Post discussions follow their gallery. skipOwn: what the room would inherit.
 export function effectiveLevel(settings, c, sizes, parentOf = () => null, skipOwn = false) {
   if (!c) return 'all'
-  const room = (c.kind === 'thread' && parentOf(c.parent_channel_id)) || c
+  const room = (c.kind === 'post' && parentOf(c.parent_channel_id)) || c
   for (const id of [skipOwn ? null : room.id, room.category_id, c.server_id]) {
     const l = id && settings?.[id]?.level
     if (l) return l

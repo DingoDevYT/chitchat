@@ -55,6 +55,8 @@ test('audit lines read like sentences', () => {
     'renamed the room general to chill')
   assert.equal(describeAudit({ action: 'server_update', details: { changed: ['icon_url', 'icon_crop', 'name'] } }, name), 'changed server settings (icon, name)')
   assert.equal(describeAudit({ action: 'message_delete', target_id: 'x', details: { room: 'general' } }, name), 'deleted a message by someone in general')
+  assert.equal(describeAudit({ action: 'post_delete', target_id: 'm', details: { room: 'Art wall', title: 'Fox' } }, name), "deleted mochi's post “Fox” in Art wall")
+  assert.equal(describeAudit({ action: 'channel_create', details: { name: 'Art wall', kind: 'gallery' } }, name), 'created the gallery Art wall')
   assert.equal(describeAudit({ action: 'something_new', details: {} }, name), 'something new')
   assert.equal(fieldList(['members_can_invite', 'rules']), 'who can invite, rules')
 })

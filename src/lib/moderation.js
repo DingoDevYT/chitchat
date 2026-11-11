@@ -63,7 +63,7 @@ const DUR = Object.fromEntries(TIMEOUTS.map(([l, s]) => [s, l]))
 
 // One readable line per audit entry (the actor's name is shown separately). name(id) -> display name.
 export function describeAudit(e, name) {
-  const d = e.details || {}, t = name(e.target_id), noun = d.kind === 'voice' ? 'stadium' : 'room'
+  const d = e.details || {}, t = name(e.target_id), noun = d.kind === 'voice' ? 'stadium' : d.kind === 'gallery' ? 'gallery' : 'room'
   const what = d.changed?.length ? ` (${fieldList(d.changed)})` : ''
   switch (e.action) {
     case 'member_kick': return `kicked ${t}`
@@ -85,6 +85,7 @@ export function describeAudit(e, name) {
     case 'invite_delete': return `revoked the invite ${d.code}`
     case 'server_update': return `changed server settings${what}`
     case 'message_delete': return `deleted a message by ${t}${d.room ? ` in ${d.room}` : ''}`
+    case 'post_delete': return `deleted ${t}'s post${d.title ? ` “${d.title}”` : ''}${d.room ? ` in ${d.room}` : ''}`
     default: return e.action.replace(/_/g, ' ')
   }
 }
