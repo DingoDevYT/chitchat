@@ -7,9 +7,9 @@ import * as THREE from 'three'
 import { BASE, Person } from './People'
 import { card as playCard } from './highcard/rules.js'
 import { CARDS, FLAVOURS } from './snack/rules.js'
-import { BOARD, GROUPS } from './property/rules.js'
+import { BOARD, GROUPS, N } from './property/rules.js'
 import { snackFace } from './Card'
-import { cell } from './property/ui.jsx'
+import { CORNER, SIDE, along, cell, span } from './property/ui.jsx'
 
 const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 const CW = 0.56, CH = 0.8 // card size in world units
@@ -339,38 +339,63 @@ function PokerScene({ v, seats, meId }) {
 }
 
 // ── Teacup Town ──
-const BOARD_SIZE = 5.6, CELL = BOARD_SIZE / 7
-const tilePos = i => { const [c, r] = cell(i); return [(c - 3) * CELL, (r - 3) * CELL] }
-const boardTex = () => canvasTex('board', 2048, 2048, (g, W) => {
-  const C = W / 7
+// 40 spaces on an 11×11 ring with wide corners (see property/ui.jsx). U = one edge tile's width in world units.
+const BOARD_SIZE = 5.6, U = BOARD_SIZE / SIDE
+const tilePos = i => { const [c, r] = cell(i); return [(along(c) - SIDE / 2) * U, (along(r) - SIDE / 2) * U] }
+const inwardOf = i => { const [x, z] = tilePos(i); return [-Math.sign(Math.round(x * 10)), -Math.sign(Math.round(z * 10))] }
+function doodle(g, k, i) {
+  g.lineWidth = 5; g.strokeStyle = '#2b2230'
+  if (k === 'cookie') { g.fillStyle = '#e8b86b'; g.beginPath(); g.moveTo(-34, 18); g.quadraticCurveTo(0, -40, 34, 18); g.quadraticCurveTo(0, 0, -34, 18); g.fill(); g.stroke() }
+  if (k === 'party') { g.fillStyle = '#fbf3e4'; g.beginPath(); g.moveTo(-26, -14); g.lineTo(26, -14); g.quadraticCurveTo(24, 26, 0, 26); g.quadraticCurveTo(-24, 26, -26, -14); g.fill(); g.stroke(); g.beginPath(); g.arc(30, 2, 10, -1.3, 1.3); g.stroke() }
+  if (k === 'rail') { g.fillStyle = '#c86f5a'; rrect(g, -34, -22, 68, 40, 10); g.fill(); g.stroke(); g.fillStyle = '#fbf3e4'; g.fillRect(-26, -14, 22, 14); g.fillRect(4, -14, 22, 14); g.beginPath(); g.arc(-18, 22, 6, 0, 7); g.arc(18, 22, 6, 0, 7); g.fillStyle = '#2b2230'; g.fill() }
+  if (k === 'util' && i === 12) { g.fillStyle = '#f2d15c'; rrect(g, -16, -22, 32, 40, 8); g.fill(); g.stroke(); g.beginPath(); g.moveTo(-10, -30); g.lineTo(10, -30); g.stroke() }
+  if (k === 'util' && i !== 12) { g.fillStyle = '#8fc7e8'; g.beginPath(); g.moveTo(0, -30); g.quadraticCurveTo(24, 4, 0, 22); g.quadraticCurveTo(-24, 4, 0, -30); g.fill(); g.stroke() }
+  if (k === 'tax') { g.fillStyle = '#e8b86b'; g.beginPath(); g.arc(0, 0, 24, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#2b2230'; g.font = `900 26px ${FONT}`; g.fillText('¢', 0, 2) }
+}
+const boardTex = () => canvasTex('board40', 2048, 2048, (g, W) => {
+  const P = W / SIDE // pixels per edge tile
   g.fillStyle = '#cfe0c3'; g.fillRect(0, 0, W, W)
-  g.fillStyle = '#e9f0dc'; g.fillRect(C, C, W - 2 * C, W - 2 * C)
-  // centre: title and a teacup doodle
-  g.save(); g.translate(W / 2, W / 2); g.rotate(-0.12)
-  g.fillStyle = '#c86f5a'; g.font = `900 150px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'
-  g.fillText('Teacup', 0, -90); g.fillStyle = '#5b8de0'; g.fillText('Town', 0, 70)
-  g.strokeStyle = '#7a4a2b'; g.lineWidth = 14; g.fillStyle = '#fbf3e4'
-  g.beginPath(); g.moveTo(-120, 190); g.quadraticCurveTo(-110, 330, 0, 330); g.quadraticCurveTo(110, 330, 120, 190); g.closePath(); g.fill(); g.stroke()
-  g.beginPath(); g.arc(150, 245, 40, -1.2, 1.4); g.stroke()
-  g.beginPath(); g.moveTo(-40, 160); g.quadraticCurveTo(-60, 120, -30, 90); g.moveTo(30, 160); g.quadraticCurveTo(10, 110, 40, 80); g.stroke()
+  g.fillStyle = '#e9f0dc'; g.fillRect(CORNER * P, CORNER * P, 9 * P, 9 * P)
+  g.strokeStyle = '#2b2230'; g.lineWidth = 4; g.strokeRect(CORNER * P, CORNER * P, 9 * P, 9 * P)
+  // centre: the name across the diagonal, a teacup, and the two deck spots
+  g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.save(); g.translate(W / 2, W / 2); g.rotate(-Math.PI / 4)
+  g.fillStyle = '#c86f5a'; g.font = `900 170px ${FONT}`; g.fillText('Teacup Town', 0, -10)
+  g.strokeStyle = '#7a4a2b'; g.lineWidth = 12; g.fillStyle = '#fbf3e4'
+  g.beginPath(); g.moveTo(-90, 110); g.quadraticCurveTo(-80, 220, 0, 220); g.quadraticCurveTo(80, 220, 90, 110); g.closePath(); g.fill(); g.stroke()
+  g.beginPath(); g.arc(112, 150, 30, -1.2, 1.4); g.stroke()
   g.restore()
+  for (const [x, y, label, col] of [[-1, -1, 'Fortune Cookie', '#e8b86b'], [1, 1, 'Tea Party', '#8fc7e8']]) {
+    g.save(); g.translate(W / 2 + x * 2.6 * P, W / 2 + y * 2.6 * P); g.rotate(-Math.PI / 4)
+    g.setLineDash([18, 12]); g.strokeStyle = col; g.lineWidth = 8; rrect(g, -1.15 * P, -0.8 * P, 2.3 * P, 1.6 * P, 24); g.stroke(); g.setLineDash([])
+    g.fillStyle = '#6b5a4c'; g.font = `800 40px ${FONT}`; g.fillText(label, 0, 1.15 * P)
+    g.restore()
+  }
   BOARD.forEach((b, i) => {
     const [c, r] = cell(i)
-    const side = i < 6 ? 0 : i < 12 ? 1 : i < 18 ? 2 : 3
-    const corner = i % 6 === 0
-    g.save(); g.translate(c * C + C / 2, r * C + C / 2); g.rotate([0, Math.PI / 2, Math.PI, -Math.PI / 2][side])
-    g.fillStyle = '#fbf3e4'; g.fillRect(-C / 2 + 4, -C / 2 + 4, C - 8, C - 8)
-    if (b.g != null) { g.fillStyle = GROUPS[b.g].color; g.fillRect(-C / 2 + 4, -C / 2 + 4, C - 8, C * 0.24) }
+    const side = Math.floor(i / 10), corner = i % 10 === 0
+    const w = span(c) * P, h = span(r) * P
+    g.save(); g.translate(along(c) * P, along(r) * P)
+    g.fillStyle = corner ? '#f2e3c2' : '#fbf3e4'; g.fillRect(-w / 2, -h / 2, w, h)
+    g.strokeStyle = '#2b2230'; g.lineWidth = 3; g.strokeRect(-w / 2, -h / 2, w, h)
+    g.rotate([0, Math.PI / 2, Math.PI, -Math.PI / 2][side] - (corner ? Math.PI / 4 : 0))
+    const tw = P, th = CORNER * P // the tile in its own frame: outer edge at +y
     g.fillStyle = '#2b2230'; g.textAlign = 'center'; g.textBaseline = 'middle'
+    if (corner) {
+      g.font = `900 46px ${FONT}`; g.fillText(b.name, 0, -24)
+      g.font = `700 26px ${FONT}`; g.fillStyle = '#6b5a4c'; g.fillText(b.sub, 0, 22)
+      if (i === 0) { g.fillStyle = '#c86f5a'; g.beginPath(); g.moveTo(60, 62); g.lineTo(-40, 62); g.lineTo(-40, 46); g.lineTo(-70, 72); g.lineTo(-40, 98); g.lineTo(-40, 82); g.lineTo(60, 82); g.fill() }
+      g.restore(); return
+    }
+    if (b.g != null) { g.fillStyle = GROUPS[b.g].color; g.fillRect(-tw / 2, -th / 2, tw, th * 0.22); g.strokeRect(-tw / 2, -th / 2, tw, th * 0.22) }
+    g.fillStyle = '#2b2230'; g.font = `800 23px ${FONT}`
     const words = b.name.split(' ')
-    g.font = `800 ${corner ? 40 : 34}px ${FONT}`
-    words.forEach((w, k) => g.fillText(w, 0, (b.g != null ? -C * 0.06 : -C * 0.16) + k * 38))
-    g.font = `700 30px ${FONT}`
-    const sub = b.price ? `${b.price}` : b.amt ? `Pay ${b.amt}` : b.sub || ''
-    g.fillStyle = '#6b5a4c'; g.fillText(sub, 0, C * 0.34)
-    if (b.k === 'fortune') { g.fillStyle = '#e8b86b'; g.beginPath(); g.moveTo(-40, 30); g.quadraticCurveTo(0, -30, 40, 30); g.quadraticCurveTo(0, 10, -40, 30); g.fill() }
-    if (b.k === 'trolley') { g.fillStyle = '#c86f5a'; rrect(g, -50, 0, 100, 50, 12); g.fill(); g.fillStyle = '#fbf3e4'; g.fillRect(-38, 10, 30, 20); g.fillRect(8, 10, 30, 20) }
-    if (b.k === 'oven') { g.fillStyle = '#e8b86b'; g.beginPath(); g.arc(0, 30, 34, Math.PI, 0); g.fill() }
+    const top = b.g != null ? -th * 0.2 : -th * 0.36
+    words.forEach((wd, k) => g.fillText(wd.toUpperCase(), 0, top + k * 26))
+    g.save(); g.translate(0, b.g != null ? th * 0.08 : th * 0.04); doodle(g, b.k, i); g.restore()
+    g.font = `800 22px ${FONT}`; g.fillStyle = '#6b5a4c'
+    const sub = b.price ? `${b.price}` : b.amt ? `Pay ${b.amt}` : ''
+    g.fillText(sub, 0, th * 0.38)
     g.restore()
   })
 })
@@ -404,53 +429,76 @@ function Token({ color, space, slot, hop }) {
   useFrame((_, dt) => {
     const o = ref.current
     if (prog.current >= 1 && at.current !== space) {
-      const next = hop ? (at.current + 1) % 24 : space
+      const next = hop ? (at.current + 1) % N : space
       from.current = tilePos(at.current); at.current = next; prog.current = 0
     }
     prog.current = reduced ? 1 : Math.min(1, prog.current + dt * 5)
     const [ax, az] = from.current, [bx, bz] = tilePos(at.current)
     const t = prog.current
-    const off = [(slot % 3 - 1) * 0.2, (Math.floor(slot / 3) - 0.5) * 0.2]
+    const off = [(slot % 3 - 1) * 0.13, (Math.floor(slot / 3) - 0.5) * 0.15]
     o.position.set(ax + (bx - ax) * t + off[0], 0.02 + Math.sin(t * Math.PI) * 0.35, az + (bz - az) * t + off[1] + 0.05)
   })
   const m = mat('tok' + color, () => new THREE.MeshStandardMaterial({ color, roughness: 0.35 }))
   return (
-    <group ref={ref}>
+    <group ref={ref} scale={0.75}>
       <mesh position={[0, 0.08, 0]} material={m} castShadow><cylinderGeometry args={[0.13, 0.16, 0.12, 20]} /></mesh>
       <mesh position={[0, 0.25, 0]} material={m} castShadow><cylinderGeometry args={[0.05, 0.1, 0.22, 16]} /></mesh>
       <mesh position={[0, 0.42, 0]} material={m} castShadow><sphereGeometry args={[0.1, 16, 12]} /></mesh>
     </group>
   )
 }
-function Cottage({ color, pos }) {
+function Cottage({ color, pos, inn }) {
+  const s = inn ? [0.24, 0.15, 0.13] : [0.1, 0.09, 0.1]
   return (
     <group position={pos}>
-      <mesh position={[0, 0.06, 0]} castShadow><boxGeometry args={[0.13, 0.12, 0.13]} /><meshStandardMaterial color="#fbf3e4" /></mesh>
-      <mesh position={[0, 0.17, 0]} rotation-y={Math.PI / 4} castShadow><coneGeometry args={[0.12, 0.11, 4]} /><meshStandardMaterial color={color} /></mesh>
+      <mesh position={[0, s[1] / 2, 0]} castShadow><boxGeometry args={s} /><meshStandardMaterial color={inn ? '#c86f5a' : '#6fb06a'} roughness={0.6} /></mesh>
+      <mesh position={[0, s[1] + 0.03, 0]} rotation-y={Math.PI / 4} scale={[s[0] / s[2], 1, 1]} castShadow><coneGeometry args={[s[2] * 0.78, 0.07, 4]} /><meshStandardMaterial color={color} /></mesh>
     </group>
+  )
+}
+// A face-down deck pile on its spot in the middle of the board.
+function Deck({ pos, color, label }) {
+  const top = useMemo(() => mat('deck' + label, () => new THREE.MeshStandardMaterial({ roughness: 0.7, map: canvasTex('deck' + label, 256, 180, (g, w, h) => {
+    g.fillStyle = color; rrect(g, 0, 0, w, h, 18); g.fill()
+    g.strokeStyle = '#fbf3e4'; g.lineWidth = 6; rrect(g, 10, 10, w - 20, h - 20, 12); g.stroke()
+    g.fillStyle = '#2b2230'; g.font = `900 30px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'
+    label.split(' ').forEach((wd, k, a) => g.fillText(wd, w / 2, h / 2 + (k - (a.length - 1) / 2) * 34))
+  }) })), [color, label])
+  const side = mat('deckside', () => new THREE.MeshStandardMaterial({ color: '#efe4cf' }))
+  return (
+    <mesh position={pos} rotation-y={Math.PI / 4} material={[side, side, top, side, side, side]} castShadow>
+      <boxGeometry args={[2.3 * U * 0.9, 0.08, 1.6 * U * 0.9]} />
+    </mesh>
   )
 }
 function PropertyScene({ v, seats }) {
   const board = useMemo(boardTex, [])
   const slots = {}
+  const d = 2.6 * U
   return (
     <group>
       <mesh position={[0, 0.01, 0]} rotation-x={-Math.PI / 2} receiveShadow><planeGeometry args={[BOARD_SIZE, BOARD_SIZE]} /><meshStandardMaterial map={board} roughness={0.8} /></mesh>
+      <Deck pos={[-d, 0.05, -d]} color="#e8b86b" label="Fortune Cookie" />
+      <Deck pos={[d, 0.05, d]} color="#8fc7e8" label="Tea Party" />
       {Object.entries(v.owner).map(([sp, o]) => {
         const [x, z] = tilePos(+sp), s = seats.find(p => p.pid === o)
         const n = v.cottages[sp] || 0
-        const inward = [-x, -z].map(c => Math.sign(Math.round(c * 10)) * CELL * 0.3)
+        const [ix, iz] = inwardOf(+sp)
+        const band = CORNER * U * 0.39 // centre of the colour band, toward the middle of the board
+        const bx = x + ix * band, bz = z + iz * band
         return (
           <group key={sp}>
-            <mesh position={[x - inward[0] * 0.9, 0.02, z - inward[1] * 0.9]} rotation-x={-Math.PI / 2}><circleGeometry args={[0.09, 16]} /><meshBasicMaterial color={s?.color || '#999'} /></mesh>
-            {Array.from({ length: n }, (_, k) => <Cottage key={k} color={s?.color || '#c86f5a'} pos={[x + inward[0] + (inward[1] ? (k - 1.5) * 0.15 : 0), 0.01, z + inward[1] + (inward[0] ? (k - 1.5) * 0.15 : 0)]} />)}
+            {/* owner tag on the outer edge; mortgaged streets get a pale, flipped-looking tag */}
+            <mesh position={[x - ix * band * 1.05, 0.02, z - iz * band * 1.05]} rotation-x={-Math.PI / 2}><circleGeometry args={[0.07, 16]} /><meshBasicMaterial color={v.mortgaged[sp] ? '#bdb3a4' : s?.color || '#999'} /></mesh>
+            {n === 5 ? <Cottage inn color={s?.color || '#c86f5a'} pos={[bx, 0.01, bz]} />
+              : Array.from({ length: n }, (_, k) => <Cottage key={k} color={s?.color || '#c86f5a'} pos={[bx + (iz ? (k - 1.5) * 0.11 : 0), 0.01, bz + (ix ? (k - 1.5) * 0.11 : 0)]} />)}
           </group>
         )
       })}
       {seats.filter(s => !v.broke[s.pid]).map(s => {
         const sp = v.pos[s.pid]
         slots[sp] = (slots[sp] || 0) + 1
-        return <Token key={s.pid} color={s.color} space={sp} slot={slots[sp] - 1} hop={!(v.last?.napped || v.napping[s.pid] === 1)} />
+        return <Token key={s.pid} color={s.color} space={sp} slot={slots[sp] - 1} hop={!(v.last?.napped || v.napping[s.pid] === 1 || v.card?.back)} />
       })}
       <DieMesh value={v.dice[0]} pos={[-0.3, 0, 0.6]} roll={v.rolls} idx={0} />
       <DieMesh value={v.dice[1]} pos={[0.3, 0, 0.7]} roll={v.rolls} idx={1} />
