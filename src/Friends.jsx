@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabase'
 import { createStore, ensureProfiles, online, toast, profiles } from './lib/store'
-import Avatar, { Name, CustomStatus } from './Avatar'
+import Avatar, { Name, CustomStatus, Critter } from './Avatar'
 import { LastSeen } from './ChatCues'
 import { InStadium } from './VoiceCues'
 import { statusOf } from './lib/status'
@@ -161,6 +161,7 @@ export default function FriendsHome({ ctx, onMenu }) {
             <h4>{tab === 'online' ? 'Online' : 'All friends'}: {shown.length}</h4>
             {!shown.length && (
               <div className="friends-empty pop">
+                <Critter size={64} color="#ff9f6b" />
                 <p className="muted">{friends.length ? 'Nobody\'s online right now.' : 'No friends here yet.'}</p>
                 {!friends.length && <button className="btn primary" onClick={() => setTab('add')}>Add your first friend</button>}
               </div>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { micLevel, prefs, setPref, toast } from './lib/store'
 import { keyLabel } from './lib/voice'
 import { camVideo, canCam, canPickOut, checkDevices, makeMic, makeOut } from './Voice'
+import Icon from './icons/Icon'
 
 const md = typeof navigator !== 'undefined' ? navigator.mediaDevices : null
 const pct = v => `${Math.round(v * 100)}%`
@@ -37,7 +38,7 @@ export default function VoiceSettings() {
   return (
     <div className="col">
       {devices.some(d => d.kind === 'audioinput' && !d.label) &&
-        <button className="btn ghost" onClick={allow}>🎙️ Allow microphone to see device names</button>}
+        <button className="btn ghost" onClick={allow}><Icon name="mic" size={18} /> Allow microphone to see device names</button>}
       <div className="av-grid">
         {picker('Input device', 'micId', 'audioinput')}
         {picker('Output device', 'speakerId', 'audiooutput', { disabled: !canPickOut })}
@@ -76,7 +77,7 @@ export default function VoiceSettings() {
         <label className="toggle"><input type="checkbox" checked={p.normalise} onChange={e => setPref('normalise', e.target.checked)} />
           <span>Normalise voices <span className="muted small">· evens out quiet and loud people in stadiums</span></span></label>
         <label className="toggle"><input type="checkbox" checked={p.ttsHear} onChange={e => setPref('ttsHear', e.target.checked)} />
-          <span>Read 🔊 TTS messages aloud in stadiums I've joined</span></label>
+          <span>Read <Icon name="volume" size={14} /> TTS messages aloud in stadiums I've joined</span></label>
         <label className="toggle"><input type="checkbox" checked={p.joinSounds} onChange={e => setPref('joinSounds', e.target.checked)} />
           <span>Join/leave sounds <span className="muted small">· a soft chime when someone joins or leaves your stadium</span></span></label>
         <label className="toggle"><input type="checkbox" checked={p.ringCalls} onChange={e => setPref('ringCalls', e.target.checked)} />
@@ -87,7 +88,7 @@ export default function VoiceSettings() {
         <div className="cam-setup">
           {picker('Camera', 'camId', 'videoinput')}
           {camTest && <CamPreview camId={p.camId} />}
-          <button className="btn ghost small" onClick={() => setCamTest(t => !t)}>{camTest ? 'Stop preview' : '📷 Preview camera'}</button>
+          <button className="btn ghost small" onClick={() => setCamTest(t => !t)}>{camTest ? 'Stop preview' : <><Icon name="camera" size={16} /> Preview camera</>}</button>
         </div>
       )}
     </div>
@@ -153,7 +154,7 @@ function MicTest() {
   }, [on])
   return (
     <div className="row">
-      <button className={`btn small ${on ? 'danger' : 'primary'}`} onClick={() => setOn(o => !o)}>{on ? '⏹️ Stop checking' : "🎧 Let's check"}</button>
+      <button className={`btn small ${on ? 'danger' : 'primary'}`} onClick={() => setOn(o => !o)}><Icon name={on ? 'stop' : 'headphones'} size={16} /> {on ? 'Stop checking' : "Let's check"}</button>
       <span className="muted small">{on ? 'Say something, you should hear yourself.' : 'Hear yourself as others do. Headphones help.'}</span>
     </div>
   )

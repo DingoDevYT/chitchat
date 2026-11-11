@@ -11,6 +11,7 @@ import { EXPRESSIONS, BLINKS } from './lib/expressions'
 import VoiceSettings from './VoiceSettings'
 import Privacy from './Privacy'
 import { NotificationsTab } from './Notify'
+import Icon from './icons/Icon'
 
 const WAVES = [['square', 'Chirpy'], ['triangle', 'Soft'], ['sawtooth', 'Buzzy'], ['sine', 'Gentle']]
 const COLORS = ['#ff9f6b', '#f4a261', '#e76f51', '#ff6b8b', '#c77dff', '#7b9cff', '#4cc9f0', '#7ed6b1', '#b5e48c', '#ffd166']
@@ -42,7 +43,7 @@ function RealVoicePick({ voice, setVoice }) {
           {voices.map(v => <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>)}
         </select>
       </label>
-      <button className="btn ghost small" onClick={test}>▶ Test</button>
+      <button className="btn ghost small" onClick={test}><Icon name="play" size={14} /> Test</button>
     </div>
   )
 }
@@ -178,7 +179,7 @@ export default function Settings({ me, onClose, tab: firstTab }) {
               <button className="link" onClick={() => setForm(f => ({ ...f, avatar_idle: null, avatar_talk: null, avatar_crop: null, avatar_talk_crop: null }))}>Reset to critter</button>}</p>
 
           <details className="expr-more" open={Object.keys(form.avatar_states).length > 0 || undefined}>
-            <summary>✨ More expressions <span className="muted small">optional{Object.keys(form.avatar_states).length ? ` · ${Object.keys(form.avatar_states).length} set` : ''}</span></summary>
+            <summary><Icon name="sparkle" size={16} /> More expressions <span className="muted small">optional{Object.keys(form.avatar_states).length ? ` · ${Object.keys(form.avatar_states).length} set` : ''}</span></summary>
             <p className="muted small">Extra images your avatar switches to automatically. Transparent PNGs and GIFs work, and anything left empty just uses your idle image.</p>
             {[['Expressions', EXPRESSIONS], ['Blinking (advanced)', BLINKS]].map(([label, list]) => (
               <div key={label}>
@@ -194,7 +195,7 @@ export default function Settings({ me, onClose, tab: firstTab }) {
                         <div className="row">
                           <label className="btn ghost small">{busy === 'state:' + k ? 'Uploading…' : cur?.url ? 'Change' : 'Upload'}
                             <input type="file" accept={IMAGE_TYPES} hidden onChange={e => pick('state:' + k, e.target)} /></label>
-                          {cur?.url && <button className="btn ghost small" onClick={() => clearState(k)} aria-label={`Remove ${name} image`}>✕</button>}
+                          {cur?.url && <button className="btn ghost small" onClick={() => clearState(k)} aria-label={`Remove ${name} image`}><Icon name="close" size={14} /></button>}
                         </div>
                       </div>
                     )
@@ -214,7 +215,7 @@ export default function Settings({ me, onClose, tab: firstTab }) {
           <div>Speak my TTS messages as
             <div className="tabs small">{[['animalese', 'Animalese'], ['real', 'Real voice']].map(([v, l]) =>
               <button key={v} className={(form.voice.tts || 'animalese') === v ? 'on' : ''} onClick={() => setVoice('tts', v)}>{l}</button>)}</div>
-            <span className="muted small">For 🔊 TTS messages in stadium chats. Pitch and speed above apply to both.</span>
+            <span className="muted small">For <Icon name="volume" size={14} /> TTS messages in stadium chats. Pitch and speed above apply to both.</span>
           </div>
           {form.voice.tts === 'real' && <RealVoicePick voice={form.voice} setVoice={setVoice} />}
         </div>
@@ -251,7 +252,7 @@ export default function Settings({ me, onClose, tab: firstTab }) {
             <button className="btn ghost" onClick={() => setPref('muted', {})}>Unmute everyone ({Object.keys(p.muted).length})</button>
           )}
           <p className="muted small">Shortcuts: <kbd>Ctrl</kbd>+<kbd>K</kbd> jump anywhere · <kbd>↑</kbd> edit your last message ·
-            <kbd>Shift</kbd>+<kbd>Enter</kbd> new line · <kbd>Shift</kbd>-click 🗑️ deletes without asking</p>
+            <kbd>Shift</kbd>+<kbd>Enter</kbd> new line · <kbd>Shift</kbd>-click <Icon name="trash" size={14} /> deletes without asking</p>
           <button className="btn danger" onClick={() => supabase.auth.signOut()}>Sign out</button>
         </div>
       )}

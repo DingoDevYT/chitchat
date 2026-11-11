@@ -14,8 +14,8 @@ body .rail.cards .rail-btn.inbox-btn:hover { background: var(--bg-3); color: var
 body .rail.cards .rail-btn.inbox-btn.active { background: var(--accent); color: var(--accent-ink); }
 
 /* "Nothing" rooms and DMs: the unread dot stays, just dimmer */
-body .ch-item.ch-quiet.unread:not(.active) { color: var(--muted); }
-body .ch-item.ch-quiet.unread::before { opacity: .35; }
+body .ch-item.ch-quiet.unread:not(.active) { color: color-mix(in srgb, var(--text) 45%, var(--muted)); }
+body .ch-item.ch-quiet.unread::before { opacity: .4; }
 
 /* ── inbox ── */
 body .inbox-scrim { position: fixed; inset: 0; z-index: 90; }
@@ -80,11 +80,11 @@ body .notify-row select { flex: none; width: auto; max-width: 55%; }
 body .notify-tab .btn .nf-ico { margin-right: 4px; }
 
 /* ── keyboard shortcut sheet ── */
-body .shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 28px; max-height: 70vh; overflow-y: auto; }
-body .shortcuts h3 { margin: 10px 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-body .shortcut-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--stitch); }
-body .shortcut-keys { flex: none; white-space: nowrap; }
-body .shortcut-what { text-align: right; font-size: 14px; }
+body .shortcuts { display: flex; flex-direction: column; gap: 4px; max-height: 68vh; overflow-y: auto; padding-right: 4px; }
+body .shortcuts h3 { margin: 10px 0 2px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+body .shortcut-row { display: grid; grid-template-columns: 190px 1fr; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--stitch); }
+body .shortcut-keys { white-space: nowrap; }
+body .shortcut-what { font-size: 14px; }
 body .keys { display: inline-flex; gap: 3px; }
 body .keys kbd { min-width: 22px; text-align: center; }
 
@@ -93,7 +93,5 @@ body .keys kbd { min-width: 22px; text-align: center; }
   body .inbox-head { flex-wrap: wrap; }
   body .inbox-item { grid-template-columns: 32px 1fr; }
   body .inbox-acts { grid-column: 2; flex-direction: row; }
-  body .shortcuts { grid-template-columns: 1fr; }
-  body .shortcut-row { flex-wrap: wrap; }
-  body .shortcut-what { text-align: left; }
+  body .shortcut-row { grid-template-columns: 1fr; gap: 4px; }
 }

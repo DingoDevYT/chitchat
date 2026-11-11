@@ -3,6 +3,7 @@ import { CropImg } from './Avatar'
 import { Emoji } from './Markdown'
 import { DEFAULT_FONT, fmtLeft, fmtSlow, fontHref, fontOf, iconKind, inkFor, isMediaUrl, roomAccent, shrinkOf } from './lib/rooms'
 import './styles/rooms.css'
+import Icon from './icons/Icon'
 
 // One <link> per font, injected the first time something shows it (Nunito comes with index.html).
 const fontsIn = new Set([DEFAULT_FONT])
@@ -23,14 +24,14 @@ export function roomVars(c, server) {
   return a ? { '--room-accent': a, '--room-ink': inkFor(a) } : undefined
 }
 
-// Room icon: emoji, custom server emoji or uploaded image; default 🏟️ for stadiums, a soft dot for rooms.
+// Room icon: emoji, custom server emoji or uploaded image; default stadium doodle for stadiums, a soft dot for rooms.
 export function RoomIcon({ c, className = '' }) {
   const k = iconKind(c.icon)
   return (
     <span className={`ch-icon room-icon ${className}`} aria-hidden="true">
       {k === 'image' ? <img src={c.icon} alt="" draggable="false" loading="lazy" />
         : k ? <Emoji e={c.icon} />
-          : c.kind === 'voice' ? <Emoji e="🏟️" /> : c.kind ? <i className="room-dot" /> : null}
+          : c.kind === 'voice' ? <Icon name="stadium" size={18} /> : c.kind ? <i className="room-dot" /> : null}
     </span>
   )
 }
@@ -121,7 +122,7 @@ export function SlowBadge({ sec, left, exempt }) {
   return (
     <span className={`slow-badge${left > 0 ? ' waiting' : ''}`} role="status"
       title={exempt ? "Slowmode is on, but you're exempt" : `Slowmode: one message every ${fmtSlow(sec)}`}>
-      🐢 Slowmode: {fmtSlow(sec)}{exempt ? ' · exempt' : left > 0 && <b> · {fmtLeft(left)}</b>}
+      <Icon name="snail" size={15} /> Slowmode: {fmtSlow(sec)}{exempt ? ' · exempt' : left > 0 && <b> · {fmtLeft(left)}</b>}
     </span>
   )
 }

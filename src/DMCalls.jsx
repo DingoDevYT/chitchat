@@ -11,6 +11,7 @@ import Avatar, { Name } from './Avatar'
 import { openMenu } from './ContextMenu'
 import { app, personMenu, streamItems } from './menus'
 import './styles/dm-calls.css'
+import Icon from './icons/Icon'
 
 // Calls in DMs and group DMs. A call is a VoiceConnection on 'call:<dm id>' (see Voice.jsx); everything here reads who's in
 // which call from global presence (lib/calls.js callKey), so ringing needs no extra realtime channels and also reaches
@@ -29,18 +30,14 @@ const nameOf = id => profiles.get()[id]?.display_name || profiles.get()[id]?.use
 const others = (c, me) => (c.channel_members || []).map(m => m.user_id).filter(id => id !== me)
 const mmss = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
 
-// Small stroke icons (no emoji in call UI).
-const Svg = ({ children, className }) => (
-  <svg className={`ci${className ? ' ' + className : ''}`} viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
-)
-const PHONE = 'M6.6 3.5h2.6l1.6 4.4-2.1 1.4a11 11 0 0 0 6 6l1.4-2.1 4.4 1.6v2.6a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.6 5.7a2 2 0 0 1 2-2.2z'
-export const PhoneIcon = ({ hang }) => <Svg className={hang ? 'hang' : ''}><path d={PHONE} /></Svg>
-export const VideoIcon = ({ off }) => <Svg><rect x="2.5" y="6" width="13" height="12" rx="2.5" /><path d="M15.5 10.5l6-3.5v10l-6-3.5" />{off && <path d="M3 3l18 18" />}</Svg>
-const MicIcon = ({ off }) => <Svg><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />{off && <path d="M4 4l16 16" />}</Svg>
-const EarIcon = ({ off }) => <Svg><path d="M4 15v-3a8 8 0 0 1 16 0v3" /><rect x="3" y="14" width="4.5" height="6.5" rx="1.5" /><rect x="16.5" y="14" width="4.5" height="6.5" rx="1.5" />{off && <path d="M3 3l18 18" />}</Svg>
-const ScreenIcon = () => <Svg><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></Svg>
-const Chevron = ({ up }) => <Svg className={up ? 'up' : ''}><path d="M6 9l6 6 6-6" /></Svg>
+// Chitchat doodle icons (no emoji in call UI); .ci / .hang / .up come from dm-calls.css.
+const Ci = ({ name, className }) => <Icon name={name} size={18} className={className ? `ci ${className}` : 'ci'} />
+export const PhoneIcon = ({ hang }) => <Ci name="phone" className={hang ? 'hang' : ''} />
+export const VideoIcon = ({ off }) => <Ci name={off ? 'camera-off' : 'camera'} />
+const MicIcon = ({ off }) => <Ci name={off ? 'mic-off' : 'mic'} />
+const EarIcon = ({ off }) => <Ci name={off ? 'headphones-off' : 'headphones'} />
+const ScreenIcon = () => <Ci name="screen" />
+const Chevron = ({ up }) => <Ci name="chevron-down" className={up ? 'up' : ''} />
 
 // Writes "Missed call" / "Call · 12m" into the DM and marks it read for you (you were there).
 function writeLine(cid, content, call) {

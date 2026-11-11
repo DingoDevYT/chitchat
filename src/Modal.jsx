@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { uiSound } from './lib/animalese'
 import Icon from './icons/Icon'
+import './styles/modal-size.css'
 
 // A speech-bubble dialog: the title is the tilted name tag, the body scrolls under it.
 export default function Modal({ title, onClose, children, wide }) {

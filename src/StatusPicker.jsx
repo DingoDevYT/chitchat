@@ -5,6 +5,7 @@ import { STATUSES, CLEAR_AFTER, expiryFor } from './lib/status'
 import Avatar, { CustomStatus, useCustomStatus } from './Avatar'
 import { Emoji } from './Markdown'
 import EmojiPicker from './EmojiPicker'
+import Icon from './icons/Icon'
 
 async function save(id, patch) {
   const prev = profiles.get()[id]
@@ -56,9 +57,9 @@ function Picker({ userId, onClose }) {
       {edit ? <CustomEditor cs={cs} onCancel={() => setEdit(false)}
         onSave={v => { save(userId, { custom_status: v }); onClose() }} /> : <>
         <button className="st-opt" onClick={() => setEdit(true)}>
-          {cs ? <CustomStatus id={userId} /> : <span>💬 <b style={{ display: 'inline' }}>Set custom status</b></span>}
+          {cs ? <CustomStatus id={userId} /> : <span><Icon name="chat" size={16} /> <b style={{ display: 'inline' }}>Set custom status</b></span>}
         </button>
-        {cs && <button className="st-opt small muted" onClick={() => save(userId, { custom_status: null })}>✕ Clear custom status</button>}
+        {cs && <button className="st-opt small muted" onClick={() => save(userId, { custom_status: null })}><Icon name="close" size={14} /> Clear custom status</button>}
         <hr />
         {STATUSES.map(([k, label, desc]) => (
           <button key={k} className={`st-opt${chosen === k ? ' on' : ''}`} aria-pressed={chosen === k}
@@ -84,7 +85,7 @@ function CustomEditor({ cs, onSave, onCancel }) {
       <b>Set a custom status</b>
       <div className="row">
         <button type="button" className="cs-emoji" title="Pick an emoji" aria-label="Pick an emoji"
-          onMouseDown={e => e.stopPropagation()} onClick={() => setEp(o => !o)}>{emoji ? <Emoji e={emoji} /> : '🙂'}</button>
+          onMouseDown={e => e.stopPropagation()} onClick={() => setEp(o => !o)}>{emoji ? <Emoji e={emoji} /> : <Icon name="smile" />}</button>
         <input autoFocus value={text} maxLength={128} onChange={e => setText(e.target.value)} placeholder="What's happening?" aria-label="Custom status" />
       </div>
       <label className="small">Clear after{' '}

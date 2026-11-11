@@ -8,6 +8,7 @@ import { app } from './menus'
 import { ask } from './Dialog'
 import './styles/custom-emoji.css'
 import './styles/messaging-plus.css'
+import Icon from './icons/Icon'
 
 // Server emoji by id; unknown or deleted ones fall back to :name: text.
 export function CustomEmoji({ name, id, lazy }) {
@@ -61,8 +62,7 @@ function MaskedLink({ tk, children }) {
   return <a href={tk.v} title={tk.v} target="_blank" rel="noopener noreferrer" onClick={open}>{children}</a>
 }
 
-export const RoomGlyph = () => <svg className="nf-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-  strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z" /></svg>
+export const RoomGlyph = () => <Icon name="room" size={13} className="nf-ico" />
 
 // <~name:id> room link: a pill that opens the room; the stored name shows (unlinked) if it's gone or hidden from you.
 function RoomLink({ id, name }) {

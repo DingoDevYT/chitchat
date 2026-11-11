@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Chat from './Chat'
 import { clearBubbles, showBubble, showTyping } from './lib/stadium'
 import './styles/stadium-chat.css'
+import Icon from './icons/Icon'
 
 const narrow = () => matchMedia('(max-width: 720px)').matches
 
@@ -13,7 +14,7 @@ export default function StadiumChat({ channel, ctx, children }) {
   return (
     <div className={`stadium-split${open ? ' chat-open' : ''}`}>
       {children}
-      {!open && <button className="btn primary small stadium-chat-btn pop" onClick={() => setOpen(true)}>💬 Chat</button>}
+      {!open && <button className="btn primary small stadium-chat-btn pop" onClick={() => setOpen(true)}><Icon name="chat" size={16} /> Chat</button>}
       <aside className="stadium-chat" aria-label={`${channel.name} chat`} hidden={!open}>
         <Chat key={channel.id} channel={channel} ctx={ctx}
           stadium={{ onType: showTyping, onArrive: showBubble, onClose: () => setOpen(false) }} />

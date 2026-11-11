@@ -76,7 +76,14 @@ const levelItems = (id, cur, inherited) => [
   { separator: true },
   ...LEVELS.map(([l, label]) => ({ label, checked: cur === l, onClick: () => setNotify(id, { level: l }) })),
 ]
-menuExtras.server.push(s => {
+// replaces our own earlier entry, so a hot reload of this file doesn't add a second Notifications item
+function register(kind, f) {
+  const list = menuExtras[kind], i = list.findIndex(x => x.notify)
+  f.notify = true
+  if (i >= 0) list.splice(i, 1, f)
+  else list.push(f)
+}
+register('server', s => {
   const { settings, sizes } = notifyStore.get(), row = settings[s.id] || {}
   return [{ label: 'Notifications', icon: <BellIcon size={15} />, submenu: [
     ...levelItems(s.id, row.level, defaultLevel({ server_id: s.id }, sizes)),
@@ -87,13 +94,13 @@ menuExtras.server.push(s => {
     { label: 'Notification settings…', onClick: () => openNotifyModal(s.id) },
   ] }]
 })
-menuExtras.channel.push(c => {
+register('channel', c => {
   if (c.kind === 'voice') return
   const s = notifyStore.get()
   return [{ label: 'Notifications', icon: <BellIcon size={15} />,
     submenu: levelItems(c.id, s.settings[c.id]?.level, effectiveLevel(s.settings, c, s.sizes, parentIn(app.channels), true)) }]
 })
-menuExtras.dm.push(c => [{ label: 'Notifications', icon: <BellIcon size={15} />, submenu: levelItems(c.id, notifyStore.get().settings[c.id]?.level, 'all') }])
+register('dm', c => [{ label: 'Notifications', icon: <BellIcon size={15} />, submenu: levelItems(c.id, notifyStore.get().settings[c.id]?.level, 'all') }])
 
 // ── per-server modal: server level, suppress switches, category and room overrides ──
 function NotifyModal({ serverId, servers }) {

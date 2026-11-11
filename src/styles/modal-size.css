@@ -1,0 +1,22 @@
+/* Popup sizing rule: a panel never changes width or height when you switch its tabs.
+   Tabbed popups get one fixed size; shorter tabs leave whitespace, longer ones scroll inside.
+   (`body` prefix: the main styles.css loads after component CSS.) */
+
+/* a bit roomier everywhere */
+body .modal { width: min(500px, 100%); }
+body .modal.wide { width: min(760px, 100%); }
+
+/* any popup with tabs: fixed height regardless of the active tab */
+body .modal:has(.modal-body .tabs) { height: min(720px, calc(100vh - 48px)); }
+body .modal:has(.modal-body .tabs) .modal-body { flex: 1; scrollbar-gutter: stable; }
+
+/* keep the tabs and the save bar in view while the tab's content scrolls */
+body .modal-body > .tabs:first-child { position: sticky; top: 0; z-index: 3; }
+body .modal-body > .modal-foot {
+  position: sticky; bottom: -24px; z-index: 3; margin: 18px -24px -24px; padding: 12px 24px 20px;
+  background: linear-gradient(to bottom, transparent, var(--bubble, var(--bg-2)) 35%);
+}
+
+@media (max-width: 720px) {
+  body .modal:has(.modal-body .tabs) { height: calc(100vh - 32px); }
+}

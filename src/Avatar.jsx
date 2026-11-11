@@ -8,6 +8,7 @@ import { pickExpression, hasBlink, nextBlink } from './lib/expressions'
 import './styles/avatar-shape.css'
 import { statusOf, activeCustom } from './lib/status'
 import { Emoji } from './Markdown'
+import Icon from './icons/Icon'
 import './styles/statuses.css'
 import './styles/voice-cues.css'
 
@@ -133,7 +134,7 @@ function useBlink(on) {
 }
 
 // full: the whole uncropped image with no rounding (stadium audience: real PNGtuber style).
-// vbadge: corner 🔇/🙉 badge and a dim while they're muted/deafened in a stadium (presence only sets these in voice).
+// vbadge: corner mic-off/headphones-off badge and a dim while they're muted/deafened in a stadium (presence only sets these in voice).
 // mode: how alive the avatar is. Outside stadiums avatars stay calm so lists don't flicker.
 //   'stage'  stadium seat: talking, every expression, blinking
 //   'voice'  sidebar stadium roster: talking + muted/deafened
@@ -156,13 +157,13 @@ export default function Avatar({ id, size = 40, status = false, children, full =
       : mode === 'typing' ? { typing: true }
       : { talk })
   const isFull = full && !children && !!expr
-  const vb = vbadge && (deafened ? { k: 'deaf', e: '🙉', label: 'Deafened' } : muted ? { k: 'muted', e: '🔇', label: 'Muted' } : null)
+  const vb = vbadge && (deafened ? { k: 'deaf', e: 'headphones-off', label: 'Deafened' } : muted ? { k: 'muted', e: 'mic-off', label: 'Muted' } : null)
   return (
     <span className={`avatar${talk ? ' talking' : ''}${children ? ' cam' : ''}${expr ? ' expr-' + expr.key : ''}${isFull ? ' full' : ''}${vb ? ' vdim' : ''}`} style={{ width: size, height: size, '--ring': p?.color }}>
       {children || (expr
         ? <CropImg src={expr.src} crop={isFull ? null : expr.crop} />
         : <Critter size={size} color={p?.color} talk={talk} blink={stage} />)}
-      {vb && <i className={`vbadge ${vb.k}`} role="img" aria-label={vb.label} title={vb.label}>{vb.e}</i>}
+      {vb && <i className={`vbadge ${vb.k}`} role="img" aria-label={vb.label} title={vb.label}><Icon name={vb.e} size="1.15em" /></i>}
       {status && <i className={`dot st-${st}${st === 'online' ? ' on' : ''}`} role="img" aria-label={STATUS_LABEL[st]} title={STATUS_LABEL[st]} />}
     </span>
   )

@@ -16,6 +16,7 @@ import EmojiPicker from './EmojiPicker'
 import ImageCropper from './ImageCropper'
 import ThemePicker from './themes/ThemePicker'
 import { RoomIcon, RoomName, RoomTint, RoomTitle, ensureFont, fontFamily, roomVars } from './Rooms'
+import Icon from './icons/Icon'
 
 const TOPIC_MAX = 200, WELCOME_MAX = 500
 
@@ -54,8 +55,8 @@ function IconPicker({ value, onChange, img }) {
       <span className="srv-label">Icon</span>
       <div className="re-icon-row">
         <span className="re-icon-big"><RoomIcon c={{ icon: value, kind: 'text' }} /></span>
-        <button type="button" className="btn ghost small" onMouseDown={e => e.stopPropagation()} onClick={() => setEp(o => !o)}>🙂 Emoji</button>
-        <label className="btn ghost small">{img.busy ? 'Uploading…' : '🖼️ Image'}
+        <button type="button" className="btn ghost small" onMouseDown={e => e.stopPropagation()} onClick={() => setEp(o => !o)}><Icon name="smile" size={16} /> Emoji</button>
+        <label className="btn ghost small">{img.busy ? 'Uploading…' : <><Icon name="image" size={16} /> Image</>}
           <input type="file" accept={IMAGE_TYPES} hidden onChange={e => img.pick(e.target, 'square', 'Crop icon', url => onChange(url))} />
         </label>
         {value && <button type="button" className="btn ghost small" onClick={() => onChange(null)}>Remove</button>}
@@ -178,15 +179,15 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
       <div className="col room-editor">{/* not a <form>: the emoji picker's buttons would submit it */}
         {!editing && (
           <div className="tabs">
-            <button type="button" className={kind === 'text' ? 'on' : ''} onClick={() => setKind('text')}>💬 Room</button>
-            <button type="button" className={kind === 'voice' ? 'on' : ''} onClick={() => setKind('voice')}>🏟️ Stadium</button>
+            <button type="button" className={kind === 'text' ? 'on' : ''} onClick={() => setKind('text')}><Icon name="chat" size={16} /> Room</button>
+            <button type="button" className={kind === 'voice' ? 'on' : ''} onClick={() => setKind('voice')}><Icon name="stadium" size={16} /> Stadium</button>
           </div>
         )}
 
         <div className="re-preview" style={roomVars(draft, ctx.server)} aria-label="Preview">
           <div className="re-prev-side">
             <div className="ch-item room-row active"><RoomTint c={draft} />
-              <span className="ch-main"><RoomIcon c={draft} /><RoomName c={draft} className="ch-name" />{priv && <span className="lock">🔒</span>}</span>
+              <span className="ch-main"><RoomIcon c={draft} /><RoomName c={draft} className="ch-name" />{priv && <span className="lock"><Icon name="lock" size={13} /></span>}</span>
             </div>
           </div>
           <div className="chat-head room-head re-prev-head"><RoomTitle c={draft} /></div>
@@ -261,7 +262,7 @@ export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
 
         {tab === 'privacy' && <div className="col">
           <label className="toggle"><input type="checkbox" checked={priv} onChange={e => setPriv(e.target.checked)} />
-            <span>🔒 Private: only admins and the people you pick can see it</span></label>
+            <span><Icon name="lock" size={14} /> Private: only admins and the people you pick can see it</span></label>
           {priv && (
             <div className="pick-list">
               {nonAdmins.length === 0 && <p className="muted small">No regular members yet. Admins always have access.</p>}
@@ -328,7 +329,7 @@ export function CategoryModal({ ctx, cat, onClose }) {
       <div className="col room-editor">{/* not a <form>: the emoji picker's buttons would submit it */}
         <div className="re-preview cat" style={roomVars(draft, ctx.server)}>
           <div className="cat-head cat-deco"><RoomTint c={draft} />
-            <span className="cat-toggle"><span className="cat-chev">▾</span><RoomIcon c={draft} /><span className="cat-name">{draft.name}</span></span>
+            <span className="cat-toggle"><span className="cat-chev"><Icon name="chevron-down" size={13} /></span><RoomIcon c={draft} /><span className="cat-name">{draft.name}</span></span>
           </div>
         </div>
         <label>Name<input value={name} onChange={e => setName(e.target.value)} maxLength={80} required autoFocus placeholder="Hangout spots" /></label>
