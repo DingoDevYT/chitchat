@@ -6,11 +6,11 @@ const flake = (size, blur) => (p, st, k) => <i key={k} style={{ ...st, width: si
 export default function Snow() {
   return <>
     <div className="snw-sway a tb-swayx" style={anim(9)}>
-      <Plane n={50} seed={2} dir="down" d="38s" className="snw-flakes far" item={flake(p => 2 + p.r * 2)} />
+      <Plane n={80} seed={2} dir="down" d="38s" className="snw-flakes far" item={flake(p => 2 + p.r * 2)} />
     </div>
     <svg className="snw-hills" viewBox="0 0 1200 240" preserveAspectRatio="none">
-      <path d="M0 110C200 40 380 60 560 100S900 50 1200 80V240H0z" fill="#e6effa" />
-      <path d="M0 170C240 110 460 130 700 160S1040 120 1200 140V240H0z" fill="#f6faff" />
+      <path d="M0 110C200 40 380 60 560 100S900 50 1200 80V240H0z" fill="#dbe7f5" />
+      <path d="M0 170C240 110 460 130 700 160S1040 120 1200 140V240H0z" fill="#f7fbff" />
     </svg>
     <svg className="snw-cabin" viewBox="0 0 100 90">
       <rect x="64" y="14" width="10" height="22" fill="#9a6b5a" />
@@ -28,10 +28,10 @@ export default function Snow() {
         <rect x="21" y="74" width="8" height="6" fill="#7a5a4a" />
       </svg>)}
     <div className="snw-sway a tb-swayx" style={anim(7, 3)}>
-      <Plane n={34} seed={6} dir="down" d="22s" className="snw-flakes mid" item={flake(p => 4 + p.r * 3)} />
+      <Plane n={46} seed={6} dir="down" d="22s" className="snw-flakes mid" item={flake(p => 4 + p.r * 3)} />
     </div>
     <div className="snw-sway a tb-swayx" style={anim(11, 5)}>
-      <Plane n={14} seed={9} dir="down" d="13s" className="snw-flakes near" item={flake(p => 8 + p.r * 5, true)} />
+      <Plane n={18} seed={9} dir="down" d="13s" className="snw-flakes near" item={flake(p => 8 + p.r * 5, true)} />
     </div>
   </>
 }

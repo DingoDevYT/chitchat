@@ -13,6 +13,7 @@ import { openMenu } from './ContextMenu'
 import { app, serverItems } from './menus'
 import './styles/server-cards.css'
 import { DMCards } from './ChatCues'
+import ThemePicker from './themes/ThemePicker'
 
 const useMedia = q => useSyncExternalStore(
   cb => { const m = matchMedia(q); m.addEventListener('change', cb); return () => m.removeEventListener('change', cb) },
@@ -179,7 +180,12 @@ export function AppearanceTab({ ctx }) {
           </div>
         </div>
         <div className="srv-field">
-          <span className="srv-label">Message of the day <span className={`srv-count${motd.length > MOTD_MAX - 10 ? ' near' : ''}`}>{motd.length}/{MOTD_MAX}</span></span>
+          <span className="srv-label">Theme</span>
+          <ThemePicker value={server.theme} onChange={t => update({ theme: t === 'none' ? null : t })} />
+          <span className="muted small">Animated background for rooms and stadiums, unless a category or room picks its own. Saves right away.</span>
+        </div>
+        <div className="srv-field">
+          <span className="srv-label">Message of the day<span className={`srv-count${motd.length > MOTD_MAX - 10 ? ' near' : ''}`}>{motd.length}/{MOTD_MAX}</span></span>
           <div className="srv-motd-row">
             <input value={motd} maxLength={MOTD_MAX} onChange={e => setMotd(e.target.value)} placeholder="Movie night Friday 🍿" aria-label="Message of the day" />
             <button type="button" className="icon-btn" title="Add emoji" aria-label="Add emoji"

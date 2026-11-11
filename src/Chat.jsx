@@ -17,6 +17,7 @@ import { conn } from './ChatCues'
 import Markdown from './Markdown'
 import { RoomBackdrop, RoomTitle, SlowBadge, roomVars, useBannerShrink, useSlowLeft } from './Rooms'
 import { slowUntil } from './lib/rooms'
+import ThemeBackdrop, { useRoomTheme } from './themes/ThemeBackdrop'
 
 const PAGE = 50
 const msgCache = new Map() // channelId -> recent messages, so switching back is instant
@@ -352,6 +353,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
   const typingNames = typingIds.map(id => profileMap[id]?.display_name || profileMap[id]?.username || 'Someone')
   // Rooms: banner header, accent, background and welcome text (see Rooms.jsx). Stadium side chats get the accent and welcome.
   const room = !!server && channel.kind === 'text' && !stadium
+  const theme = useRoomTheme(room ? channel : null, server) // animated theme (src/themes); 'none' if the room has a background image
   const headRef = useRef(null)
   useBannerShrink(scrollRef, headRef, room)
   const exempt = role === 'owner' || ctx.can('manage_messages') || ctx.can('manage_channels')
@@ -359,7 +361,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
 
   return (
     <div className={`chat${server && channel.kind !== 'dm' ? ' room-chat' : ''}`} ref={rootRef} style={server && channel.kind !== 'dm' ? roomVars(channel, server) : undefined}>
-      {room && <RoomBackdrop c={channel} />}
+      {room && <RoomBackdrop c={channel}><ThemeBackdrop theme={theme} /></RoomBackdrop>}
       {channel.kind !== 'thread' && <header className={`chat-head${room ? ' room-head' : ''}`} ref={headRef}>
         {!stadium && <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu">☰</button>}
         {room ? <RoomTitle c={channel} /> : <>

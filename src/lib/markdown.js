@@ -7,31 +7,102 @@ const RX = new RegExp([
   /~~([\s\S]+?)~~/.source,                            // 5 strike
   /\*([^*\n]+)\*/.source,                             // 6 italic
   /(?<!\w)_([^_\n]+)_(?!\w)/.source,                  // 7 italic, not inside snake_case
-  /(https?:\/\/(?:\([^\s<>()]*\)|[^\s<>()])*(?:\([^\s<>()]*\)|[^\s<>().,!?:;'"()]))/.source, // 8 url; balanced (…) kept, as in wiki links
-  /(?<![\w@])@([a-z0-9_.]{2,32})/.source,             // 9 mention, not inside emails
-  /<(a?):([a-z0-9_]{2,32}):([0-9a-f-]{36})>/.source,  // 10-12 custom emoji <:name:id> / <a:name:id>
+  /\[([^[\]\n]+)\]\((https?:\/\/[^\s()<>]+(?:\([^\s()<>]*\)[^\s()<>]*)*)\)/.source, // 8-9 masked link [text](https://…)
+  /(https?:\/\/(?:\([^\s<>()]*\)|[^\s<>()])*(?:\([^\s<>()]*\)|[^\s<>().,!?:;'"()]))/.source, // 10 url; balanced (…) kept, as in wiki links
+  /(?<![\w@])@([a-z0-9_.]{2,32})/.source,             // 11 mention, not inside emails
+  /<(a?):([a-z0-9_]{2,32}):([0-9a-f-]{36})>/.source,  // 12-14 custom emoji <:name:id> / <a:name:id>
+  /<t:(-?\d{1,13})(?::([tdfr]))?>/.source,            // 15-16 timestamp <t:unix:format>
 ].join('|'), 'gi')
 export const CUSTOM_RX = /<(a?):([a-z0-9_]{2,32}):([0-9a-f-]{36})>/gi
 
-export function tokenize(text) {
+function inline(text) {
   const out = []
   let last = 0
   for (const m of text.matchAll(RX)) {
     if (m.index > last) out.push({ t: 'text', v: text.slice(last, m.index) })
-    const [, block, code, bold, spoiler, strike, it1, it2, url, mention, anim, ename, eid] = m
+    const [, block, code, bold, spoiler, strike, it1, it2, ltext, lurl, url, mention, anim, ename, eid, unix, fmt] = m
     if (block != null) out.push({ t: 'codeblock', v: block.replace(/\n$/, '') })
     else if (code != null) out.push({ t: 'code', v: code })
-    else if (bold != null) out.push({ t: 'b', c: tokenize(bold) })
-    else if (spoiler != null) out.push({ t: 'spoiler', c: tokenize(spoiler) })
-    else if (strike != null) out.push({ t: 's', c: tokenize(strike) })
-    else if ((it1 ?? it2) != null) out.push({ t: 'i', c: tokenize(it1 ?? it2) })
+    else if (bold != null) out.push({ t: 'b', c: inline(bold) })
+    else if (spoiler != null) out.push({ t: 'spoiler', c: inline(spoiler) })
+    else if (strike != null) out.push({ t: 's', c: inline(strike) })
+    else if ((it1 ?? it2) != null) out.push({ t: 'i', c: inline(it1 ?? it2) })
+    else if (lurl != null) out.push({ t: 'link', v: lurl, c: inline(ltext) })
     else if (url != null) out.push({ t: 'url', v: url })
     else if (mention != null) out.push({ t: 'mention', v: mention.toLowerCase() })
+    else if (unix != null) out.push({ t: 'time', v: +unix, f: 'tTdDfFR'.includes(fmt) ? fmt : 'f' })
     else out.push({ t: 'cemoji', name: ename.toLowerCase(), id: eid.toLowerCase(), animated: !!anim })
     last = m.index + m[0].length
   }
   if (last < text.length) out.push({ t: 'text', v: text.slice(last) })
   return out
+}
+
+// Line-level blocks: # headers, -# subtext, > and >>> quotes, - / * / 1. lists. Lines inside ``` fences stay as text.
+const HINT = /^(?:#{1,3} +\S|-# +\S|>>?>? |\s*(?:[-*]|\d{1,9}\.) +\S)/m
+const LIST = /^( *)([-*]|\d{1,9}\.) +(\S.*)$/
+export function tokenize(text, inQuote = false) {
+  if (!HINT.test(text)) return inline(text) // most messages: exactly the inline tokens, as before
+  const lines = text.split('\n'), out = []
+  let prose = [], code = false
+  const flush = () => { if (prose.length) out.push(...inline(prose.join('\n'))); prose = [] }
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i], odd = (line.match(/```/g) || []).length % 2
+    if (code || odd) { if (odd) code = !code; prose.push(line); continue }
+    let m
+    if (!inQuote && line.startsWith('>>> ')) {
+      flush()
+      out.push({ t: 'quote', c: tokenize([line.slice(4), ...lines.slice(i + 1)].join('\n'), true) })
+      return out
+    } else if (!inQuote && line.startsWith('> ')) {
+      const q = []
+      for (; i < lines.length && lines[i].startsWith('> ') && !lines[i].startsWith('>>> '); i++) q.push(lines[i].slice(2))
+      i--
+      flush()
+      out.push({ t: 'quote', c: tokenize(q.join('\n'), true) })
+    } else if ((m = line.match(/^(#{1,3}) +(\S.*)$/))) {
+      flush()
+      out.push({ t: 'h', n: m[1].length, c: inline(m[2]) })
+    } else if ((m = line.match(/^-# +(\S.*)$/))) {
+      flush()
+      out.push({ t: 'sub', c: inline(m[1]) })
+    } else if ((m = line.match(LIST))) {
+      flush()
+      const ordered = m[2] !== '-' && m[2] !== '*', items = []
+      for (; i < lines.length && (m = lines[i].match(LIST)) && (m[2] !== '-' && m[2] !== '*') === ordered; i++)
+        items.push({ t: 'li', d: Math.min(3, m[1].length >> 1), c: inline(m[3]) })
+      i--
+      out.push(ordered ? { t: 'ol', start: parseInt(lines[i - items.length + 1].trim()), c: items } : { t: 'ul', c: items })
+    } else prose.push(line)
+  }
+  flush()
+  return out
+}
+
+// <t:unix:F> → local text. R is relative ("in 5 minutes", "2 hours ago") from `now`.
+const STAMP = {
+  t: { timeStyle: 'short' }, T: { timeStyle: 'medium' }, d: { dateStyle: 'short' }, D: { dateStyle: 'long' },
+  f: { dateStyle: 'long', timeStyle: 'short' }, F: { dateStyle: 'full', timeStyle: 'short' },
+}
+const UNITS = [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60], ['second', 1]]
+export function fmtTimestamp(unix, f = 'f', now = Date.now(), locale) {
+  const d = new Date(unix * 1000)
+  if (isNaN(d)) return String(unix)
+  if (f !== 'R') return d.toLocaleString(locale, STAMP[f] || STAMP.f)
+  const diff = unix - now / 1000, abs = Math.abs(diff)
+  const [unit, sec] = UNITS.find(([, s]) => abs >= s) || UNITS.at(-1)
+  return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(Math.round(diff / sec), unit)
+}
+
+// A masked link whose text names a different site than where it really goes: returns the real host, else null.
+export function linkMismatch(text, url) {
+  const shown = text.match(/(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})/i)?.[1]
+  if (!shown) return null
+  try {
+    const real = new URL(url).hostname
+    const bare = h => h.toLowerCase().replace(/^www\./, '')
+    return bare(real) === bare(shown) ? null : real
+  } catch { return null }
 }
 
 // A message that is only a few emoji renders big.

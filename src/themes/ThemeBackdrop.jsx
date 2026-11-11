@@ -57,6 +57,6 @@ export function ThemeThumb({ theme }) {
 // and an animated scene on top of a photo hurts readability.
 export function useRoomTheme(channel, server) {
   const category = categories.use(s => channel?.category_id ? s[channel.server_id]?.find(c => c.id === channel.category_id) : undefined)
-  if (!channel || channel.background_url) return 'none'
+  if (!channel || (channel.kind === 'text' && channel.background_url)) return 'none'
   return resolveTheme({ channel, category, server }).id
 }

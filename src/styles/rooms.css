@@ -65,13 +65,14 @@ body .room-head h2 { font-size: calc(17px + (1 - var(--shrink)) * 7px); line-hei
 body .room-head h2.font-small { font-size: calc(12px + (1 - var(--shrink)) * 5px); }
 body .room-topic {
   font-size: 13px; font-weight: 700; color: color-mix(in srgb, var(--text) 78%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  max-height: calc((1 - var(--shrink)) * 20px); opacity: calc(1 - var(--shrink) * 1.6);
+  line-height: 18px; max-height: calc(clamp(0, (1 - var(--shrink) * 1.6) * 999, 1) * 18px); opacity: calc(1 - var(--shrink) * 1.6); /* full line or none, never a clipped one */
 }
 body .room-head .icon-btn { background: color-mix(in srgb, var(--bg) 45%, transparent); }
 body .room-head .icon-btn:hover, body .room-head .icon-btn.on { background: color-mix(in srgb, var(--bg-3) 85%, transparent); }
 body .stage .room-head { --shrink: .35; }
 
-/* ── accent inside the room ── */
+/* ── accent inside the room: everything accent-coloured in the chat (focus rings, jump pills, links) follows it ── */
+body .room-chat[style*="--room-accent"] { --accent: var(--room-accent); --accent-ink: var(--room-ink); }
 body .room-chat .send-btn { background: var(--room-accent, var(--accent)); color: var(--room-ink, var(--accent-ink)); }
 body .room-chat .composer:focus-within { border-color: color-mix(in srgb, var(--room-accent, var(--accent)) 60%, transparent); }
 body .room-chat .mention { background: color-mix(in srgb, var(--room-accent, var(--accent)) 22%, transparent); color: color-mix(in srgb, var(--room-accent, var(--accent-2)) 75%, var(--text)); }
@@ -97,8 +98,47 @@ body .slow-badge {
 body .slow-badge.waiting { color: var(--room-accent, var(--accent-2)); }
 body .slow-badge b { font-variant-numeric: tabular-nums; }
 
+/* ── editor ── */
+body .room-editor { gap: 14px; }
+body .room-editor .re-tabs { margin: 0; }
+body .re-preview { display: grid; grid-template-columns: 190px 1fr; gap: 10px; }
+body .re-prev-side { background: var(--bg); border-radius: var(--r); padding: 8px; display: flex; align-items: center; }
+body .re-prev-side .ch-item { pointer-events: none; }
+body .chat-head.re-prev-head { --extra: 40px; border-radius: var(--r); border-bottom: 0; padding: 0 14px 10px; min-height: 0; overflow: hidden; }
+body .re-preview.cat { display: block; background: var(--bg); border-radius: var(--r); padding: 8px; }
+body .re-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; }
+body .re-icon-row { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+body .re-icon-big { width: 42px; height: 42px; border-radius: 12px; background: var(--bg); display: grid; place-items: center; }
+body .re-icon-big .room-icon, body .re-icon-big .room-icon .emoji, body .re-icon-big .room-icon img { width: 26px; height: 26px; }
+body .re-icon-big .room-dot { width: 12px; height: 12px; opacity: .8; }
+body .emoji-picker.re-ep { left: 0; right: auto; top: 48px; height: min(360px, 55vh); }
+body .re-fonts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+body .re-font {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; padding: 8px 10px; text-align: left;
+  border-radius: 12px; background: var(--bg); border: 2px solid transparent; transition: border-color .15s, transform .2s var(--spring);
+}
+body .re-font:hover { transform: translateY(-1px); }
+body .re-font.on { border-color: var(--accent); }
+body .re-font-sample { font-size: 18px; line-height: 1.35; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .re-font-sample.font-small { font-size: 12px; line-height: 2.1; }
+body .re-slow { display: flex; flex-wrap: wrap; gap: 6px; }
+body .re-dim { display: flex; flex-direction: row; align-items: center; gap: 10px; font-weight: 700; font-size: 13px; color: var(--muted); }
+body .re-dim input { flex: 1; min-width: 0; }
+body .re-dim-prev { position: relative; width: 64px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 10px; overflow: hidden; isolation: isolate; }
+body .re-dim-prev > span { position: absolute; inset: -8px; z-index: -2; background: center / cover; filter: blur(calc(var(--dim) * 6px)); }
+body .re-dim-prev::after { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--bg); opacity: var(--dim); }
+body .re-dim-prev b { color: var(--text); }
+body .re-welcome-prev { background: var(--bg); border-radius: var(--r); padding: 16px; animation: none; }
+body .re-welcome-prev h1:empty { display: none; }
+body .re-welcome-prev .room-welcome { margin: 0; }
+
 @media (max-width: 720px) {
-  body .chat-head.room-head { --extra: 44px; }
+  body .re-preview { grid-template-columns: 1fr; }
+  body .re-foot { justify-content: flex-end; }
+  body .re-foot .spacer { display: none; }
+  body .re-foot .btn.danger { order: 2; width: 100%; }
+  body .chat-head.room-head { --extra: 44px; gap: 6px; padding-left: 10px; padding-right: 10px; }
+  body .room-head .icon-btn { width: 32px; height: 32px; }
   body .room-head h2 { font-size: calc(16px + (1 - var(--shrink)) * 4px); }
   body .slow-badge { right: 8px; }
 }

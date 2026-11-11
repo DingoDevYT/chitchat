@@ -9,7 +9,7 @@ export const THEMES = [
   { id: 'night', dark: true, name: 'Starry night', emoji: '🌙', colors: ['#10163a', '#262a62', '#4b3a74'] },
   { id: 'rain', dark: true, name: 'Rainy window', emoji: '🌧️', colors: ['#252e40', '#36435a', '#4f5a76'] },
   { id: 'forest', dark: true, name: 'Firefly forest', emoji: '🌲', colors: ['#0f1f22', '#173229', '#2a4a32'] },
-  { id: 'snow', name: 'Snowfall', emoji: '❄️', colors: ['#a9c3e2', '#d4e3f3', '#f4f9ff'] },
+  { id: 'snow', name: 'Snowfall', emoji: '❄️', colors: ['#7f9dc9', '#b4c9e5', '#e3ecf7'] },
   { id: 'sakura', name: 'Sakura breeze', emoji: '🌸', colors: ['#ffd3e1', '#ffe9ef', '#fff6ee'] },
   { id: 'sea', dark: true, name: 'Under the sea', emoji: '🐠', colors: ['#1a7aa0', '#0d5677', '#082f4a'] },
   { id: 'synthwave', dark: true, name: 'Synthwave', emoji: '🌆', colors: ['#14072b', '#3d1160', '#b8327d'] },

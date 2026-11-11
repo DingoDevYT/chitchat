@@ -232,6 +232,11 @@ export default function Settings({ me, onClose, tab: firstTab }) {
               <button key={v} className={p.animateAvatars === v ? 'on' : ''} onClick={() => setPref('animateAvatars', v)}>{l}</button>)}</div>
             <span className="muted small">GIF avatars and server icons. With reduced motion turned on, they only move on hover.</span>
           </div>
+          <div>Animated themes
+            <div className="tabs small">{[['full', 'Full'], ['subtle', 'Subtle'], ['off', 'Off']].map(([v, l]) =>
+              <button key={v} className={(p.animatedThemes || 'full') === v ? 'on' : ''} onClick={() => setPref('animatedThemes', v)}>{l}</button>)}</div>
+            <span className="muted small">Room and stadium backgrounds. Subtle is slower and fainter; Off shows a still gradient.</span>
+          </div>
           {Object.keys(p.muted).length > 0 && (
             <button className="btn ghost" onClick={() => setPref('muted', {})}>Unmute everyone ({Object.keys(p.muted).length})</button>
           )}

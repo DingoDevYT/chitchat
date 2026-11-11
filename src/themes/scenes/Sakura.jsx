@@ -4,7 +4,7 @@ import { Plane, anim } from '../parts'
 // Sakura breeze: a blossoming branch swaying in from the corner, petals tumbling on the wind, a misty mountain and lake.
 const blooms = [[60, 52, 1], [118, 38, .8], [150, 92, 1.1], [205, 70, .9], [236, 124, .75], [92, 112, .7], [262, 40, .65], [30, 90, .8]]
 const petal = (p, st, k) => (
-  <i key={k} className="skr-petal a" style={{ ...st, ...anim(3 + p.r * 4, p.t * 6), '--s': .7 + p.r * .6 }} />
+  <i key={k} className="skr-petal a" style={{ ...st, ...anim(3 + p.r * 4, p.t * 6), '--s': .9 + p.r * .8 }} />
 )
 
 export default function Sakura() {
@@ -19,7 +19,7 @@ export default function Sakura() {
       <path d="M80 222H300M480 236H760M900 220H1120" stroke="#ffffffaa" strokeWidth="3" strokeLinecap="round" />
     </svg>
     <div className="skr-wind a tb-swayx" style={anim(8)}>
-      <Plane n={16} seed={12} dir="down" d="26s" className="skr-petals far" item={petal} />
+      <Plane n={26} seed={12} dir="down" d="26s" className="skr-petals far" item={petal} />
     </div>
     <svg className="skr-branch a" viewBox="0 0 300 170" style={anim(7)}>
       <path d="M-10 20C60 30 120 50 170 80S250 120 290 150" stroke="#6b4237" strokeWidth="9" fill="none" strokeLinecap="round" />
@@ -28,7 +28,7 @@ export default function Sakura() {
       {buds.map((p, i) => <circle key={i} cx={20 + p.x * 260} cy={20 + p.y * 120} r={2.5 + p.r * 2} fill="#ff9fbd" />)}
     </svg>
     <div className="skr-wind a tb-swayx" style={anim(6, 2)}>
-      <Plane n={12} seed={5} dir="down" d="15s" className="skr-petals near" item={petal} />
+      <Plane n={16} seed={5} dir="down" d="15s" className="skr-petals near" item={petal} />
     </div>
   </>
 }

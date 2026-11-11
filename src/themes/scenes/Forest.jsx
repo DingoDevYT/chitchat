@@ -5,18 +5,20 @@ import { anim } from '../parts'
 const flies = scatter(22, 41)
 const blades = scatter(70, 3)
 
+// a row of three-tier pines along y; h = typical height
 const pines = (seed, n, h, y) => scatter(n, seed).map((p, i) => {
-  const x = (i + p.x * .6) * (1200 / n), w = 50 + p.r * 40, t = h * (.7 + p.t * .5)
-  return `M${x} ${y}L${x + w / 2} ${y - t}L${x + w} ${y}z`
+  const w = 70 + p.r * 50, t = h * (.65 + p.t * .45), x = (i + p.x * .5) * (1300 / n) - 60
+  const at = (a, b) => `${(x + a * w).toFixed(1)} ${(y - b * t).toFixed(1)}`
+  return `M${at(0, 0)}L${at(.3, .32)}H${x + .14 * w}L${at(.36, .62)}H${x + .24 * w}L${at(.5, 1)}L${at(.76, .62)}H${x + .64 * w}L${at(.86, .32)}H${x + .7 * w}L${at(1, 0)}z`
 }).join('')
 
 export default function Forest() {
   return <>
     <div className="frs-moon" />
-    <svg className="frs-trees" viewBox="0 0 1200 300" preserveAspectRatio="none">
-      <path d={pines(1, 16, 170, 250) + 'M0 240H1200V300H0z'} fill="#1d3b38" />
-      <path d={pines(2, 13, 200, 275) + 'M0 268H1200V300H0z'} fill="#16302a" />
-      <path d={pines(3, 10, 230, 300)} fill="#0e221d" />
+    <svg className="frs-trees" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMax slice">
+      <path d={pines(1, 14, 150, 252) + 'M0 246H1200V300H0z'} fill="#1d3b38" />
+      <path d={pines(2, 11, 180, 278) + 'M0 272H1200V300H0z'} fill="#16302a" />
+      <path d={pines(3, 8, 215, 302)} fill="#0e221d" />
     </svg>
     <div className="frs-ground" />
     <svg className="frs-shrooms" viewBox="0 0 70 44">

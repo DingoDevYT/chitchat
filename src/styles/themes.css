@@ -4,19 +4,20 @@
 /* ── container ── */
 .theme-backdrop {
   --k: 1;
+  --sky: 0px; /* rooms: push sky props (sun, moon, branch) below the room header */
   position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; contain: strict;
   background: linear-gradient(180deg, var(--c1, var(--bg)), var(--c2, var(--bg)) 55%, var(--c3, var(--bg)));
 }
 .tb-scene, .tb-scrim { position: absolute; inset: 0; }
 .tb-scene * { position: absolute; }
 .tb-scene svg { display: block; overflow: visible; }
-.tb-scene svg * { transform-box: fill-box; transform-origin: center; }
+/* only animated SVG parts pivot on themselves (zero specificity so a scene can set its own origin) */
+:where(.tb-scene svg .a) { transform-box: fill-box; transform-origin: center; }
 .tb-subtle { --k: 1.9; }
 .tb-subtle .tb-scene { opacity: .6; }
 
 /* Rooms: a wash of --bg over the scene keeps message text (and muted timestamps) readable in both colour schemes.
    A theme whose brightness fights the colour scheme gets a stronger scrim. */
-body .chat { isolation: isolate; }
 .tb-room .tb-scrim { background: color-mix(in srgb, var(--bg) var(--scrim), transparent); }
 .tb-room.tb-dark { --scrim: 52%; }
 .tb-room.tb-light { --scrim: 72%; }
@@ -25,6 +26,10 @@ body .chat { isolation: isolate; }
   .tb-room.tb-light { --scrim: 48%; }
 }
 .tb-room.tb-off { --scrim: 60%; }
+.tb-room { --sky: 96px; }
+.tb-stadium { --sky: 56px; }
+/* things that cross the middle of the room (behind text) stay faint there */
+.tb-room .tb-crossing, .tb-room .frs-path { opacity: .55; }
 
 /* Stadium: the scene shows through the idle screen; just a band under the header for its title. */
 body .stage { isolation: isolate; }
@@ -36,12 +41,12 @@ body .stage:has(> .theme-backdrop) .stage-screen:not(.on) {
 }
 body .stage:has(> .theme-backdrop) .stage-idle { text-shadow: 0 2px 12px #000a, 0 0 2px #0008; }
 body .stage:has(> .theme-backdrop) .stage-idle .muted { color: #e6dcef; }
-body .stage:has(> .theme-backdrop) .stage-crowd > .muted { color: var(--text); text-shadow: 0 1px 6px var(--bg); }
+body .stage:has(> .theme-backdrop) .stage-crowd > .muted { color: var(--text); padding: 2px 12px; border-radius: 999px; background: color-mix(in srgb, var(--bg) 80%, transparent); }
 
 /* Soft gradient: the "boring" option, follows the accent colour. */
 .theme-backdrop.tb-gradient {
   background:
-    radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 62%),
+    radial-gradient(120% 80% at 0% calc(var(--sky) * 1.4), color-mix(in srgb, var(--accent) 26%, transparent), transparent 62%),
     radial-gradient(110% 70% at 100% 100%, color-mix(in srgb, var(--mint) 20%, transparent), transparent 60%),
     var(--bg);
 }
@@ -108,7 +113,7 @@ body.tb-hidden .theme-backdrop *, .tb-paused * { animation-play-state: paused !i
 .theme-modal .theme-picker { max-height: min(60vh, 520px); overflow-y: auto; padding: 4px; }
 
 /* ════════════ Beach day ════════════ */
-.bch-sun { right: 12%; top: 8%; width: 84px; height: 84px; border-radius: 50%;
+.bch-sun { right: 12%; top: calc(8% + var(--sky)); width: 84px; height: 84px; border-radius: 50%;
   background: radial-gradient(circle, #fffdf0 0 48%, #ffe88f 62%, #ffd96b 70%, transparent 71%);
   box-shadow: 0 0 70px 26px #fff4b866; }
 .bch-clouds { height: 34%; }
@@ -149,9 +154,9 @@ body.tb-hidden .theme-backdrop *, .tb-paused * { animation-play-state: paused !i
 .ngt-star { width: 3px; height: 3px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px 1px #fff8; }
 .ngt-sparkle { animation-name: ngt-sparkle; }
 @keyframes ngt-sparkle { 0%, 100% { transform: scale(.35) rotate(0); opacity: .25; } 50% { transform: scale(1) rotate(45deg); opacity: 1; } }
-.ngt-moon-glow { left: calc(13% - 70px); top: calc(9% - 70px); width: 210px; height: 210px; border-radius: 50%;
+.ngt-moon-glow { left: calc(13% - 70px); top: calc(9% - 70px + var(--sky)); width: 210px; height: 210px; border-radius: 50%;
   background: radial-gradient(circle, #fff1c455 0, #c9b8ff22 45%, transparent 70%); }
-.ngt-moon { left: 13%; top: 9%; width: 70px; height: 70px; border-radius: 50%;
+.ngt-moon { left: 13%; top: calc(9% + var(--sky)); width: 70px; height: 70px; border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #fffaf0, #f6e6bb 70%, #e9d29a); box-shadow: 0 0 24px #fff1c488; }
 .ngt-moon i { border-radius: 50%; background: #e2cb93aa; }
 .ngt-moon i:nth-child(1) { left: 18px; top: 34px; width: 14px; height: 14px; }
@@ -228,14 +233,14 @@ body.tb-hidden .theme-backdrop *, .tb-paused * { animation-play-state: paused !i
 .snw-pine { bottom: 3%; }
 
 /* ════════════ Sakura breeze ════════════ */
-.skr-sun { right: 16%; top: 12%; width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #fff3e6 0 40%, #ffd9cf66 60%, transparent 70%); }
+.skr-sun { right: 16%; top: calc(12% + var(--sky)); width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #fff3e6 0 40%, #ffd9cf66 60%, transparent 70%); }
 .skr-hills { left: 0; bottom: 0; width: 100%; height: 30%; }
 .skr-wind { inset: -40px; }
 .skr-petal { width: calc(14px * var(--s)); height: calc(10px * var(--s)); border-radius: 100% 0 100% 0;
   background: linear-gradient(135deg, #ffd6e3, #ff9fbd); box-shadow: 0 1px 1px #d0607f33; animation-name: skr-tumble; animation-timing-function: linear; }
 @keyframes skr-tumble { 0% { transform: rotate(0) scaleX(1); } 25% { transform: rotate(90deg) scaleX(.3); } 50% { transform: rotate(180deg) scaleX(1); } 75% { transform: rotate(270deg) scaleX(.3); } 100% { transform: rotate(360deg) scaleX(1); } }
 .skr-petals.far { opacity: .75; }
-.skr-branch { left: -10px; top: -6px; width: min(420px, 60%); animation-name: skr-branch; animation-direction: alternate; }
+.skr-branch { left: -10px; top: calc(-6px + var(--sky) * .8); width: min(420px, 60%); animation-name: skr-branch; animation-direction: alternate; }
 .tb-scene .skr-branch { transform-origin: 0 10%; transform-box: view-box; }
 @keyframes skr-branch { from { transform: rotate(-1.5deg); } to { transform: rotate(2deg); } }
 
@@ -300,3 +305,7 @@ body.tb-hidden .theme-backdrop *, .tb-paused * { animation-play-state: paused !i
 .cmp-ember { left: 0; bottom: 40px; border-radius: 50%; background: #ffcf6b; box-shadow: 0 0 6px 2px #ff8a3daa;
   animation-name: cmp-ember; animation-timing-function: ease-out; }
 @keyframes cmp-ember { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 60% { opacity: .8; } 100% { transform: translate(var(--x), var(--y)); opacity: 0; } }
+
+/* Rooms: synthwave's neon is loud, so it glows softer behind text */
+.tb-room .syn-sun, .tb-room .syn-sun-glow, .tb-room .syn-horizon { opacity: .5; }
+.tb-room .syn-grid, .tb-room .syn-mtns { opacity: .55; }
