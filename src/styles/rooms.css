@@ -1,0 +1,108 @@
+/* Rooms: per-room icon, font, banner header, accent, background, slowmode. Rules start with `body` because styles.css loads after this. */
+
+/* ── icons + names ── */
+body .room-icon { display: inline-grid; place-items: center; width: 20px; height: 20px; font-weight: 400; }
+body .room-icon .emoji, body .room-icon img { width: 18px; height: 18px; object-fit: cover; }
+body .room-icon img { border-radius: 6px; }
+body .room-dot {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--room-accent, currentColor); opacity: .55;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--room-accent, currentColor) 18%, transparent); transition: opacity .15s, transform .2s var(--spring);
+}
+body .ch-item:hover .room-dot, body .ch-item.active .room-dot, body .ch-item.unread .room-dot { opacity: 1; }
+body .ch-item.active .room-dot { transform: scale(1.15); }
+body .room-font.font-small { font-size: .78em; line-height: 1.5; }
+
+/* the banner art keeps 4:1 and covers its box (box = size container) */
+body .room-art { position: absolute; left: 50%; top: 50%; width: max(100cqw, 400cqh); aspect-ratio: 4; transform: translate(-50%, -50%); pointer-events: none; }
+body .room-art > img, body .room-art > .cimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; overflow: hidden; }
+
+/* ── sidebar rows ── */
+body .ch-item.room-row { isolation: isolate; overflow: hidden; }
+body .room-tint {
+  position: absolute; inset: 0; z-index: -1; container-type: size; overflow: hidden; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--room-accent, transparent) 20%, transparent), transparent 85%);
+}
+body .room-tint .room-art { opacity: .22; -webkit-mask-image: linear-gradient(90deg, #000 10%, transparent 90%); mask-image: linear-gradient(90deg, #000 10%, transparent 90%); }
+body .ch-item.room-row:hover .room-tint .room-art, body .ch-item.room-row.active .room-tint .room-art { opacity: .38; }
+body .ch-item.room-row.active { box-shadow: inset 3px 0 0 var(--room-accent, transparent); }
+body .ch-item.room-row.unread::before { background: var(--room-accent, var(--text)); box-shadow: 0 0 8px var(--room-accent, transparent); }
+
+/* ── category headers ── */
+body .cat-head.cat-deco { isolation: isolate; overflow: hidden; min-height: 28px; }
+body .cat-head.cat-deco .room-tint { background: linear-gradient(90deg, color-mix(in srgb, var(--room-accent, transparent) 26%, transparent), transparent 90%); }
+body .cat-head.cat-deco .room-tint .room-art { opacity: .3; }
+body .cat-head.cat-deco .cat-toggle { color: color-mix(in srgb, var(--room-accent, var(--muted)) 55%, var(--text)); }
+body .cat-head .room-icon { width: 16px; height: 16px; }
+body .cat-head .room-icon .emoji, body .cat-head .room-icon img { width: 15px; height: 15px; }
+
+/* ── header banner ── */
+body .chat-head.room-head {
+  --shrink: 0; --extra: 76px; position: relative; isolation: isolate; /* no overflow:hidden: the threads menu drops out of it */
+  height: calc(56px + (1 - var(--shrink)) * var(--extra)); align-items: flex-end; padding-bottom: 10px;
+  border-bottom-color: color-mix(in srgb, var(--room-accent, var(--accent)) 25%, var(--line));
+  transition: height .12s linear, border-color .3s;
+}
+body .room-head-bg {
+  position: absolute; inset: 0; z-index: -1; container-type: size; overflow: hidden;
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--room-accent, var(--accent)) 50%, transparent), transparent 60%),
+    linear-gradient(115deg, color-mix(in srgb, var(--room-accent, var(--accent)) 30%, var(--bg)), color-mix(in srgb, var(--room-accent, var(--accent-2)) 12%, var(--bg)));
+}
+body .room-head-bg .room-art { opacity: calc(1 - var(--shrink) * .45); }
+body .room-head-fade {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--bg) calc(35% + var(--shrink) * 40%), transparent) 45%, color-mix(in srgb, var(--bg) 92%, transparent) 100%);
+}
+body .room-head-bg:not(.has-banner) .room-head-fade { background: linear-gradient(to bottom, transparent 30%, color-mix(in srgb, var(--bg) 70%, transparent)); }
+body .room-head > * { position: relative; }
+body .room-head > .room-head-bg { position: absolute; }
+body .room-head-icon { width: calc(26px + (1 - var(--shrink)) * 14px); height: calc(26px + (1 - var(--shrink)) * 14px); align-self: flex-end; margin-bottom: 1px; }
+body .room-head-icon .emoji, body .room-head-icon img { width: 100%; height: 100%; }
+body .room-head-icon img { border-radius: 10px; box-shadow: 0 2px 8px #0004; }
+body .room-head-icon .room-dot { width: 12px; height: 12px; opacity: 1; background: var(--room-accent, var(--accent)); }
+body .room-head-text { display: flex; flex-direction: column; min-width: 0; flex: 0 1 auto; }
+body .room-head h2 { font-size: calc(17px + (1 - var(--shrink)) * 7px); line-height: 1.2; text-shadow: 0 1px 12px color-mix(in srgb, var(--bg) 80%, transparent); }
+body .room-head h2.font-small { font-size: calc(12px + (1 - var(--shrink)) * 5px); }
+body .room-topic {
+  font-size: 13px; font-weight: 700; color: color-mix(in srgb, var(--text) 78%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-height: calc((1 - var(--shrink)) * 20px); opacity: calc(1 - var(--shrink) * 1.6);
+}
+body .room-head .icon-btn { background: color-mix(in srgb, var(--bg) 45%, transparent); }
+body .room-head .icon-btn:hover, body .room-head .icon-btn.on { background: color-mix(in srgb, var(--bg-3) 85%, transparent); }
+body .stage .room-head { --shrink: .35; }
+
+/* ── accent inside the room ── */
+body .room-chat .send-btn { background: var(--room-accent, var(--accent)); color: var(--room-ink, var(--accent-ink)); }
+body .room-chat .composer:focus-within { border-color: color-mix(in srgb, var(--room-accent, var(--accent)) 60%, transparent); }
+body .room-chat .mention { background: color-mix(in srgb, var(--room-accent, var(--accent)) 22%, transparent); color: color-mix(in srgb, var(--room-accent, var(--accent-2)) 75%, var(--text)); }
+body .room-chat .msg.mentioned { background: color-mix(in srgb, var(--room-accent, #ffd166) 14%, transparent); box-shadow: inset 3px 0 0 var(--room-accent, var(--accent-2)); }
+
+/* ── background image ── */
+body .chat.room-chat { isolation: isolate; }
+body .chat-backdrop { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+body .room-bg { position: absolute; inset: 0; }
+body .room-bg-img { position: absolute; inset: -24px; background: center / cover no-repeat; filter: blur(calc(var(--dim) * 6px)) saturate(1.1); }
+body .room-bg::after { content: ''; position: absolute; inset: 0; background: var(--bg); opacity: var(--dim); }
+body .room-chat:has(.room-bg) .composer { box-shadow: 0 4px 18px #0003; }
+body .room-chat:has(.room-bg) .day-sep span { background: color-mix(in srgb, var(--bg) 70%, transparent); padding: 1px 8px; border-radius: 999px; }
+
+/* ── welcome ── */
+body .room-welcome { margin-top: 6px; font-size: 15px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 70ch; }
+
+/* ── slowmode ── */
+body .slow-badge {
+  position: absolute; right: 14px; top: -24px; z-index: 2; font-size: 12px; font-weight: 800; color: var(--muted);
+  padding: 2px 9px; border-radius: 999px; background: color-mix(in srgb, var(--bg-2) 85%, transparent); white-space: nowrap;
+}
+body .slow-badge.waiting { color: var(--room-accent, var(--accent-2)); }
+body .slow-badge b { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 720px) {
+  body .chat-head.room-head { --extra: 44px; }
+  body .room-head h2 { font-size: calc(16px + (1 - var(--shrink)) * 4px); }
+  body .slow-badge { right: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body .chat-head.room-head { transition: none; }
+  body .room-dot { transition: none; }
+}

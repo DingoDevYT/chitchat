@@ -2,19 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Modal from './Modal'
 import { CropImg } from './Avatar'
-import { BANNER_FA, MAX_ZOOM, clampCrop, cropBox, isAnimatedWebp, zoomCrop } from './lib/crop'
+import { MAX_ZOOM, SHAPES, clampCrop, cropBox, isAnimatedWebp, zoomCrop } from './lib/crop'
 import './styles/cropper.css'
 
 const PREVIEWS = {
   circle: [[42, 'Chat', '50%'], [116, 'Stadium', '50%']],
   square: [[48, 'Server list', '16px'], [64, 'Settings', '18px']],
   banner: [[200, 'Server card', '14px']],
+  roomBanner: [[240, 'Room header', '12px']],
 }
 
 // Crop popup for avatar-like images. Calls onApply({ file, crop, preview }):
 // static images come back as a cropped 512px square (banner: 1000x400) with crop null; animated ones as the original file plus CSS framing.
 export default function ImageCropper({ file, shape = 'circle', title = 'Crop image', onCancel, onApply }) {
-  const fa = shape === 'banner' ? BANNER_FA : 1
+  const [fa, outW] = SHAPES[shape] || SHAPES.circle
   const [url] = useState(() => URL.createObjectURL(file))
   const [animated, setAnimated] = useState(file.type === 'image/gif')
   const [crop, setCrop] = useState(null)
@@ -66,7 +67,7 @@ export default function ImageCropper({ file, shape = 'circle', title = 'Crop ima
     setBusy(true)
     try {
       if (animated) { applied.current = true; return await onApply({ file, crop, preview: url }) }
-      const S = fa === 1 ? 512 : 1000, H = S / fa, cv = document.createElement('canvas'), g = cv.getContext('2d'), b = cropBox(crop)
+      const S = outW, H = S / fa, cv = document.createElement('canvas'), g = cv.getContext('2d'), b = cropBox(crop)
       cv.width = S; cv.height = H
       g.imageSmoothingQuality = 'high'
       g.translate((b.left + b.w / 2) / 100 * S, (b.top + b.h / 2) / 100 * H)

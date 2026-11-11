@@ -54,12 +54,9 @@ export function CardBody({ s, chips }) {
     <span className="srv-icon">{s.icon_url ? <CropImg src={s.icon_url} crop={s.icon_crop} /> : initials(s.name)}</span>
     <span className="srv-text">
       <b className="srv-name">{s.name}</b>
-      {s.motd && <span className="srv-motd" title={s.motd}><Motd text={s.motd} /></span>}
-      {(chips.online > 0 || chips.stadium) && <span className="srv-chips">
-        {chips.online > 0 && <span className="chip" title={`${chips.online} online`} aria-label={`${chips.online} online`}>
-          <i className="chip-dot" />{chips.stadium ? chips.online : `${chips.online} online`}</span>}
-        {chips.stadium && <span className="chip stadium">{chips.stadium}</span>}
-      </span>}
+      {/* one line under the name, so the card stays icon-height: the MOTD, else who's in a stadium */}
+      {s.motd ? <span className="srv-motd" title={s.motd}><Motd text={s.motd} /></span>
+        : chips.stadium && <span className="srv-motd">{chips.stadium}</span>}
     </span>
   </>
 }

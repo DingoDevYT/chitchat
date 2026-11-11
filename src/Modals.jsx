@@ -48,7 +48,7 @@ export function CreateJoinModal({ ctx, onClose, joinInvite }) {
       </div>
       {tab === 'create' ? (
         <form onSubmit={create} className="col">
-          <p className="muted">You'll get a #general text channel and a Hangout stadium to start.</p>
+          <p className="muted">You'll get a general room and a Hangout stadium to start.</p>
           <label>Server name<input value={name} onChange={e => setName(e.target.value)} maxLength={64} required autoFocus /></label>
           <button className="btn primary" disabled={busy}>Create server</button>
         </form>
@@ -135,101 +135,8 @@ export function ServerSettingsModal({ ctx, onClose }) {
   )
 }
 
-export function ChannelModal({ ctx, members, channel, categoryId, onClose }) {
-  const editing = !!channel
-  const cats = byPosition(categories.use(s => s[ctx.server.id]) || []) // loaded + kept live by the Sidebar
-  const [cat, setCat] = useState(channel ? channel.category_id || '' : categoryId || '')
-  const [name, setName] = useState(channel?.name || '')
-  const [kind, setKind] = useState(channel?.kind || 'text')
-  const [priv, setPriv] = useState(channel?.private || false)
-  const [allowed, setAllowed] = useState(new Set(channel?.channel_members?.map(m => m.user_id) || []))
-  const [busy, setBusy] = useState(false)
-
-  const cleanName = n => kind === 'text' ? n.toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '') : n
-
-  async function save(e) {
-    e.preventDefault()
-    const n = cleanName(name.trim())
-    if (!n) return toast('Use at least one letter or number in the name.')
-    if (busy) return
-    setBusy(true)
-    const fail = msg => { setBusy(false); toast(msg) }
-    let id = channel?.id
-    if (!editing) {
-      const { data, error } = await supabase.from('channels')
-        .insert({ server_id: ctx.server.id, name: n, kind, private: priv, position: Date.now() % 1e9, category_id: cat || null }).select().single()
-      if (error) return fail(error.message)
-      id = data.id
-    }
-    if (priv) {
-      const before = new Set(channel?.channel_members?.map(m => m.user_id) || [])
-      const add = [...allowed].filter(u => !before.has(u)), drop = [...before].filter(u => !allowed.has(u))
-      const r1 = add.length ? await supabase.from('channel_members').insert(add.map(user_id => ({ channel_id: id, user_id }))) : {}
-      const r2 = drop.length ? await supabase.from('channel_members').delete().eq('channel_id', id).in('user_id', drop) : {}
-      if (r1.error || r2.error) return fail((r1.error || r2.error).message)
-    }
-    // Update after access changes: the UPDATE event is what tells newly added people the channel exists (see Shell).
-    if (editing || (priv && allowed.size)) {
-      const { error } = await supabase.from('channels').update({ name: n, private: priv, category_id: cat || null }).eq('id', id)
-      if (error) return fail(error.message)
-    }
-    await ctx.load()
-    if (!editing) ctx.go(ctx.server.id, id)
-    onClose()
-  }
-
-  async function destroy() {
-    if (!confirm(`Delete #${channel.name} and all its messages?`)) return
-    const { error } = await supabase.from('channels').delete().eq('id', channel.id)
-    if (error) return toast(error.message)
-    await ctx.load()
-    onClose()
-  }
-
-  const nonAdmins = members.filter(m => m.role === 'member')
-  return (
-    <Modal title={editing ? `Edit ${channel.kind === 'voice' ? '🏟️' : '#'}${channel.name}` : 'New channel'} onClose={onClose}>
-      <form onSubmit={save} className="col">
-        {!editing && (
-          <div className="tabs">
-            <button type="button" className={kind === 'text' ? 'on' : ''} onClick={() => setKind('text')}># Text</button>
-            <button type="button" className={kind === 'voice' ? 'on' : ''} onClick={() => setKind('voice')}>🏟️ Stadium</button>
-          </div>
-        )}
-        <label>Name<input value={name} onChange={e => setName(e.target.value)} maxLength={64} required autoFocus
-          placeholder={kind === 'text' ? 'memes' : 'Gaming'} /></label>
-        {cats.length > 0 && (
-          <label>Category<select value={cat} onChange={e => setCat(e.target.value)}>
-            <option value="">No category</option>
-            {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select></label>
-        )}
-        <label className="toggle"><input type="checkbox" checked={priv} onChange={e => setPriv(e.target.checked)} />
-          <span>🔒 Private: only admins and the people you pick can see it</span></label>
-        {priv && (
-          <div className="pick-list">
-            {nonAdmins.length === 0 && <p className="muted small">No regular members yet. Admins always have access.</p>}
-            {nonAdmins.map(m => (
-              <label key={m.user_id} className="pick">
-                <input type="checkbox" checked={allowed.has(m.user_id)} onChange={e => {
-                  const n = new Set(allowed); e.target.checked ? n.add(m.user_id) : n.delete(m.user_id); setAllowed(n)
-                }} />
-                <Avatar id={m.user_id} size={24} /> <PName id={m.user_id} />
-              </label>
-            ))}
-          </div>
-        )}
-        <button className="btn primary" disabled={busy}>{editing ? 'Save' : 'Create channel'}</button>
-        {editing && <button type="button" className="btn danger" onClick={destroy}>Delete channel</button>}
-      </form>
-    </Modal>
-  )
-}
-
-function PName({ id }) {
-  const p = useProfile(id)
-  return <span>{p?.display_name || p?.username || '…'}</span>
-}
+// The room/stadium editor lives in RoomEditor.jsx.
+export { ChannelModal } from './RoomEditor'
 
 export function NewDMModal({ ctx, onClose }) {
   const [q, setQ] = useState('')

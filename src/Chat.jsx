@@ -14,6 +14,9 @@ import GifPicker from './GifPicker'
 import { ThreadsButton } from './Thread'
 import { firstUnreadId, mergeRecent } from './lib/cues'
 import { conn } from './ChatCues'
+import Markdown from './Markdown'
+import { RoomBackdrop, RoomTitle, SlowBadge, roomVars, useBannerShrink, useSlowLeft } from './Rooms'
+import { slowUntil } from './lib/rooms'
 
 const PAGE = 50
 const msgCache = new Map() // channelId -> recent messages, so switching back is instant
@@ -266,7 +269,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
   const openResult = useCallback(m => {
     if (m.channel_id === channel.id) return jumpTo(m.id)
     const c = ctx.channels?.find(x => x.id === m.channel_id)
-    if (!c) return toast("Can't open that channel.")
+    if (!c) return toast("Can't open that room.")
     pendingJump = { cid: c.id, id: m.id }
     ctx.go(c.server_id || null, c.id)
   }, [channel.id, jumpTo, ctx])
@@ -347,13 +350,22 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
   const title = channel.kind === 'dm' ? dmTitle(channel, userId, profileMap) : channel.name
   const typingIds = [...Object.keys(typers).filter(id => id !== userId), ...(meTyping ? [userId] : [])]
   const typingNames = typingIds.map(id => profileMap[id]?.display_name || profileMap[id]?.username || 'Someone')
+  // Rooms: banner header, accent, background and welcome text (see Rooms.jsx). Stadium side chats get the accent and welcome.
+  const room = !!server && channel.kind === 'text' && !stadium
+  const headRef = useRef(null)
+  useBannerShrink(scrollRef, headRef, room)
+  const exempt = role === 'owner' || ctx.can('manage_messages') || ctx.can('manage_channels')
+  const slow = server && channel.kind !== 'dm' ? channel.slowmode_sec || 0 : 0
 
   return (
-    <div className="chat" ref={rootRef}>
-      {channel.kind !== 'thread' && <header className="chat-head">
+    <div className={`chat${server && channel.kind !== 'dm' ? ' room-chat' : ''}`} ref={rootRef} style={server && channel.kind !== 'dm' ? roomVars(channel, server) : undefined}>
+      {room && <RoomBackdrop c={channel} />}
+      {channel.kind !== 'thread' && <header className={`chat-head${room ? ' room-head' : ''}`} ref={headRef}>
         {!stadium && <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu">☰</button>}
-        <span className="ch-icon">{stadium ? '💬' : channel.kind === 'dm' ? '@' : '#'}</span>
-        <h2>{title}</h2>
+        {room ? <RoomTitle c={channel} /> : <>
+          <span className="ch-icon">{stadium ? '💬' : '@'}</span>
+          <h2>{title}</h2>
+        </>}
         {channel.private && <span className="lock">🔒</span>}
         <span className="spacer" />
         {server && channel.kind === 'text' && <ThreadsButton channel={channel} ctx={ctx} />}
@@ -373,8 +385,10 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
           <div ref={topRef} />
           {msgs && !hasMore && (
             <div className="chat-start">
-              <h1>{channel.kind === 'dm' ? `This is the start of your chat with ${title}` : channel.kind === 'thread' ? 'The thread starts here 🧵' : `Welcome to #${channel.name}!`}</h1>
-              <p className="muted">Say something nice. Everyone hears it in your voice 🎶</p>
+              <h1>{channel.kind === 'dm' ? `This is the start of your chat with ${title}` : channel.kind === 'thread' ? 'The thread starts here 🧵' : `Welcome to ${channel.name}!`}</h1>
+              {channel.welcome && channel.kind !== 'dm'
+                ? <div className="room-welcome"><Markdown text={channel.welcome} me={me.username} /></div>
+                : <p className="muted">Say something nice. Everyone hears it in your voice 🎶</p>}
             </div>
           )}
           {!msgs && <div className="loading-msgs">{[0, 1, 2, 3].map(i => <div key={i} className="skeleton" />)}</div>}
@@ -414,7 +428,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
         <TypingRow ids={typingIds} names={typingNames} meId={userId} />
       </div>
 
-      <Composer key={channel.id} draftKey={channel.id} placeholder={`Message ${channel.kind === 'dm' ? title : '#' + channel.name}`}
+      <Composer key={channel.id} draftKey={channel.id} placeholder={`Message ${title}`} slow={slow} exempt={exempt} slowUntil={exempt ? null : slowUntil(msgs, userId, slow)}
         onSend={(...a) => { stopMeTyping(); return send(...a) }} onTyping={onTyping} onEditLast={editLast}
         replyTo={replyTo} onCancelReply={() => setReplyTo(null)} profileMap={profileMap} serverId={server?.id} canTTS={!!stadium} />
     </div>
@@ -423,7 +437,8 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
 
 const DRAFTS = new Map() // channel drafts survive switching channels
 
-function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, replyTo, onCancelReply, profileMap, serverId, canTTS }) {
+function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, replyTo, onCancelReply, profileMap, serverId, canTTS, slow, exempt, slowUntil: until }) {
+  const slowLeft = useSlowLeft(until) // slowmode countdown; the database enforces it too
   const ref = useRef(null)
   const [tts, setTTS] = useState(false)
   const [text, setText] = useState(() => DRAFTS.get(key) || '')
@@ -453,7 +468,7 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
   }
 
   function submit() {
-    if (!text.trim() && !files.length) return
+    if ((!text.trim() && !files.length) || slowLeft > 0) return
     const out = ac.encode(text)
     if (overLimit(out)) return toast(`Messages can be up to ${MAX_LEN} characters. That's ${overLimit(out)} too many.`)
     onSend(out, files, [], canTTS && tts)
@@ -472,6 +487,7 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
   // GIFs send straight away (like Discord), keeping any reply that's set.
   function sendGif(g) {
     setPicker(null)
+    if (slowLeft > 0) return
     onSend('', [], [{ url: g.url, type: 'image/gif', name: `${g.title}.gif`, w: g.w, h: g.h, gif: true }])
     focus()
   }
@@ -499,6 +515,7 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
         </div>
       )}
       {ac.popup}
+      {slow > 0 && <SlowBadge sec={slow} left={slowLeft} exempt={exempt} />}
       <div className="composer-row">
         <button className="icon-btn attach" onMouseDown={e => e.preventDefault()} onClick={() => fileInput.current.click()} title="Attach files" aria-label="Attach files">＋</button>
         <input ref={fileInput} type="file" multiple hidden onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
@@ -515,7 +532,7 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
         <button className="icon-btn emoji-btn" onMouseDown={e => e.stopPropagation()} onClick={() => setPicker(p => p === 'emoji' ? null : 'emoji')} title="Emoji" aria-label="Emoji"><Emoji e="😊" /></button>
         {picker === 'emoji' && <EmojiPicker className="up" onPick={insert} onClose={() => setPicker(null)} />}
         {picker === 'gif' && <GifPicker className="up" onPick={sendGif} onClose={() => setPicker(null)} />}
-        <button className="send-btn" onClick={submit} disabled={!text.trim() && !files.length} aria-label="Send">➤</button>
+        <button className="send-btn" onClick={submit} disabled={(!text.trim() && !files.length) || slowLeft > 0} aria-label="Send">➤</button>
       </div>
       {canTTS && (
         <div className="composer-sub">

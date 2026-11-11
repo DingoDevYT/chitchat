@@ -99,7 +99,7 @@ export function channelItems(c) {
   const { ctx } = app
   const admin = ctx.can('manage_channels')
   async function destroy() {
-    if (!confirm(`Delete #${c.name} and all its messages?`)) return
+    if (!confirm(`Delete ${c.name} and all its messages?`)) return
     const { error } = await supabase.from('channels').delete().eq('id', c.id)
     if (error) return toast(error.message)
     ctx.load()
@@ -107,11 +107,11 @@ export function channelItems(c) {
   return [
     c.kind === 'voice' && { label: 'Join stadium', icon: '🏟️', onClick: () => { ctx.go(c.server_id, c.id); ctx.joinVoice?.(c) } },
     c.kind !== 'voice' && { label: 'Mark as read', icon: '👀', onClick: () => markRead([c]) },
-    c.kind !== 'voice' && muteItem(c.id, 'channel'),
+    c.kind !== 'voice' && muteItem(c.id, 'room'),
     { label: 'Copy link', icon: '🔗', onClick: () => copy(`${base()}#/s/${c.server_id}/${c.id}`, 'Link copied') },
     admin && { separator: true },
-    admin && { label: 'Edit channel', icon: '⚙️', onClick: () => ctx.setModal({ type: 'channel', channel: c }) },
-    admin && { label: 'Delete channel', icon: '🗑️', danger: true, onClick: destroy },
+    admin && { label: c.kind === 'voice' ? 'Edit stadium' : 'Edit room', icon: '⚙️', onClick: () => ctx.setModal({ type: 'channel', channel: c }) },
+    admin && { label: c.kind === 'voice' ? 'Delete stadium' : 'Delete room', icon: '🗑️', danger: true, onClick: destroy },
     ...extras('channel', c),
   ]
 }
@@ -137,7 +137,7 @@ export function serverItems(s) {
     { label: 'Copy invite link', icon: '💌', onClick: () => copy(`${base()}#/invite/${s.invite_code}`, 'Invite link copied') },
     (settings || channelsPerm) && { separator: true },
     settings && { label: 'Server settings', icon: '⚙️', onClick: () => open('serverSettings') },
-    channelsPerm && { label: 'Create channel', icon: '➕', onClick: () => open('channel') },
+    channelsPerm && { label: 'Create room', icon: '➕', onClick: () => open('channel') },
     !owner && { separator: true },
     !owner && { label: 'Leave server', icon: '🚪', danger: true, onClick: leave },
     ...extras('server', s),

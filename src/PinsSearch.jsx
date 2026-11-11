@@ -75,7 +75,7 @@ export function SearchPanel({ ctx, channel, onJump, onClose }) {
     if (!ready) return
     const seq = ++runSeq.current
     setBusy(true)
-    // in:#channel only makes sense across the current server
+    // in:"Room name" only makes sense across the current server
     const sc = q.in && channel.server_id ? 'server' : scope
     const { data, error } = await supabase.rpc('search_messages', {
       terms: q.text, from_user: q.from, has: q.has, before_ts: q.before, after_ts: q.after,
@@ -98,7 +98,7 @@ export function SearchPanel({ ctx, channel, onJump, onClose }) {
   const chName = id => {
     if (id === channel.id && scope === 'channel') return null
     const c = ctx.channels?.find(x => x.id === id)
-    return c ? (c.server_id ? '#' + c.name : '@ DM') : null
+    return c ? (c.server_id ? c.name : '@ DM') : null
   }
 
   return (
@@ -111,12 +111,12 @@ export function SearchPanel({ ctx, channel, onJump, onClose }) {
         <button className="icon-btn" onClick={onClose} aria-label="Close search">✕</button>
       </div>
       <div className="tabs small ps-scope" role="tablist">
-        <button className={scope === 'channel' ? 'on' : ''} onClick={() => setScope('channel')}>This channel</button>
+        <button className={scope === 'channel' ? 'on' : ''} onClick={() => setScope('channel')}>{channel.kind === 'dm' ? 'This chat' : channel.kind === 'voice' ? 'This stadium' : 'This room'}</button>
         {channel.server_id && <button className={scope === 'server' ? 'on' : ''} onClick={() => setScope('server')}>Whole server</button>}
         <button className={scope === 'dms' ? 'on' : ''} onClick={() => setScope('dms')}>All my DMs</button>
       </div>
       <div className="ps-list">
-        {!results && <p className="muted small ps-empty">Type and press Enter. Try <code>from:pip has:image</code> or <code>before:2026-01-31</code>.</p>}
+        {!results && <p className="muted small ps-empty">Type and press Enter. Try <code>from:pip has:image</code> or <code>in:"General Chat"</code>.</p>}
         {results?.length === 0 && <p className="muted small ps-empty">No matches. 🍃</p>}
         {results?.map(m => <Hit key={m.id} m={m} terms={q.text} channelName={chName(m.channel_id)} onJump={onJump} />)}
         {more && <button className="btn ghost small ps-more" disabled={busy} onClick={() => run(true)}>{busy ? 'Loading…' : 'Load more'}</button>}

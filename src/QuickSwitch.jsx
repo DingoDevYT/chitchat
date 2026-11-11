@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { profiles } from './lib/store'
 import { dmTitle } from './Sidebar'
+import { RoomIcon } from './Rooms'
 
-// Ctrl/Cmd+K: fuzzy-ish jump to any channel or DM.
+// Ctrl/Cmd+K: fuzzy-ish jump to any room, stadium or DM.
 export default function QuickSwitch({ servers, channels, go }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -22,7 +23,7 @@ export default function QuickSwitch({ servers, channels, go }) {
     const sname = Object.fromEntries(servers.map(s => [s.id, s.name]))
     const all = channels.map(c => ({
       c, label: c.kind === 'dm' ? dmTitle(c, null, pmap) : c.name,
-      sub: c.kind === 'dm' ? 'Direct message' : sname[c.server_id], icon: c.kind === 'dm' ? '@' : c.kind === 'voice' ? '🏟️' : '#',
+      sub: c.kind === 'dm' ? 'Direct message' : sname[c.server_id],
     }))
     const t = q.toLowerCase()
     return all.filter(i => (i.label + ' ' + i.sub).toLowerCase().includes(t)).slice(0, 8)
@@ -41,7 +42,7 @@ export default function QuickSwitch({ servers, channels, go }) {
           }} />
         {items.map((i, n) => (
           <button key={i.c.id} className={`quick-item${n === sel ? ' on' : ''}`} onMouseEnter={() => setSel(n)} onClick={() => pick(i)}>
-            <span className="ch-icon">{i.icon}</span> {i.label} <span className="muted small">{i.sub}</span>
+            {i.c.kind === 'dm' ? <span className="ch-icon">@</span> : <RoomIcon c={i.c} />} {i.label} <span className="muted small">{i.sub}</span>
           </button>
         ))}
         {items.length === 0 && <p className="muted small pad">Nothing matches.</p>}

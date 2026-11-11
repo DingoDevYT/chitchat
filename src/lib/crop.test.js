@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { checkImage, isAnimatedWebp, clampCrop, zoomCrop, cropBox } from './crop.js'
+import { checkImage, isAnimatedWebp, clampCrop, zoomCrop, cropBox, ROOM_BANNER_FA, SHAPES } from './crop.js'
 
 test('checkImage validates type and size', () => {
   assert.equal(checkImage({ type: 'image/gif', size: 1000 }), null)
@@ -42,6 +42,15 @@ test('zoom clamps and keeps the same point centred', () => {
   assert.equal(c.x, 0.4)
   assert.equal(zoomCrop(c, 99).zoom, 5)
   assert.equal(zoomCrop(c, 0.1).x, 0)
+})
+
+test('4:1 room banner: a square image covers by width and pans vertically', () => {
+  const c = clampCrop({ x: 9, y: 9, zoom: 1, ar: 1, fa: ROOM_BANNER_FA })
+  assert.equal(c.fa, 4)
+  assert.equal(c.x, 0)
+  assert.equal(c.y, 0.375) // (1 - 1/4) / 2 frame widths
+  assert.deepEqual(cropBox(c), { w: 100, h: 400, left: 0, top: 0, rot: 0 })
+  assert.deepEqual(SHAPES.roomBanner, [4, 1600])
 })
 
 test('garbage crop data is sanitised', () => {

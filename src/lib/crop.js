@@ -3,6 +3,9 @@
 // zoom >= 1 (1 = image just covers the frame), rot in 90° steps, ar = image width / height,
 // fa = frame width / height (omitted = 1, a square; server banners use BANNER_FA).
 export const BANNER_FA = 2.5
+export const ROOM_BANNER_FA = 4 // room/stadium header banners
+// Frame aspect and exported canvas width for each ImageCropper shape.
+export const SHAPES = { circle: [1, 512], square: [1, 512], banner: [BANNER_FA, 1000], roomBanner: [ROOM_BANNER_FA, 1600] }
 
 export const MAX_BYTES = 8 * 1024 * 1024
 export const MAX_ZOOM = 5

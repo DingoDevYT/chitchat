@@ -10,6 +10,15 @@ test('parses filters and leaves free text', () => {
   assert.equal(q.has, 'image')
 })
 
+test('in: takes quoted room names with spaces (and still drops a leading #)', () => {
+  const q = parseSearch('hi in:"General   Chat 🍵" from:mochi there')
+  assert.equal(q.in, 'General Chat 🍵')
+  assert.equal(q.from, 'mochi')
+  assert.equal(q.text, 'hi there')
+  assert.equal(parseSearch('in:"#memes').in, 'memes') // unclosed quote: runs to the end
+  assert.equal(parseSearch('in:""').text, 'in:""')
+})
+
 test('dates: before = that midnight, after = next midnight, bad dates stay text', () => {
   const q = parseSearch('before:2026-03-10 after:2026-02-28')
   assert.equal(q.before, new Date(2026, 2, 10).toISOString())

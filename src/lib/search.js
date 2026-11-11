@@ -1,4 +1,4 @@
-// Message search query parsing: "from:pip in:#general has:image before:2026-01-31 hello"
+// Message search query parsing: 'from:pip in:"General Chat" has:image before:2026-01-31 hello'
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 const HAS = ['image', 'file', 'link']
 
@@ -13,9 +13,11 @@ function day(s, plusDays = 0) {
 export function parseSearch(input) {
   const out = { text: '', from: null, in: null, has: null, before: null, after: null }
   const words = []
-  for (const w of input.trim().split(/\s+/).filter(Boolean)) {
-    const m = w.match(/^(from|in|has|before|after):(.+)$/i)
-    const k = m?.[1].toLowerCase(), v = m?.[2]
+  // filter values may be quoted to hold spaces: in:"General Chat"
+  for (const w of input.trim().match(/\S+?:"[^"]*"?|\S+/g) || []) {
+    const m = w.match(/^(from|in|has|before|after):(?:"([^"]*)"?|(.+))$/i)
+    const k = m?.[1].toLowerCase(), v = (m?.[2] ?? m?.[3])?.replace(/\s+/g, ' ').trim()
+    if (m && !v) { words.push(w); continue }
     if (k === 'from') out.from = v.replace(/^@/, '')
     else if (k === 'in') out.in = v.replace(/^#/, '')
     else if (k === 'has' && HAS.includes(v.toLowerCase())) out.has = v.toLowerCase()

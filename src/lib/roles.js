@@ -3,11 +3,11 @@
 
 export const PERMS = [
   ['manage_server', 'Manage server', 'Rename the server, change its icon and manage its emoji.'],
-  ['manage_channels', 'Manage channels', 'Create, edit and delete channels, and see every private one.'],
+  ['manage_channels', 'Manage rooms', 'Create, edit and delete rooms and stadiums, and see every private one.'],
   ['manage_roles', 'Manage roles', 'Create and edit roles below their own, and hand them out.'],
   ['kick_members', 'Kick members', 'Remove regular members ranked below them.'],
   ['manage_messages', 'Manage messages', "Delete other people's messages."],
-  ['pin_messages', 'Pin messages', 'Pin and unpin messages in channels.'],
+  ['pin_messages', 'Pin messages', 'Pin and unpin messages in rooms.'],
   ['mention_everyone', 'Mention @everyone', 'Ping the whole server at once.'],
 ]
 

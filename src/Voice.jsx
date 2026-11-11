@@ -10,7 +10,8 @@ import { emojify } from './Markdown'
 import gateUrl from './lib/voice.js?url'
 import Avatar, { Name } from './Avatar'
 import { openMenu } from './ContextMenu'
-import { personMenu, streamItems } from './menus'
+import { app, personMenu, streamItems } from './menus'
+import { RoomTitle, roomVars } from './Rooms'
 
 // shortcut: STUN only, no TURN relay. ~10-20% of strict NAT / mobile networks won't connect; add a TURN server (e.g. Cloudflare Calls TURN) when someone reports it.
 const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }]
@@ -462,9 +463,9 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
 
   return (
     <div className="stage">
-      <header className="chat-head">
+      <header className="chat-head room-head" style={roomVars(channel, app.ctx?.server)}>
         <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu">☰</button>
-        <span className="ch-icon">🏟️</span><h2>{channel.name}</h2>
+        <RoomTitle c={channel} />
       </header>
       <div className="stadium">
         <div className={`stage-screen${main ? ' on' : ''}`} onContextMenu={main ? streamMenu(main) : undefined}>

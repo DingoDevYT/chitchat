@@ -6,14 +6,14 @@ export const THEMES = [
   { id: 'none', name: 'None', emoji: '⬜', colors: null },
   { id: 'gradient', name: 'Soft gradient', emoji: '🎨', colors: null },
   { id: 'beach', name: 'Beach day', emoji: '🏖️', colors: ['#8fd8f2', '#c9eef7', '#f2d8a2'] },
-  { id: 'night', name: 'Starry night', emoji: '🌙', colors: ['#10163a', '#262a62', '#4b3a74'] },
-  { id: 'rain', name: 'Rainy window', emoji: '🌧️', colors: ['#252e40', '#36435a', '#4f5a76'] },
-  { id: 'forest', name: 'Firefly forest', emoji: '🌲', colors: ['#0f1f22', '#173229', '#2a4a32'] },
+  { id: 'night', dark: true, name: 'Starry night', emoji: '🌙', colors: ['#10163a', '#262a62', '#4b3a74'] },
+  { id: 'rain', dark: true, name: 'Rainy window', emoji: '🌧️', colors: ['#252e40', '#36435a', '#4f5a76'] },
+  { id: 'forest', dark: true, name: 'Firefly forest', emoji: '🌲', colors: ['#0f1f22', '#173229', '#2a4a32'] },
   { id: 'snow', name: 'Snowfall', emoji: '❄️', colors: ['#a9c3e2', '#d4e3f3', '#f4f9ff'] },
   { id: 'sakura', name: 'Sakura breeze', emoji: '🌸', colors: ['#ffd3e1', '#ffe9ef', '#fff6ee'] },
-  { id: 'sea', name: 'Under the sea', emoji: '🐠', colors: ['#1a7aa0', '#0d5677', '#082f4a'] },
-  { id: 'synthwave', name: 'Synthwave', emoji: '🌆', colors: ['#14072b', '#3d1160', '#b8327d'] },
-  { id: 'campfire', name: 'Campfire', emoji: '🔥', colors: ['#0e0b18', '#22152a', '#46221c'] },
+  { id: 'sea', dark: true, name: 'Under the sea', emoji: '🐠', colors: ['#1a7aa0', '#0d5677', '#082f4a'] },
+  { id: 'synthwave', dark: true, name: 'Synthwave', emoji: '🌆', colors: ['#14072b', '#3d1160', '#b8327d'] },
+  { id: 'campfire', dark: true, name: 'Campfire', emoji: '🔥', colors: ['#0e0b18', '#22152a', '#46221c'] },
 ]
 export const THEME_IDS = THEMES.map(t => t.id)
 const byId = Object.fromEntries(THEMES.map(t => [t.id, t]))
