@@ -47,3 +47,14 @@ test('normGain boosts quiet talkers, cuts loud ones, ignores silence', () => {
   const step = normGain(1, 70) // one tick only moves a little
   assert.ok(step > 1 && step < 1.1)
 })
+
+import { chunkSpeech } from './tts.js'
+test('chunkSpeech', () => {
+  assert.deepEqual(chunkSpeech('hi there. how are you?'), ['hi there. how are you?'])
+  const long = 'word '.repeat(100).trim()
+  const parts = chunkSpeech(long, 60)
+  assert.ok(parts.every(p => p.length <= 60))
+  assert.equal(parts.join(' '), long)
+  assert.deepEqual(chunkSpeech(''), [])
+  assert.deepEqual(chunkSpeech('a'.repeat(30) + '. ' + 'b'.repeat(30) + '.', 40), ['a'.repeat(30) + '.', 'b'.repeat(30) + '.'])
+})

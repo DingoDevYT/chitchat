@@ -31,3 +31,22 @@ export function pickVoice(voices, name, lang) {
   return voices.find(v => v.name === name) ||
     (lang && (voices.find(v => v.lang?.toLowerCase() === lang.toLowerCase()) || voices.find(v => base(v.lang) === base(lang)))) || null
 }
+
+// Split for real-voice TTS: Chrome stops utterances after ~15 s, so speak sentence-sized pieces back to back.
+export function chunkSpeech(text, max = 180) {
+  const out = []
+  for (const sentence of (text || '').match(/[^.!?…]+[.!?…]*\s*/g) || []) {
+    let s = sentence.trim()
+    while (s.length > max) {
+      const cut = s.lastIndexOf(' ', max)
+      const at = cut > max * 0.5 ? cut : max
+      out.push(s.slice(0, at).trim())
+      s = s.slice(at).trim()
+    }
+    if (!s) continue
+    // glue short bits onto the previous piece so speech doesn't stutter between tiny chunks
+    if (out.length && out[out.length - 1].length + s.length + 1 <= max) out[out.length - 1] += ' ' + s
+    else out.push(s)
+  }
+  return out
+}

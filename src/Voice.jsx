@@ -299,7 +299,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError }) {
       const dest = audioCtx.createMediaStreamDestination()
       mic.node.connect(dest)
       streamRef.current = dest.stream
-      streamRef.current.getAudioTracks().forEach(t => { t.enabled = !vstateRef.current.muted })
+      streamRef.current.getAudioTracks().forEach(t => { t.enabled = !vstateRef.current.muted && !vstateRef.current.deafened }) // deafened implies muted
       // Presence and media travel separately; re-sort video whenever someone's cam/live ids change.
       stops.push(online.subscribe(() => { for (const [id, p] of peers) for (const a of p.media.values()) route(id, a.srcObject) }))
 

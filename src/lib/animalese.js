@@ -9,6 +9,12 @@ export function unlockAudio() {
   if (ctx.state === 'suspended') ctx.resume()
 }
 
+// Resolves once the audio engine is actually running, so the first blips of a line aren't swallowed.
+export async function audioReady() {
+  unlockAudio()
+  if (ctx.state !== 'running') await Promise.race([ctx.resume(), new Promise(r => setTimeout(r, 300))])
+}
+
 export function letterPitch(ch, pitch = 1) {
   const lower = ch.toLowerCase()
   const code = lower.codePointAt(0)
