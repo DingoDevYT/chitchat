@@ -1,8 +1,9 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { GAMES } from './registry.js'
 import { ensureProfiles, profiles } from '../lib/store'
 import { ask } from '../Dialog'
-import { uiSound } from '../lib/animalese'
+import { uiAudio, uiSound } from '../lib/animalese'
+import { playSfx, sfxFor } from './sfx'
 import Icon from '../icons/Icon'
 import { Card } from './Card'
 import { LEVEL_NAMES, Person, nameOf, seatList } from './People'
@@ -94,6 +95,14 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
   // A little blip (the UI-sound setting applies) when it becomes your turn.
   useEffect(() => { if (playing && turnPid === meId) uiSound('got') }, [playing, turnPid === meId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Table sounds (dice, cards, chips, coins, gavel, fanfare) for everyone watching, from what changed in the view.
+  const prevV = useRef(v)
+  useEffect(() => {
+    const a = uiAudio(), cues = sfxFor(game.game, prevV.current, v)
+    prevV.current = v
+    if (a && cues.length) playSfx(a.ctx, cues, a.volume)
+  }, [v]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Screen readers hear every move and whose turn it is.
   const said = v && !lobby ? [UI.lastText(v, nm), UI.banner(v, nm, meId)].filter(Boolean).join(' ') : ''

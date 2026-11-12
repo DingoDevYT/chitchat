@@ -12,8 +12,13 @@ export function unlockAudio() {
 
 // UI blips (menus, dialogs, sends, toggles, "You got…"): own toggle + volume, silent in DND, only once audio is unlocked.
 export function uiSound(kind) {
+  const a = uiAudio()
+  if (a) playUi(a.ctx, kind, a.volume)
+}
+// The same gate for other UI-sound players (game table sounds): { ctx, volume } or null.
+export function uiAudio() {
   const { uiSounds, uiVolume } = prefs.get()
-  if (uiSounds && !isDND() && ctx?.state === 'running') playUi(ctx, kind, uiVolume)
+  return uiSounds && !isDND() && ctx?.state === 'running' ? { ctx, volume: uiVolume } : null
 }
 
 // Resolves once the audio engine is actually running, so the first blips of a line aren't swallowed.
