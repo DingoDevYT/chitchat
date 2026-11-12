@@ -8,6 +8,7 @@ import { blockedDM, channelMuted } from './lib/mute'
 import { Screen, canCam, canShare, makeOut } from './Voice'
 import { PeerState } from './VoiceCues'
 import Avatar, { Name } from './Avatar'
+import { Entrance, seatFx, useArrivals } from './Entrances'
 import { openMenu } from './ContextMenu'
 import { app, personMenu, streamItems } from './menus'
 import './styles/dm-calls.css'
@@ -284,6 +285,7 @@ function CallStage({ ids, joined, meId }) {
   const faces = cams.use()
   const [pick, setPick] = useState(null)
   const [hidden, setHidden] = useState([])
+  const { order, fx } = useArrivals(ids, 'call') // join/leave animations (Entrances.jsx)
   const shown = joined ? Object.keys(all).filter(id => !hidden.includes(id)) : []
   const main = shown.includes(pick) ? pick : shown[0]
   const menu = id => e => openMenu(e, () => streamItems(id, {
@@ -306,9 +308,9 @@ function CallStage({ ids, joined, meId }) {
         </div>
       )}
       <div className="call-crowd">
-        {ids.map(id => (
-          <div key={id} className={`stage-seat${id === meId ? ' me' : ''}`} {...personMenu(id)}>
-            <Avatar id={id} size={main ? 56 : 84} full vbadge>{joined && faces[id] && <Screen stream={faces[id]} />}</Avatar>
+        {order.map(id => (
+          <div key={id} className={`stage-seat${id === meId ? ' me' : ''}${seatFx(fx[id])}`} {...personMenu(id)}>
+            <Entrance id={id} fx={fx[id]}><Avatar id={id} size={main ? 56 : 84} full vbadge>{joined && faces[id] && <Screen stream={faces[id]} />}</Avatar></Entrance>
             <Name id={id} />
             <PeerState id={id} />
           </div>

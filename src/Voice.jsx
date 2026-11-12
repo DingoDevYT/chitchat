@@ -22,6 +22,7 @@ import { clampPan, zoomAt, toggleAt } from './lib/zoom'
 import './styles/stadium-crowd.css'
 import { GAMES_ON, useTable, create as createGame } from './games/useGame'
 import GamePicker from './games/GamePicker'
+import { Entrance, seatFx, useArrivals } from './Entrances'
 
 const GameScreen = lazy(() => import('./games/GameScreen')) // games (and three.js) load only when a table opens
 
@@ -570,13 +571,14 @@ function useSize() {
 }
 
 // pin: the "Focus camera" / "Stop focusing" menu item, for a seat showing a live camera (tapping it toggles too).
-function Seat({ id, me, size, back, tile, live, face, pin, style }) {
+// fx: their entrance/exit animation while it plays (Entrances.jsx).
+function Seat({ id, me, size, back, tile, live, face, pin, style, fx }) {
   const menu = pin ? { onClick: pin.onClick, onContextMenu: e => openMenu(e, () => [pin, { separator: true }, ...personItems(id, e.currentTarget)]) } : personMenu(id)
   return (
-    <div className={`stage-seat${me ? ' me' : ''}${back ? ' back' : ''}`} style={style} {...menu}>
+    <div className={`stage-seat${me ? ' me' : ''}${back ? ' back' : ''}${seatFx(fx)}`} style={style} {...menu}>
       {live && <b className="live-badge"><Icon name="live" size="1.25em" /> LIVE</b>}
       <Bubble id={id} />
-      <Avatar id={id} size={size} full={!tile} mode="stage" vbadge>{face && <Screen stream={face} />}</Avatar>
+      <Entrance id={id} fx={fx}><Avatar id={id} size={size} full={!tile} mode="stage" vbadge>{face && <Screen stream={face} />}</Avatar></Entrance>
       {(!me || tile) && <Name id={id} />}{/* you know your own name */}
       <PeerState id={id} />
     </div>
@@ -594,7 +596,8 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   const [boxRef, box] = useSize()
   const [pick, setPick] = useState(null)
   const [hidden, setHidden] = useState([]) // streams hidden from the right-click menu, until you leave this view
-  const list = ids ? ids.split(',') : []
+  // Seat order, holding leavers a moment so their exit animation plays in their seat (Entrances.jsx).
+  const { order: list, fx } = useArrivals(ids ? ids.split(',') : [], channel.id)
   const lives = liveIds ? liveIds.split(',') : []
   const shown = joined ? Object.keys(all).filter(id => !hidden.includes(id)) : []
   // Focus (pick): a stream id, or `cam:<user id>` for someone's camera. It takes the big screen, the other streams go to
@@ -622,7 +625,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   const atTable = new Set(g ? table.seats.map(s => s.user_id) : []) // seated players walk from the crowd to the table
   const others = list.filter(id => id !== meId && !atTable.has(id))
   const crowd = view !== 'list' && box.w ? fitCrowd(others.length, box.w, box.h * 0.5, list.includes(meId) && !atTable.has(meId)) : null
-  const seat = id => ({ id, live: lives.includes(id), face: joined && faces[id], pin: joined && faces[id] && camItem(id) })
+  const seat = id => ({ id, fx: fx[id], live: lives.includes(id), face: joined && faces[id], pin: joined && faces[id] && camItem(id) })
   const theme = useRoomTheme(channel, app.ctx?.server)
   const gameFull = prefs.use(s => !!g && s.gameView?.[g.game] === 'full') // screen or full view, per person per game
   // Spotlights hold still and only sweep for a few seconds when someone arrives or leaves.
