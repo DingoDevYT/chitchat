@@ -60,7 +60,7 @@ async function handle(req: Request, body: any) {
   const action = String(body?.action || '')
 
   if (action === 'create') {
-    if (!isUuid(body.channelId) || !GAMES[body.game]) throw new Nope('Unknown game.')
+    if (!isUuid(body.channelId) || !GAMES[body.game] || GAMES[body.game].meta.devOnly) throw new Nope('Unknown game.')
     await load(uid, null)
     if (!(await asUser.rpc('can_view_channel', { cid: body.channelId })).data) throw new Nope("You can't see that stadium.", 403)
     const { data, error } = await db.rpc('game_create', { uid, cid: body.channelId, gkind: body.game })
@@ -121,16 +121,19 @@ async function handle(req: Request, body: any) {
       if (!between) throw new Nope('Already playing.')
       const players = seats.map(seatIdOf)
       if (players.length < R.meta.min) throw new Nope(`${R.meta.name} needs at least ${R.meta.min} players.`)
-      const next = R.setup(players, seed(), g.opts || {})
+      // Real-time games (meta.realtime: Midnight Chitchen) keep a game clock that follows the server's.
+      const next = R.setup(players, seed(), R.meta.realtime ? { ...(g.opts || {}), now: Date.now() } : g.opts || {})
       return save({ ...payload(R, null, next, seats), privs_reset: true })
     }
     case 'move': {
       if (g.status !== 'playing') throw new Nope('No round is running.')
       if (!mine) throw new Nope("You're watching this one.", 403)
-      if (body.version !== g.version) throw new Nope('The table moved on. Try again.', 409)
+      // Real-time games take moves from everyone at once, so a stale version is fine there: the rules check
+      // everything, and game_save still refuses a write that raced another one. Their moves carry the server clock.
+      if (body.version !== g.version && !R.meta.realtime) throw new Nope('The table moved on. Try again.', 409)
       const st = stateOf(row)
       let next
-      try { next = R.move(st, uid, body.move) } catch (e) { throw new Nope(e instanceof Error ? e.message : String(e)) }
+      try { next = R.move(st, uid, stamp(R, body.move)) } catch (e) { throw new Nope(e instanceof Error ? e.message : String(e)) }
       return save(payload(R, st, next, seats))
     }
     case 'tick': {
@@ -142,8 +145,8 @@ async function handle(req: Request, body: any) {
       if (isBot(who)) {
         const level = seats.find(s => botId(s.seat) === who)?.bot || 'normal'
         const a = R.bot?.(R.view(st, who), who, level, Math.random)
-        try { next = R.move(st, who, a ?? R.timeout(st)) } catch { next = R.move(st, who, R.timeout(st)) }
-      } else next = R.move(st, who, R.timeout(st))
+        try { next = R.move(st, who, stamp(R, a ?? R.timeout(st))) } catch { next = R.move(st, who, stamp(R, R.timeout(st))) }
+      } else next = R.move(st, who, stamp(R, R.timeout(st)))
       return save(payload(R, st, next, seats))
     }
     case 'leave': {
@@ -156,6 +159,8 @@ async function handle(req: Request, body: any) {
   }
   throw new Nope('Unknown action.')
 }
+
+const stamp = (R: any, a: any) => (R.meta.realtime ? { ...(a || {}), now: Date.now() } : a)
 
 async function load(uid: string, gid: string | null) {
   const { data, error } = await db.rpc('game_load', { uid, gid })

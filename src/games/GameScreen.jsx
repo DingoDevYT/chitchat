@@ -14,9 +14,10 @@ import * as snack from './snack/ui.jsx'
 import * as poker from './poker/ui.jsx'
 import * as property from './property/ui.jsx'
 import * as isle from './isle/ui.jsx'
+import * as chitchen from './chitchen/ui.jsx'
 import './games.css'
 
-export const UIS = { highcard, snack, poker, property, isle }
+export const UIS = { highcard, snack, poker, property, isle, chitchen }
 const Table3D = lazy(() => import('./Table3D'))
 const HOUSE = {
   snack: [['stack', 'Stack draw cards'], ['drawUntil', 'Draw until you can play']],
@@ -27,6 +28,7 @@ const HOUSE = {
     ['startDouble', 'Land right on Start: collect 400 instead of 200'],
     ['napNoRent', 'No rent while napping: owners in the Nap Nook collect nothing'],
   ],
+  chitchen: [['quick', 'Quick night: 3 chores each, a shorter night and Tea Breaks'], ['hideRoles', 'Hide roles: the night tram keeps its secrets']],
   isle: [
     ['quick', 'Quick game: first to 8 points'],
     ['friendly', "Friendly raccoon: it won't bother anyone under 3 points"],
@@ -96,7 +98,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
   const seated = seats.some(s => s.user_id === meId)
   const inRound = !!v?.players?.includes(meId) && !lobby
   const host = game.host_id === meId
-  const turnPid = playing && v ? R.turn({ pub: v }) : null
+  const turnPid = playing && v && !R.meta.realtime ? R.turn({ pub: v }) : null // real-time games have no "your turn"
   const winners = done && v ? R.over({ pub: v }) : null
   const nm = pid => nameOf(pid, seats)
   const meIdx = Math.max(0, people.findIndex(p => p.pid === meId))
@@ -144,15 +146,15 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
   return (
     <div className={`gs g-${game.game}${full ? ' full' : ''}`}>
-      {canGL
+      {UI.ownScene && !lobby ? null : canGL // a game with its own world (Midnight Chitchen) draws it in its Hud
         ? <Suspense fallback={<div className="gs-loading">Setting the table…</div>}>
-          <Table3D game={game.game} v={lobby ? null : v} people={people} meIdx={meIdx} me={meId} turnPid={turnPid} info={info} winners={winners} version={game.version} pending={pending} />
+          <Table3D game={UI.ownScene ? 'highcard' : game.game}v={lobby ? null : v} people={people} meIdx={meIdx} me={meId} turnPid={turnPid} info={info} winners={winners} version={game.version} pending={pending} />
         </Suspense>
         : <TableFlat UI={UI} v={lobby ? null : v} people={people} meIdx={meIdx} turnPid={turnPid} info={info} winners={winners} me={meId} />}
 
       {hud
         ? <UI.Hud v={v} me={meId} nm={nm} act={doAct} busy={busy} pending={pending} people={people} turnPid={turnPid}
-          deadline={playing ? game.deadline : null} version={game.version} canPlay={playing && inRound} tools={tools} />
+          deadline={playing ? game.deadline : null} version={game.version} canPlay={playing && inRound} tools={tools} gameId={game.id} />
         : <div className="gs-top">
           <span className="gs-title"><Icon name="cards" size={18} /> {title}</span>
           {v && !lobby && <span key={turnPid === meId ? 'mine' : 'other'} className={`gs-banner${turnPid === meId ? ' mine' : ''}`}>{UI.banner(v, nm, meId)}{playing && game.deadline && <Timer deadline={game.deadline} version={game.version} />}</span>}
