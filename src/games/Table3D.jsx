@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Person } from './People'
-import { useFace } from '../Avatar'
+import Avatar, { useFace } from '../Avatar'
 import { card as playCard } from './highcard/rules.js'
 import { CARDS, FLAVOURS } from './snack/rules.js'
 import { BOARD, GROUPS, N } from './property/rules.js'
@@ -207,8 +207,11 @@ function TableMesh({ layout }) {
 }
 
 // Where seat i of n sits (you, meIdx, nearest the camera). Returns [x, z, angle].
-function seatAt(i, n, meIdx, r) {
-  const a = Math.PI / 2 + (2 * Math.PI * ((i - meIdx + n) % n)) / n
+// Portrait phones: everyone else shares the far arc instead of the full circle, so nobody sits off the screen edges.
+function seatAt(i, n, meIdx, r, portrait) {
+  const k = (i - meIdx + n) % n
+  const a = !portrait || k === 0 || n < 3 ? Math.PI / 2 + (2 * Math.PI * k) / n
+    : -Math.PI / 2 + Math.min(1.6, 0.55 * (n - 2)) * ((k - 1) / (n - 2) - 0.5)
   return [r * Math.cos(a), r * Math.sin(a), a]
 }
 
@@ -255,9 +258,12 @@ function Cutout({ p, x, z, turn, won }) {
   const h = FIG_H * (aspect > 1 ? 1 / Math.sqrt(aspect) : 1), w = h * aspect
   const g = useRef(), inner = useRef()
   useFrame(({ camera, clock }) => {
-    // always faces you, like a standee, leaning back a little so a high camera still sees the face
+    // Turned halfway between the table (so side players sit square in their chairs, not through them) and you,
+    // leaning back a little so a high camera still sees the face.
     const dx = camera.position.x - x, dz = camera.position.z - z
-    g.current.rotation.set(-Math.atan2(camera.position.y - SEAT_Y - FIG_H / 2, Math.hypot(dx, dz)) * 0.55, Math.atan2(dx, dz), 0, 'YXZ')
+    const toCam = Math.atan2(dx, dz), toTable = Math.atan2(-x, -z)
+    const yaw = toTable + Math.atan2(Math.sin(toCam - toTable), Math.cos(toCam - toTable)) * 0.5
+    g.current.rotation.set(-Math.atan2(camera.position.y - SEAT_Y - FIG_H / 2, Math.hypot(dx, dz)) * 0.55, yaw, 0, 'YXZ')
     const t = clock.elapsedTime
     const y = reduced ? 0 : won ? Math.abs(Math.sin(t * 6)) * 0.25 : talk ? 0.06 + Math.abs(Math.sin(t * 14)) * 0.03 : 0
     inner.current.position.y += (y - inner.current.position.y) * 0.3
@@ -618,9 +624,10 @@ export default function Table3D({ game, v, people, meIdx, me, turnPid, info, win
     return () => document.removeEventListener('visibilitychange', f)
   }, [])
   const n = people.length
-  const r = layout.seatR * (innerWidth < 700 ? 0.7 : 1) // phones: pull seats in so side players stay on screen
+  const portrait = innerWidth < innerHeight * 0.9
+  const r = layout.seatR * (portrait ? 0.9 : 1)
   const seats = people.map((p, i) => {
-    let [x, z, a] = seatAt(i, Math.max(n, 2), meIdx, r)
+    let [x, z, a] = seatAt(i, Math.max(n, 2), meIdx, r, portrait)
     return { ...p, x, z, a, r }
   })
   const others = seats.filter(s => s.pid !== me) // you are the camera: your hand is the dock along the bottom
@@ -636,11 +643,18 @@ export default function Table3D({ game, v, people, meIdx, me, turnPid, info, win
         <Lights layout={layout} />
         <Room layout={layout} />
         <TableMesh layout={layout} />
-        {seats.filter(s => s.pid !== me).map(s => <Chair key={s.pid} x={s.x * 1.08} z={s.z * 1.08} a={s.a} />)}
+        {seats.filter(s => s.pid !== me).map(s => <Chair key={s.pid} x={s.x * 1.14} z={s.z * 1.14} a={s.a} />)}
         {others.map(s => <Cutout key={s.pid} p={s} x={s.x} z={s.z} turn={s.pid === turnPid} won={winners?.includes(s.pid)} />)}
         {v && <Scene v={v} seats={seats} meId={me} pending={pending} />}
         <Projector seats={others} els={els} />
       </Canvas>
+      {/* you: your live PNGtuber in the bottom-left corner (like your corner in the stadium crowd), no name */}
+      {seats.some(s => s.pid === me) && (
+        <div className="g-me" aria-hidden="true">
+          <Avatar id={me} size={innerWidth < 700 ? 64 : 112} full mode="stage" vbadge />
+          {v && <span className="g-me-info">{info(me)}</span>}
+        </div>
+      )}
       {others.map((p, i) => (
         <Person key={p.pid} head p={p} elRef={el => { els.current[i] = el }} turn={p.pid === turnPid} info={info(p.pid)} me={p.pid === me} />
       ))}
