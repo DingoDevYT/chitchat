@@ -110,9 +110,9 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
         })}
       </div>
 
-      {cash && <Coins key={cash.id} d={cash.d} signs={signs} root={root} />}
+      {cash && <Coins key={'coins' + cash.id} d={cash.d} signs={signs} root={root} />}
       {cash?.receipt && (
-        <div key={cash.id} className="tt-receipt tt-tray" aria-hidden="true">
+        <div key={'receipt' + cash.id} className="tt-receipt tt-tray" aria-hidden="true">
           <div className="tt-in"><span className="tt-sw" style={{ background: cash.receipt.c }}><I n={cash.receipt.icon} /></span><div><b>{cash.receipt.title}</b><p>{cash.receipt.sub}</p></div></div>
         </div>
       )}
@@ -155,7 +155,7 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
         </div>
       )}
 
-      {card && <DrawnCard key={card.id} card={card} />}
+      {card && <DrawnCard key={'card' + card.id} card={card} />}
     </div>
   )
 }

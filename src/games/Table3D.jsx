@@ -20,7 +20,7 @@ const LAYOUT = {
   snack: { shape: 'round', R: 2.35, felt: '#c7836a', seatR: 3.2, cam: [0, 6.2, 7.4], look: [0, -0.15, 0.4], H: 2.0 },
   highcard: { shape: 'round', R: 2.2, felt: '#3f6b5c', seatR: 3.0, cam: [0, 5.8, 7.0], look: [0, -0.15, 0.4], H: 1.9 },
   poker: { shape: 'round', R: 2.5, felt: '#2f6b4f', seatR: 3.3, cam: [0, 5.6, 7.6], look: [0, -0.1, 0.4], H: 2.1 },
-  property: { shape: 'square', R: 3.1, felt: '#d9c7a3', seatR: 4.0, cam: [0, 8.4, 6.6], look: [0, 0.5, 0.2], H: 2.3 },
+  property: { follow: true, shape: 'square', R: 3.1, felt: '#d9c7a3', seatR: 4.0, cam: [0, 8.4, 6.6], look: [0, 0.5, 0.2], H: 2.3 },
 }
 
 // ── canvas textures (cached) ──
@@ -497,8 +497,9 @@ function Token({ color, space, slot, hop }) {
   const at = useRef(space)
   const prog = useRef(1)
   const from = useRef(tilePos(space))
-  useFrame((_, dt) => {
+  useFrame(({ clock }, dt) => {
     const o = ref.current
+    if (prog.current < 1 || at.current !== space) { camFocus.x = o.position.x; camFocus.z = o.position.z; camFocus.t = clock.elapsedTime }
     if (prog.current >= 1 && at.current !== space) {
       const next = hop ? (at.current + 1) % N : space
       from.current = tilePos(at.current); at.current = next; prog.current = 0
@@ -559,8 +560,11 @@ function PropertyScene({ v, seats }) {
         const bx = x + ix * band, bz = z + iz * band
         return (
           <group key={sp}>
-            {/* owner tag on the outer edge; mortgaged streets get a pale, flipped-looking tag */}
-            <mesh position={[x - ix * band * 1.05, 0.02, z - iz * band * 1.05]} rotation-x={-Math.PI / 2}><circleGeometry args={[0.07, 16]} /><meshBasicMaterial color={v.mortgaged[sp] ? '#bdb3a4' : s?.color || '#999'} /></mesh>
+            {/* who owns it: a bar in their colour just above the tile's colour band (pale while mortgaged) */}
+            <mesh position={Math.abs(z) > Math.abs(x) ? [x, 0.02, z - Math.sign(z) * (CORNER * U / 2 + 0.045)] : [x - Math.sign(x) * (CORNER * U / 2 + 0.045), 0.02, z]} rotation-x={-Math.PI / 2}>
+              <planeGeometry args={Math.abs(z) > Math.abs(x) ? [U * 0.92, 0.07] : [0.07, U * 0.92]} />
+              <meshBasicMaterial color={v.mortgaged[sp] ? '#bdb3a4' : s?.color || '#999'} toneMapped={false} />
+            </mesh>
             {n === 5 ? <Cottage inn color={s?.color || '#c86f5a'} pos={[bx, 0.01, bz]} />
               : Array.from({ length: n }, (_, k) => <Cottage key={k} color={s?.color || '#c86f5a'} pos={[bx + (iz ? (k - 1.5) * 0.11 : 0), 0.01, bz + (ix ? (k - 1.5) * 0.11 : 0)]} />)}
           </group>
@@ -580,16 +584,30 @@ function PropertyScene({ v, seats }) {
 const SCENES = { snack: SnackScene, highcard: HighScene, poker: PokerScene, property: PropertyScene }
 
 // Puts the camera where this game looks best, pulled back on narrow (phone) screens.
+// Teacup Town tokens report where they are while they walk; the camera leans in and follows for everyone watching.
+const camFocus = { x: 0, z: 0, t: -9 }
 function Rig({ layout }) {
   const { camera, size } = useThree()
-  useEffect(() => {
+  const base = useMemo(() => {
     const aspect = size.width / Math.max(1, size.height)
     const k = aspect < 1.25 ? Math.min(1.7, Math.pow(1.25 / aspect, 0.8)) : 1
     // Portrait phones: higher and steeper rather than just further away, so the table fills the width.
-    camera.position.set(layout.cam[0], layout.cam[1] * (1 + (k - 1) * 1.5), layout.cam[2] * (1 + (k - 1) * 0.55))
-    camera.lookAt(...layout.look)
-    camera.updateProjectionMatrix()
-  }, [camera, size.width, size.height, layout])
+    return { pos: new THREE.Vector3(layout.cam[0], layout.cam[1] * (1 + (k - 1) * 1.5), layout.cam[2] * (1 + (k - 1) * 0.55)), look: new THREE.Vector3(...layout.look) }
+  }, [size.width, size.height, layout])
+  const cur = useRef(null), tp = useRef(new THREE.Vector3()), tl = useRef(new THREE.Vector3())
+  useFrame(({ clock }, dt) => {
+    if (!cur.current) cur.current = { pos: base.pos.clone(), look: base.look.clone() }
+    const follow = layout.follow && !reduced && clock.elapsedTime - camFocus.t < 0.9
+    if (follow) { // lean in along the same view direction, centred near the walking token (gentler on phones)
+      const portrait = size.width < size.height * 0.9
+      tl.current.set(camFocus.x * (portrait ? 0.55 : 0.8), 0, camFocus.z * (portrait ? 0.55 : 0.8))
+      tp.current.copy(base.pos).sub(base.look).multiplyScalar(portrait ? 0.8 : 0.6).add(tl.current)
+    } else { tp.current.copy(base.pos); tl.current.copy(base.look) }
+    const k = reduced ? 1 : 1 - Math.exp(-Math.min(dt, 0.05) * (follow ? 2.2 : 1.6))
+    cur.current.pos.lerp(tp.current, k); cur.current.look.lerp(tl.current, k)
+    camera.position.copy(cur.current.pos)
+    camera.lookAt(cur.current.look)
+  })
   return null
 }
 
