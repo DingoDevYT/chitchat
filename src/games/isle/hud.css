@@ -1,0 +1,102 @@
+/* Chitter Cove HUD: the Teacup Town tray look (property/hud.css, tt-*) plus the island's own bits (ci-*). */
+body .gs.g-isle { container-type: inline-size; }
+body .g-isle .g-me-info:empty { display: none; }
+body .ci .tt-plank { gap: 10px; }
+body .ci-dice { display: flex; gap: 4px; flex: none; }
+body .ci-dice b { width: 26px; height: 26px; border-radius: 7px; background: #fff8ec; color: var(--ink); display: grid; place-items: center; font: 700 15px Fredoka, Nunito, sans-serif; box-shadow: 0 2px 0 #7a4a2c; }
+
+/* signs: points, basket size, cards, bonus badges */
+body .ci-amt { gap: 7px; flex-wrap: wrap; }
+body .ci-pts { display: inline-flex; align-items: center; gap: 2px; color: var(--ink); }
+body .ci-pts .tt-i { color: #e2a62e; }
+body .ci-mini { display: inline-flex; align-items: center; gap: 2px; font-size: 12.5px; opacity: .75; }
+body .ci-badge { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--honey); color: #6b4415; font-size: 12px; }
+
+/* bottom: tap hint, your basket, the dock */
+body .ci-bottom { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+body .ci-bottom > * { pointer-events: auto; }
+body .ci .ci-dock { position: static; transform: none; }
+body .ci-basket { display: flex; gap: 6px; background: rgba(255, 244, 220, .96); border-radius: 99px; padding: 5px 10px; box-shadow: 0 3px 0 #c9a77f, 0 6px 14px rgba(0, 0, 0, .25); }
+body .ci-res { display: inline-flex; align-items: center; gap: 3px; font: 700 16px Fredoka, Nunito, sans-serif; min-width: 40px; }
+body .ci-res .tt-i { font-size: 22px; }
+body .ci-hint { display: flex; align-items: center; gap: 8px; background: #4a3020ee; color: #fff8ec; font: 700 14px Nunito, sans-serif; padding: 7px 8px 7px 14px; border-radius: 99px; box-shadow: 0 3px 0 rgba(0, 0, 0, .25); animation: tt-pop .4s cubic-bezier(.3, 1.8, .5, 1) both; }
+body .ci-hint .tt-i { color: var(--honey); font-size: 18px; }
+body .ci .ci-hint button { background: var(--cream); color: var(--ink); border-radius: 99px; padding: 4px 12px; font: 700 13px Fredoka, Nunito, sans-serif; }
+
+/* move log in the bottom-right corner, clear of the dock */
+body .ci .ci-log { max-width: min(330px, calc(50% - 250px)); }
+body .ci-log .tt-tk { white-space: normal; border-radius: 16px; align-items: flex-start; }
+body .ci-tktext { min-width: 0; padding-top: 3px; line-height: 1.25; }
+
+/* chips flying from tiles to baskets */
+body .ci-fly .tt-fly { width: 30px; height: 30px; }
+body .ci-fly .tt-fly .tt-i { width: 30px; height: 30px; background: #fff8ec; border-radius: 50%; padding: 3px; box-shadow: 0 0 0 3px var(--rc), 0 3px 0 rgba(0, 0, 0, .3); }
+
+/* chips and pickers */
+body .ci-bag { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+body .ci-chip { display: inline-flex; align-items: center; gap: 2px; background: #fff; border-radius: 99px; padding: 1px 7px 1px 3px; font: 800 13px Nunito, sans-serif; box-shadow: inset 0 0 0 2px #ecd6b0; }
+body .ci-chip .tt-i { font-size: 17px; }
+body .ci-chip.short { box-shadow: inset 0 0 0 2px #e0707a; color: #c84f58; }
+body .ci-none { font: 700 12px Nunito, sans-serif; opacity: .6; }
+body .ci-hrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+body .ci-hrow > small { width: 34px; font: 700 13px Fredoka, Nunito, sans-serif; }
+body .ci .ci-pickres { width: 46px; height: 46px; border-radius: 50%; background: #fff; box-shadow: inset 0 0 0 2px #ecd6b0, 0 3px 0 #c9b393; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 800 10.5px Nunito, sans-serif; line-height: 1; }
+body .ci .ci-pickres .tt-i { font-size: 22px; }
+body .ci .ci-pickres.on { background: var(--honey); box-shadow: 0 3px 0 #c58a2c; }
+body .ci .ci-pickres:disabled { opacity: .35; }
+body .ci-left { text-align: left; margin: 6px 0 2px; }
+body .ci .ci-link { background: none; text-decoration: underline; font: inherit; }
+body .ci-steps { display: grid; gap: 4px; margin: 6px 0 10px; }
+body .ci-step { display: grid; grid-template-columns: 26px 30px 1fr 30px; align-items: center; gap: 6px; background: #fff; border-radius: 12px; padding: 3px 6px; box-shadow: inset 0 0 0 2px #f1e3c8; }
+body .ci-step.on { box-shadow: inset 0 0 0 2px var(--honey); }
+body .ci-step .tt-i { font-size: 22px; }
+body .ci-step b { text-align: center; font: 700 16px Fredoka, Nunito, sans-serif; }
+body .ci-step b small { font-size: 11px; opacity: .55; }
+body .ci .ci-step button { width: 30px; height: 30px; border-radius: 50%; background: #efe2cc; font: 700 18px Fredoka, Nunito, sans-serif; box-shadow: 0 2px 0 #c9b393; }
+body .ci .ci-step button:disabled { opacity: .35; }
+body .ci-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+body .ci-lbl { font: 700 13px Fredoka, Nunito, sans-serif; }
+body .ci .tt-with button .tt-i { vertical-align: -.2em; }
+
+/* build menu */
+body .ci-build .tt-atop { margin-bottom: 6px; }
+body .ci-brow { display: grid; grid-template-columns: 40px 1fr auto auto; align-items: center; gap: 8px; padding: 7px 4px; border-top: 2px solid #f1e3c8; }
+body .ci-bic { width: 40px; height: 40px; border-radius: 12px; background: var(--sage); color: #fff; display: grid; place-items: center; font-size: 22px; }
+body .ci-bname b { display: block; font: 700 16px Fredoka, Nunito, sans-serif; }
+body .ci-bname small { font: 700 11.5px Nunito, sans-serif; opacity: .7; }
+body .ci .ci-go { font: 700 14px Fredoka, Nunito, sans-serif; padding: 8px 14px; border-radius: 14px; background: var(--honey); box-shadow: 0 3px 0 #c58a2c; }
+body .ci .ci-go:disabled { opacity: .45; }
+body .ci-brow .tt-why { grid-column: 2 / -1; text-align: left; margin: -4px 0 0; }
+
+/* cards */
+body .ci-hand { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+body .ci-card { width: 180px; background: #fff; border-radius: 16px; padding: 10px; box-shadow: inset 0 0 0 3px #ecd6b0, 0 4px 0 #e2cfae; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }
+body .ci-cic { width: 44px; height: 44px; border-radius: 50%; background: #f6eedd; display: grid; place-items: center; font-size: 26px; color: #e2a62e; }
+body .ci-card b { font: 700 16px Fredoka, Nunito, sans-serif; }
+body .ci-card p { font: 700 12.5px/1.3 Nunito, sans-serif; margin: 0; flex: 1; }
+body .ci-card .ci-hrow { justify-content: center; }
+body .ci-card .ci-pickres { width: 36px; height: 36px; }
+body .ci-bonus { display: grid; gap: 4px; margin-top: 12px; font: 700 12.5px Nunito, sans-serif; background: #fbf2df; border-radius: 12px; padding: 8px 10px; }
+body .ci-bonus .tt-i { color: #e2a64a; margin-right: 4px; }
+body .ci-cards .tt-atop, body .ci-tradep .tt-atop { margin-bottom: 4px; }
+
+/* phones: dock along the bottom, basket above it, panels above both */
+@container (max-width: 560px) {
+  body .g-isle .g-me { bottom: 150px; }
+  body .ci-bottom { left: 6px; right: 6px; bottom: 6px; transform: none; gap: 6px; }
+  body .ci .ci-dock { position: static; width: 100%; }
+  body .ci-basket { gap: 2px; padding: 4px 8px; }
+  body .ci-res { min-width: 0; font-size: 14px; margin: 0 3px; }
+  body .ci-res .tt-i { font-size: 19px; }
+  body .ci-hint { font-size: 12.5px; }
+  body .ci .ci-log { bottom: 150px; max-width: calc(100% - 96px); }
+  body .ci .tt-offer, body .ci .tt-trade { bottom: 146px; max-height: calc(100% - 290px); }
+  body .ci-dice b { width: 22px; height: 22px; font-size: 13px; }
+  body .ci-amt { justify-content: center; gap: 4px; }
+  body .ci-mini { font-size: 11px; }
+  body .ci-two { grid-template-columns: 1fr; }
+  body .ci-brow { grid-template-columns: 36px 1fr auto; }
+  body .ci-brow .ci-bag { grid-column: 2; }
+  body .ci-brow .ci-go { grid-row: 1 / span 2; grid-column: 3; }
+  body .ci-card { width: 100%; }
+}

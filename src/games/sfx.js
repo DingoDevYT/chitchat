@@ -9,6 +9,11 @@ export function sfxFor(game, p, v) {
     if (v.rolls > p.rolls) out.push('dice')
     if (fresh && last.sold) out.push('gavel')
     if (fresh && (last.type === 'buy' || last.type === 'bail' || last.rent || last.sold?.to)) out.push('coins')
+  } else if (game === 'isle') {
+    if (v.rolls > p.rolls) out.push('dice')
+    if (fresh && (last.type === 'buy' || last.type === 'play')) out.push('card')
+    if (fresh && (last.type === 'build' || last.type === 'cottage' || last.type === 'path')) out.push('chips')
+    if (fresh && (last.type === 'accept' || last.type === 'bank' || last.took)) out.push('coins')
   } else if (game === 'poker') {
     if (fresh && ['call', 'raise', 'allin'].includes(last.type)) out.push('chips')
     if (v.hand !== p.hand) out.push('deal')

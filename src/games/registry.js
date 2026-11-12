@@ -3,5 +3,6 @@ import * as highcard from './highcard/rules.js'
 import * as snack from './snack/rules.js'
 import * as poker from './poker/rules.js'
 import * as property from './property/rules.js'
+import * as isle from './isle/rules.js'
 
-export const GAMES = { snack, property, poker, highcard }
+export const GAMES = { snack, property, poker, highcard, isle }

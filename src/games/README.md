@@ -16,7 +16,8 @@ The `game` edge function imports `../../../src/games/registry.js`, so it runs th
   `entrypoint_path: "supabase/functions/game/index.ts"`, and `files`:
   - `supabase/functions/game/index.ts`
   - `src/games/registry.js`, `src/games/rng.js`
-  - `src/games/highcard/rules.js`, `src/games/snack/rules.js`, `src/games/poker/rules.js`, `src/games/property/rules.js`
+  - `src/games/highcard/rules.js`, `src/games/snack/rules.js`, `src/games/poker/rules.js`, `src/games/property/rules.js`, `src/games/isle/rules.js`
+  (registry.js imports Chitter Cove's rules, so any redeploy must bundle that file too, even while the game is dev-only in GAME_INFO.)
 - Or with the CLI from the repo root: copy those files into a temp folder with the same relative paths and run `supabase functions deploy game --project-ref nilludyavkfqwastghmw`.
 
 A new game: add `<id>/rules.js` + `<id>/ui.jsx`, list it in `registry.js`, `GAME_LIST` (useGame.js) and `UIS` (GameScreen.jsx), add a scene in `Table3D.jsx`, then redeploy with the new file added. `npm test` runs every bot through whole games of every registered rules module.

@@ -13,9 +13,10 @@ import * as highcard from './highcard/ui.jsx'
 import * as snack from './snack/ui.jsx'
 import * as poker from './poker/ui.jsx'
 import * as property from './property/ui.jsx'
+import * as isle from './isle/ui.jsx'
 import './games.css'
 
-const UIS = { highcard, snack, poker, property }
+const UIS = { highcard, snack, poker, property, isle }
 const Table3D = lazy(() => import('./Table3D'))
 const HOUSE = {
   snack: [['stack', 'Stack draw cards'], ['drawUntil', 'Draw until you can play']],

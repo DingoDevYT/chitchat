@@ -10,6 +10,7 @@ const WANT = {
   poker: ['chips', 'deal', 'flip', 'win'],
   snack: ['card', 'deal', 'win'],
   highcard: ['flip', 'win'],
+  isle: ['dice', 'card', 'chips', 'coins', 'win'],
 }
 
 for (const [id, want] of Object.entries(WANT)) {
