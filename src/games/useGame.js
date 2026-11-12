@@ -12,7 +12,7 @@ export const GAME_INFO = [
   { id: 'poker', name: 'Chips & Chatter', blurb: "Texas hold'em with pretend acorns: bet, bluff and read your friends. Tips for newcomers built in.", players: '2–8', kind: 'Card game' },
   { id: 'highcard', name: 'Chit Flip', blurb: 'Everyone gets one hidden card: keep it or swap it once. Highest card wins. Thirty seconds of chaos.', players: '2–10', kind: 'Quick game' },
   // Not shipped yet: dev builds only (the referee isn't redeployed with it).
-  ...(import.meta.env?.DEV ? [{ id: 'isle', name: 'Chitter Cove', blurb: 'Gather twigs, wool, clay, berries and tea on a cozy island, build paths, cottages and lodges, trade, and shoo the raccoon. First to 10 points.', players: '2–4', kind: 'Board game' }] : []),
+  { id: 'isle', name: 'Chitter Cove', blurb: 'Gather twigs, wool, clay, berries and tea on a cozy island, build paths, cottages and lodges, trade, and shoo the raccoon. First to 10 points.', players: '2–4', kind: 'Board game' },
 ]
 export const GAME_LIST = GAME_INFO.map(g => [g.id, g.name])
 export const gameName = (id, fallback) => GAME_INFO.find(g => g.id === id)?.name || fallback
