@@ -9,6 +9,7 @@ import './styles/categories.css'
 import { keyLabel } from './lib/voice'
 import Avatar, { Name, CustomStatus } from './Avatar'
 import MeStatus, { MeSub } from './StatusPicker'
+import { AvatarSwitcher } from './AvatarSetups'
 import { canShare, canCam } from './Voice'
 import { InStadium, LiveTag, PeerState } from './VoiceCues'
 import { CallTag } from './DMCalls'
@@ -263,6 +264,7 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
           <Name id={userId} />
           <MeSub userId={userId} username={me.username} />
         </div>
+        <AvatarSwitcher userId={userId} onManage={() => setModal({ type: 'settings', tab: 'voice' })} />
         <button className="icon-btn" onClick={() => setModal({ type: 'settings' })} title="Settings" aria-label="Settings"><Icon name="settings" /></button>
       </div>
     </aside>

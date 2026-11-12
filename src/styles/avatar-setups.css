@@ -1,0 +1,88 @@
+/* Avatar setups: "My avatars" list, the single-setup editor, and the me-panel switcher.
+   `body` prefix: the main styles.css loads after component CSS (see avatar-shape.css). */
+
+body .av-face { flex: none; }
+body .av-face .critter { display: block; }
+
+/* Profile tab: the plain profile picture */
+body .pic-row { display: flex; align-items: center; gap: 16px; padding: 14px; background: var(--bg); border-radius: var(--r-lg); }
+body .pic-row .slot-img { flex: none; }
+body .pic-text { gap: 6px; min-width: 0; }
+body .pic-text b { font-family: var(--font-head); }
+
+/* List */
+body .av-list { display: flex; flex-direction: column; gap: 8px; }
+body .av-list-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 2px; }
+body .av-list-head > div:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 220px; }
+body .av-list-head b { font-family: var(--font-head); font-size: 15.5px; }
+body .av-list-head .btn.busy { opacity: .7; pointer-events: none; }
+body .av-card {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-lg);
+  background: var(--bg); box-shadow: inset 0 0 0 2px var(--line); transition: box-shadow .2s, background .2s;
+}
+body .av-card.on { box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg)); }
+body .av-card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+body .av-card-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .av-card-acts { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+body .av-card-acts .icon-btn { width: 32px; height: 32px; }
+body .av-card-acts .icon-btn.danger:hover { color: var(--danger); }
+body .av-badge {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700;
+  background: var(--accent); color: var(--accent-ink); font-family: var(--font-head);
+}
+body .av-skel { height: 76px; }
+body .av-empty { text-align: center; padding: 10px; border: 2px dashed var(--stitch); border-radius: var(--r-lg); margin: 0; }
+
+/* Editor */
+body .av-editor { display: grid; grid-template-columns: 210px 1fr; gap: 18px; align-items: start; }
+body .av-stage { position: sticky; top: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+body .av-stage-floor {
+  width: 100%; aspect-ratio: 1; display: grid; place-items: center; border-radius: var(--r-lg);
+  background: radial-gradient(ellipse at 50% 110%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 62%), var(--dots), var(--bg);
+  box-shadow: inset 0 0 0 2px var(--line);
+}
+body .av-stage-floor .avatar img { filter: drop-shadow(0 8px 10px #0005); }
+body .av-stage p { margin: 0; }
+body .av-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+body .av-chips button {
+  padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; color: var(--muted);
+  background: var(--bg); box-shadow: inset 0 0 0 2px var(--line); transition: background .2s, color .2s;
+}
+body .av-chips button:hover { color: var(--text); }
+body .av-chips button.on { background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+body .av-form { min-width: 0; gap: 12px; }
+body .av-form p { margin: 0; }
+body .av-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 6px; }
+body .av-slot {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; text-align: center;
+  background: var(--bg); border-radius: var(--r-lg); box-shadow: inset 0 0 0 2px var(--line);
+}
+body .av-slot.set { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--mint) 45%, transparent); }
+body .av-slot .slot-img { width: 72px; height: 72px; color: var(--muted); }
+body .av-slot-text { display: flex; flex-direction: column; font-size: 12.5px; line-height: 1.25; }
+body .av-slot-text b { font-size: 14px; }
+body .av-slot .row { gap: 4px; }
+body .av-slot .icon-btn { width: 30px; height: 30px; }
+body .av-foot { gap: 8px; flex-wrap: wrap; }
+
+/* Me-panel switcher */
+body .av-switch-btn { padding: 0; }
+body .av-switch-btn .avatar { pointer-events: none; }
+body .av-pop { width: 280px; }
+body .av-pop-title { font-family: var(--font-head); padding: 4px 10px 2px; font-size: 13px; color: var(--muted); }
+body .av-pop-list { display: flex; flex-direction: column; gap: 2px; max-height: min(320px, 45vh); overflow-y: auto; }
+body .av-opt > span { flex: 1; min-width: 0; }
+body .av-opt b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .av-opt-check { color: var(--accent); flex: none; }
+body .av-pop-empty { padding: 4px 10px; margin: 0; }
+
+@media (max-width: 640px) {
+  body .av-editor { grid-template-columns: 1fr; }
+  body .av-stage { position: static; }
+  body .av-stage-floor { max-width: 220px; }
+  body .av-card { flex-wrap: wrap; }
+  body .av-card-acts { width: 100%; justify-content: flex-start; flex-wrap: nowrap; }
+  body .av-card-acts .av-badge, body .av-card-acts .btn { flex: none; }
+  body .av-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body .pic-row { align-items: flex-start; }
+}

@@ -30,13 +30,27 @@ export async function refreshProfile(id) {
   if (data) primeProfiles([data])
 }
 // One realtime channel for every profile edit (avatar, name, colour, bio, voice...). Returns a cleanup.
+// Plus a broadcast nudge (like Members' pingMembers) for quick swaps such as changing avatar mid-call: the sender
+// says "my profile changed" and everyone who has it cached refetches it from the table (the payload is never trusted).
+let pingCh = null
+const pingWait = new Map()
+export function pingProfile(id) { pingCh?.send({ type: 'broadcast', event: 'changed', payload: { id } }) }
 export function startProfileSync() {
   const ch = freshChannel('profiles')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, ({ new: row }) => {
       if (profiles.get()[row.id]) primeProfiles([{ ...profiles.get()[row.id], ...row }])
     })
     .subscribe()
-  return () => { supabase.removeChannel(ch) }
+  const ping = supabase.channel('profiles-ping').on('broadcast', { event: 'changed' }, ({ payload }) => {
+    const id = payload?.id
+    if (typeof id !== 'string' || !profiles.get()[id] || pingWait.has(id)) return
+    pingWait.set(id, setTimeout(() => { // bursts collapse into one fetch per person
+      pingWait.delete(id)
+      supabase.from('profiles').select('*').eq('id', id).maybeSingle().then(({ data }) => data && primeProfiles([data]))
+    }, 400))
+  }).subscribe()
+  pingCh = ping
+  return () => { supabase.removeChannel(ch); supabase.removeChannel(ping); if (pingCh === ping) pingCh = null }
 }
 export async function ensureProfiles(ids) {
   const missing = [...new Set(ids)].filter(id => id && !profiles.get()[id] && !inflight.has(id))
