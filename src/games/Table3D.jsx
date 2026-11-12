@@ -413,7 +413,8 @@ function PokerScene({ v, seats, meId }) {
 // 40 spaces on an 11×11 ring with wide corners (see property/ui.jsx). U = one edge tile's width in world units.
 const BOARD_SIZE = 5.6, U = BOARD_SIZE / SIDE
 const tilePos = i => { const [c, r] = cell(i); return [(along(c) - SIDE / 2) * U, (along(r) - SIDE / 2) * U] }
-const inwardOf = i => { const [x, z] = tilePos(i); return [-Math.sign(Math.round(x * 10)), -Math.sign(Math.round(z * 10))] }
+// Which way a tile's colour band faces (toward the middle): straight in from its side of the board, never diagonal.
+const inwardOf = i => { const [c, r] = cell(i); return r === 10 ? [0, -1] : r === 0 ? [0, 1] : c === 0 ? [1, 0] : [-1, 0] }
 function doodle(g, k, i) {
   g.lineWidth = 5; g.strokeStyle = '#2b2230'
   if (k === 'cookie') { g.fillStyle = '#e8b86b'; g.beginPath(); g.moveTo(-34, 18); g.quadraticCurveTo(0, -40, 34, 18); g.quadraticCurveTo(0, 0, -34, 18); g.fill(); g.stroke() }
