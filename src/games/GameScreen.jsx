@@ -85,7 +85,9 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
   const winners = done && v ? R.over({ pub: v }) : null
   const nm = pid => nameOf(pid, seats)
   const meIdx = Math.max(0, people.findIndex(p => p.pid === meId))
-  const info = pid => (v && !lobby ? UI.info(v, pid) : null)
+  // A game with its own HUD (Teacup Town) draws the top bar, last move and dock itself, and shows coins on its own signs.
+  const hud = !!(UI.Hud && v && !lobby)
+  const info = pid => (v && !lobby && !UI.Hud ? UI.info(v, pid) : null)
   const run = async (action, extra) => { setBusy(true); const r = await act(action, extra); setBusy(false); return r }
   // Your move shows at once (pending) while the referee confirms it; a refusal or the next version clears it.
   const [pending, setPending] = useState(null)
@@ -118,6 +120,12 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
   // Screen readers hear every move and whose turn it is.
   const said = v && !lobby ? [UI.lastText(v, nm), UI.banner(v, nm, meId)].filter(Boolean).join(' ') : ''
   const close = async () => { if (await ask({ text: `Close the ${R.meta.name} table for everyone?`, confirm: 'Close table', danger: true })) run('leave') }
+  const tools = (
+    <span className="gs-tools">
+      <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Back to the stadium screen' : 'Full view'} aria-label={full ? 'Back to the stadium screen' : 'Full view'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
+      {host && <button className="icon-btn gs-btn" onClick={close} title="Close table" aria-label="Close table"><Icon name="close" size={18} /></button>}
+    </span>
+  )
 
   return (
     <div className={`gs g-${game.game}${full ? ' full' : ''}`}>
@@ -127,15 +135,15 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
         </Suspense>
         : <TableFlat UI={UI} v={lobby ? null : v} people={people} meIdx={meIdx} turnPid={turnPid} info={info} winners={winners} me={meId} />}
 
-      <div className="gs-top">
-        <span className="gs-title"><Icon name="cards" size={18} /> {R.meta.name}</span>
-        {v && !lobby && <span key={turnPid === meId ? 'mine' : 'other'} className={`gs-banner${turnPid === meId ? ' mine' : ''}`}>{UI.banner(v, nm, meId)}{playing && game.deadline && <Timer deadline={game.deadline} version={game.version} />}</span>}
-                <span className="gs-tools">
-          <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Back to the stadium screen' : 'Full view'} aria-label={full ? 'Back to the stadium screen' : 'Full view'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
-          {host && <button className="icon-btn gs-btn" onClick={close} title="Close table" aria-label="Close table"><Icon name="close" size={18} /></button>}
-        </span>
-      </div>
-      {v && !lobby && UI.lastText(v, nm) && <div className="gs-last" key={game.version}>{UI.lastText(v, nm)}</div>}
+      {hud
+        ? <UI.Hud v={v} me={meId} nm={nm} act={doAct} busy={busy} pending={pending} people={people} turnPid={turnPid}
+          deadline={playing ? game.deadline : null} version={game.version} canPlay={playing && inRound} tools={tools} />
+        : <div className="gs-top">
+          <span className="gs-title"><Icon name="cards" size={18} /> {R.meta.name}</span>
+          {v && !lobby && <span key={turnPid === meId ? 'mine' : 'other'} className={`gs-banner${turnPid === meId ? ' mine' : ''}`}>{UI.banner(v, nm, meId)}{playing && game.deadline && <Timer deadline={game.deadline} version={game.version} />}</span>}
+          {tools}
+        </div>}
+      {!hud && v && !lobby && UI.lastText(v, nm) && <div className="gs-last" key={game.version}>{UI.lastText(v, nm)}</div>}
 
       {lobby && (
         <div className="gs-panel gs-lobby">
@@ -146,7 +154,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
         </div>
       )}
 
-      {playing && inRound && (
+      {playing && inRound && !hud && (
         <div className="gs-hand" aria-label="Your controls">
           <UI.Controls v={v} me={meId} act={doAct} nm={nm} busy={busy} pending={pending} />
         </div>
