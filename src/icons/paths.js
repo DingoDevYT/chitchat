@@ -154,6 +154,8 @@ export const ICONS = {
   play: 'M7.5 5L19 12L7.5 19Z',
   pause: 'M8.5 5.5L8.5 18.5M15.5 5.5L15.5 18.5',
   stop: rr(6, 6, 12, 12, 2.5),
+  skip: 'M5.5 5.5L14.5 12L5.5 18.5ZM18.5 5.5L18.5 18.5',
+  music: oval(7, 17.5, 2.6, 2.1, 0) + 'M9.6 17.5L9.6 6L19 4L19 15.5' + oval(16.4, 15.5, 2.6, 2.1, 0) + 'M9.6 9.2L19 7.2',
 }
 
 // Same drawing, other names people reach for.

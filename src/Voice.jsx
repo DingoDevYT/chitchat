@@ -23,6 +23,7 @@ import './styles/stadium-crowd.css'
 import { GAMES_ON, useTable, create as createGame } from './games/useGame'
 import GamePicker from './games/GamePicker'
 import { Entrance, seatFx, useArrivals } from './Entrances'
+import { RadioCard, RadioDrawer } from './Radio'
 
 const GameScreen = lazy(() => import('./games/GameScreen')) // games (and three.js) load only when a table opens
 
@@ -682,6 +683,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
             </div>
           )}
         </div>
+        <RadioCard channel={channel} meId={meId} joined={joined} deafened={!!vstate?.deafened} listeners={ids ? ids.split(',').length : 0} below={!!main && !g} />
         {view === 'list' ? (
           <div className="stage-crowd list">
             {list.length === 0 && <p className="muted">Nobody's here yet.</p>}
@@ -719,6 +721,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
         {joined && gamesOn && !g && <button className="btn primary" onClick={() => setPicking(true)}><Icon name="cards" size={18} /> Games</button>}
         {picking && <GamePicker onPick={pickGame} onClose={() => setPicking(false)} />}
       </div>
+      <RadioDrawer channel={channel} meId={meId} />
     </div>
   )
 }
