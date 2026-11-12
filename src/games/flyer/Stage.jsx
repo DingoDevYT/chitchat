@@ -2,7 +2,7 @@
 // the cake podium. GameScreen hands us the lobby buttons, so seats, Chitbots, house rules and "Again?" work as in
 // every other stadium game.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Avatar from '../../Avatar'
+import { CamAvatar } from '../cams'
 import { toast } from '../../lib/store'
 import { callGame } from '../useGame'
 import { botChar, botUrl } from '../bots.js'
@@ -44,7 +44,7 @@ function useNow(on, ms = 200) {
 }
 
 function Face({ p, size }) {
-  if (p.user_id) return <Avatar id={p.user_id} size={size} full mode="stage" />
+  if (p.user_id) return <CamAvatar id={p.user_id} size={size} full mode="stage" />
   return <span className="avatar fly-botface" style={{ width: size, height: size }}><img src={botUrl(botChar(p.bot, p.seat), false)} alt="" width={size} height={size} draggable="false" /><i>BOT</i></span>
 }
 

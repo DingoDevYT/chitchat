@@ -1,9 +1,11 @@
 // Dev only (#/table?g=property&n=4&steps=200&seed=3): a game played locally, no server. You sit in seat 0 against
 // Chitbots; `steps` fast-forwards bot play to get a mid-game board. For checking boards and controls by eye.
 // `opts=quick,friendly` sets house rules; `lab=…` hands the game's UI module a named test situation (UI.lab).
+// `cam=1` / `cam=all` turns on a webcam for you / every seat.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { GAMES } from './registry.js'
 import GameScreen, { UIS } from './GameScreen'
+import { cams } from '../lib/store'
 
 const q = new URLSearchParams(location.hash.split('?')[1] || '')
 const G = q.get('g') || 'property', n = +q.get('n') || 4, seed = +q.get('seed') || 3, steps = +q.get('steps') || 0
@@ -26,6 +28,18 @@ export default function GameLab() {
     if (RT) st = { ...st, pub: { ...st.pub, epoch: Date.now() - st.pub.clock } } // fast-forwarded: carry on from here in real time
     return st
   })
+  // `cam=1` turns on your camera like the stadium does (into the cams store); `cam=all` hands the Chitbots it too,
+  // so every seat shows a live feed.
+  useEffect(() => {
+    if (!q.has('cam')) return
+    let s = null, off = false
+    navigator.mediaDevices?.getUserMedia({ video: { width: { ideal: 320 }, height: { ideal: 240 } } }).then(ms => {
+      if (off) return ms.getTracks().forEach(t => t.stop())
+      s = ms
+      cams.set(Object.fromEntries((q.get('cam') === 'all' ? players : [ME]).map(p => [p, ms])))
+    }, e => console.warn('lab camera:', e.message))
+    return () => { off = true; s?.getTracks().forEach(t => t.stop()); cams.set({}) }
+  }, [])
   const [v, setV] = useState(0)
   // Real-time games (Midnight Chitchen) get the referee's clock stamp, like the edge function adds.
   // Moves run against the latest state right away (a refused move shows its reason instead of breaking the page).

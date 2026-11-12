@@ -1,6 +1,8 @@
 // What a TV-head's screen shows: the player's live PNGtuber frame (or a Chitbot face, or the default critter), with
 // TV touches (scanlines, glare) and the game states: standby (candles out and quiet), smashed (tucked in) and the
 // crumb mask (revealed Nibbler). Drawn into a small canvas that becomes the screen texture.
+import { drawCam } from '../cams'
+
 const ink = '#231d2b'
 const cache = new Map()
 
@@ -31,15 +33,17 @@ function critter(g, color, talk, blink) {
   else { g.beginPath(); g.moveTo(-5, 9); g.quadraticCurveTo(0, 13.5, 5, 9); g.stroke() }
 }
 
-// s: { src, color, talk, blink, state: 'live' | 'standby' | 'broken' | 'mask', bg }
+// s: { src, color, talk, blink, state: 'live' | 'standby' | 'broken' | 'mask', bg, cam }
+// cam: a ready feed from games/cams.jsx (useCamVideo), drawn instead of the avatar.
 export function drawScreen(cv, s, onload) {
   const g = cv.getContext('2d'), W = cv.width, H = cv.height
   g.setTransform(1, 0, 0, 1, 0, 0)
   g.fillStyle = s.bg || '#f6c9a0'; g.fillRect(0, 0, W, H)
   const vg = g.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, W * 0.7)
   vg.addColorStop(0, '#ffffff30'); vg.addColorStop(1, '#00000040'); g.fillStyle = vg; g.fillRect(0, 0, W, H)
-  const pic = img(s.src, onload)
-  if (pic && pic.naturalWidth) {
+  const pic = s.cam ? null : img(s.src, onload)
+  if (s.cam) drawCam(g, s.cam, 0, 0, W, H) // a live webcam fills the whole screen: it's literally a TV
+  else if (pic && pic.naturalWidth) {
     const k = Math.min((W * 0.92) / pic.naturalWidth, (H * 0.94) / pic.naturalHeight)
     const w = pic.naturalWidth * k, h = pic.naturalHeight * k
     g.drawImage(pic, (W - w) / 2, H - h - H * 0.02 + (s.talk ? -H * 0.015 : 0), w, h)

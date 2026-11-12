@@ -1,7 +1,8 @@
-import Avatar, { Name } from '../Avatar'
+import { Name } from '../Avatar'
 import { Bubble } from '../Voice'
 import { profiles } from '../lib/store'
 import { botChar, botUrl } from './bots.js'
+import { CamAvatar } from './cams'
 
 // Seat colours: tokens, chips and nameplate accents (gouache palette).
 export const SEAT_COLORS = ['#ff9f6b', '#7cc4b0', '#e58fb4', '#8fb3e8', '#f2c14e', '#a98bd6', '#9bd17a', '#e8857a', '#6fc3d6', '#d9a066']
@@ -35,7 +36,7 @@ function BotStandee({ size, thinking, p }) {
 }
 const BotName = ({ p }) => <span className="name" title={`${botChar(p.bot, p.seat).blurb} (${LEVEL_NAMES[p.bot] || 'Normal'})`}>{botChar(p.bot, p.seat).name}</span>
 
-// One person at the table: their live PNGtuber avatar (talking, expressions, blinking, webcam), speech bubble and nameplate.
+// One person at the table: their live PNGtuber avatar (talking, expressions, blinking), or their webcam while it's on, speech bubble and nameplate.
 // elRef lets the 3D table move it every frame; style places it in the flat table.
 // head: the 3D table draws the body itself (a cut-out behind the table); this is just the speech bubble and nameplate over the head.
 export function Person({ p, turn, info, me, elRef, style, won, head }) {
@@ -54,7 +55,7 @@ export function Person({ p, turn, info, me, elRef, style, won, head }) {
     <div ref={elRef} className={`gp${turn ? ' turn' : ''}${me ? ' me' : ''}${won ? ' won' : ''}${p.gone ? ' gone' : ''}`} style={{ '--seat': p.color, ...style }}>
       <div className="gp-body">
         {p.user_id && <Bubble id={p.user_id} />}
-        {p.user_id ? <Avatar id={p.user_id} size={BASE} full mode="stage" vbadge /> : <BotStandee size={BASE} thinking={turn} p={p} />}
+        {p.user_id ? <CamAvatar id={p.user_id} size={BASE} full mode="stage" vbadge /> : <BotStandee size={BASE} thinking={turn} p={p} />}
       </div>
       {plate}
     </div>

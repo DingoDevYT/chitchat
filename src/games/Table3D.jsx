@@ -5,7 +5,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Person } from './People'
-import Avatar, { useFace } from '../Avatar'
+import { useFace } from '../Avatar'
+import { CAM_FPS, CamAvatar, camReady, drawCam, useCamVideo } from './cams'
 import { botChar, botUrl } from './bots.js'
 import { voiceLevels } from '../lib/store'
 import { card as playCard } from './highcard/rules.js'
@@ -253,13 +254,48 @@ const critterTex = (color, talk, bot) => canvasTex(`critter${color}${talk ? 1 : 
     g.fillStyle = bot === 'easy' ? '#1b1420' : '#ffcf9e'; g.font = `900 7.5px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('BOT', 51, 8.3)
   }
 })
+// Camera on: a rounded card in the player's colour, the live feed inside, redrawn ~15 fps into a small canvas
+// (cheap on phones, and it only updates while the table is rendering, so a hidden tab costs nothing).
+const CAM_W = 1.16, CAM_H = 1.45, CAM_LIFT = 0.3 // the bottom of the card hides behind the table like a body would
+function useCamCard(cam, color) {
+  const t = useMemo(() => {
+    if (!cam) return null
+    const c = document.createElement('canvas')
+    c.width = 208; c.height = 260
+    const tx = new THREE.CanvasTexture(c)
+    tx.colorSpace = THREE.SRGBColorSpace
+    tx.userData.drawn = false
+    return tx
+  }, [cam])
+  useEffect(() => () => t?.dispose(), [t])
+  const last = useRef(0)
+  useFrame(({ clock }) => {
+    if (!t || clock.elapsedTime - last.current < 1 / CAM_FPS || !camReady(cam)) return
+    last.current = clock.elapsedTime
+    const c = t.image, g = c.getContext('2d'), W = c.width, H = c.height, b = 9
+    g.clearRect(0, 0, W, H)
+    g.fillStyle = color; rrect(g, 0, 0, W, H, 34); g.fill()
+    g.save(); rrect(g, b, b, W - 2 * b, H - 2 * b, 26); g.clip(); drawCam(g, cam, b, b, W - 2 * b, H - 2 * b); g.restore()
+    t.userData.drawn = true
+    t.needsUpdate = true
+  })
+  return t
+}
 function Cutout({ p, x, z, turn, won }) {
   const face = useFace(p.user_id, 'stage')
   const talk = p.user_id ? face.talk : turn // Chitbots chatter while they think
+  const cam = useCamVideo(p.user_id || p.pid) // (only people have cameras; the lab hands Chitbots one to preview it)
+  const card = useCamCard(cam, p.user_id ? face.p?.color || p.color || '#f4a261' : p.color || '#f4a261')
   const photo = useImgTex(p.user_id ? (face.expr ? face.expr.src : null) : botUrl(botChar(p.bot, p.seat), talk)) // bots: their character
-  const tex = photo || critterTex(p.user_id ? face.p?.color || '#f4a261' : botChar(p.bot, p.seat).color, talk)
+  const live = card?.userData.drawn && camReady(cam)
+  const tex = live ? card : photo || critterTex(p.user_id ? face.p?.color || '#f4a261' : botChar(p.bot, p.seat).color, talk)
   const aspect = Math.min(1.6, Math.max(0.5, tex.image ? tex.image.width / tex.image.height : 1))
-  const h = FIG_H * (aspect > 1 ? 1 / Math.sqrt(aspect) : 1), w = h * aspect
+  const h = live ? CAM_H : FIG_H * (aspect > 1 ? 1 / Math.sqrt(aspect) : 1), w = live ? CAM_W : h * aspect
+  const y0 = live ? CAM_LIFT : 0
+  // The first decoded frame swaps the avatar for the card (one re-render); a camera that stops swaps it back.
+  const [, bump] = useState(0)
+  const was = useRef(false)
+  useFrame(() => { const now = !!(card?.userData.drawn && camReady(cam)); if (now !== was.current) { was.current = now; bump(n => n + 1) } })
   const g = useRef(), inner = useRef()
   useFrame(({ camera, clock }) => {
     // Turned halfway between the table (so side players sit square in their chairs, not through them) and you,
@@ -280,7 +316,7 @@ function Cutout({ p, x, z, turn, won }) {
   return (
     <group ref={g} position={[x, SEAT_Y, z]}>
       <group ref={inner}>
-        <mesh position={[0, h / 2, 0]} renderOrder={1}>
+        <mesh position={[0, y0 + h / 2, 0]} renderOrder={1}>
           <planeGeometry args={[w, h]} />
           <meshBasicMaterial map={tex} transparent alphaTest={0.04} toneMapped={false} opacity={p.gone ? 0.45 : 1} side={THREE.DoubleSide} />
         </mesh>
@@ -935,7 +971,7 @@ export default function Table3D({ game, v, people, meIdx, me, turnPid, info, win
       {/* you: your live PNGtuber in the bottom-left corner (like your corner in the stadium crowd), no name */}
       {seats.some(s => s.pid === me) && (
         <div className="g-me" aria-hidden="true">
-          <Avatar id={me} size={innerWidth < 700 ? 64 : 112} full mode="stage" vbadge />
+          <CamAvatar id={me} size={innerWidth < 700 ? 64 : 112} full mode="stage" vbadge />
           {v && <span className="g-me-info">{info(me)}</span>}
         </div>
       )}
