@@ -68,6 +68,23 @@ export const sourceUrl = t => t.kind === 'yt' ? `https://www.youtube.com/watch?v
 // ── time ──
 // Server clock offset from one round trip: the server read its clock about halfway between our send (t0) and receive (t1).
 export const clockOffset = (t0, t1, serverMs) => serverMs - (t0 + t1) / 2
+// The best of several round trips: the quickest one has the least room for error (±rtt/2). [{ t0, t1, server }] → { offset, rtt } | null
+export function pickOffset(samples) {
+  let best = null
+  for (const s of samples || []) {
+    const rtt = s?.t1 - s?.t0
+    if (!Number.isFinite(rtt) || rtt < 0 || rtt > 5000 || !Number.isFinite(s.server)) continue
+    if (!best || rtt < best.rtt) best = { offset: clockOffset(s.t0, s.t1, s.server), rtt }
+  }
+  return best
+}
+// A fresh measurement only replaces the one we have when it's about as precise (so one slow round trip never nudges
+// everyone's music), or when the clocks really moved apart (the computer slept, NTP stepped the clock).
+export function mergeOffset(prev, next) {
+  if (!next) return prev
+  if (!prev) return next
+  return next.rtt <= prev.rtt + 40 || Math.abs(next.offset - prev.offset) > 2000 ? next : prev
+}
 
 // Where the shared track is right now, in seconds (null when nothing is on). paused_at freezes it.
 export function position(state, serverNow) {
@@ -80,14 +97,30 @@ export const isPaused = state => typeof state?.paused_at === 'number'
 // Past the end (with a little grace so a slow player isn't cut off): time to ask the server for the next song.
 export const isOver = (state, serverNow) => !!state?.track?.dur && !isPaused(state) && (serverNow - state.started_at) / 1000 >= state.track.dur + 0.5
 
-// How to fix a player that has drifted from where it should be.
-//   > `seekOver` s off: jump. A smaller gap on a player that can change speed: nudge the rate (up to 5%) so it glides back.
-//   Within `ok` s: leave it alone (rate back to 1). Returns { seek } | { rate }.
-export function correction(actual, target, { canRate = false, seekOver = 1, ok = 0.12 } = {}) {
+// Keeping a player in step, gently. Every seek makes YouTube/SoundCloud rebuffer (an audible gap, and it lands a bit
+// behind again), so a twitchy "seek whenever we're 1 s off" loop chases its own tail and cuts in and out. Instead:
+//   · only judge drift once playback has been steady for `settleMs` (never while loading/buffering or right after a seek)
+//   · seek only when more than `seekOver` s off on `confirm` checks in a row, and at most once per `minGapMs`
+//   · smaller gaps on an <audio> element: nudge its speed (up to 5%) with hysteresis (start past nudgeOn, stop under
+//     nudgeOff); YouTube/SoundCloud can't change speed, so they live with a small gap
+export const SYNC = { seekOver: 3, settleMs: 3000, minGapMs: 10_000, confirm: 2, nudgeOn: 0.25, nudgeOff: 0.08 }
+export const syncMem = () => ({ lastSeekAt: -Infinity, over: 0, nudging: false })
+// mem: syncMem() carried between calls. steadyFor: ms the player has been playing (not buffering) without a hitch.
+// Returns { mem, seek?: s, rate?: r } (no rate = leave the speed alone).
+export function syncStep(mem, { actual, target, now, steadyFor = Infinity, canRate = false }, o = SYNC) {
+  if (steadyFor < o.settleMs) return { mem: { ...mem, over: 0 } }
   const d = actual - target
-  if (!Number.isFinite(d) || Math.abs(d) > seekOver) return { seek: target }
-  if (!canRate || Math.abs(d) <= ok) return { rate: 1 }
-  return { rate: Math.round((1 - Math.max(-0.05, Math.min(0.05, d * 0.1))) * 1000) / 1000 }
+  if (!Number.isFinite(d) || Math.abs(d) > o.seekOver) {
+    const over = mem.over + 1
+    if (over >= o.confirm && now - mem.lastSeekAt >= o.minGapMs) {
+      return { seek: target, ...(canRate ? { rate: 1 } : {}), mem: { lastSeekAt: now, over: 0, nudging: false } }
+    }
+    return { mem: { ...mem, over } }
+  }
+  if (!canRate) return { mem: { ...mem, over: 0 } }
+  const nudging = mem.nudging ? Math.abs(d) > o.nudgeOff : Math.abs(d) > o.nudgeOn
+  const rate = nudging ? Math.round((1 - Math.max(-0.05, Math.min(0.05, d * 0.1))) * 1000) / 1000 : 1
+  return { rate, mem: { ...mem, over: 0, nudging } }
 }
 
 export function fmtTime(s) {
@@ -115,23 +148,64 @@ export function voteSkips(skips, uid, listeners) {
 
 // ── what you hear ──
 // Music volume for this moment: your slider, muted/deafened, and ducked while anyone is talking.
+// amount: how far the duck is in, 0..1 (from duckStep); `talking` is the on/off shorthand.
 export const DUCK = 0.3
-export function musicGain({ vol = 0.6, muted = false, deafened = false, duck = true, talking = false }) {
+export function musicGain({ vol = 0.6, muted = false, deafened = false, duck = true, talking = false, amount = talking ? 1 : 0 }) {
   if (muted || deafened) return 0
-  return Math.max(0, Math.min(1, vol)) * (duck && talking ? DUCK : 1)
+  const a = duck ? Math.max(0, Math.min(1, amount)) : 0
+  return Math.max(0, Math.min(1, vol)) * (a * DUCK + (1 - a))
 }
 // Anyone talking, from voice.js loudness (0..1 per person).
 export const anyoneTalking = (levels, threshold = 0.04) => { for (const v of levels.values()) if (v > threshold) return true; return false }
+// The duck envelope. Voice loudness flickers between syllables and words; following it directly pumps the music up and
+// down ("in and out"). So talking holds the duck in for `holdMs` after the last loud blip, it eases in over `attackMs`
+// and back out over `releaseMs`. env = { amount 0..1, lastLoud ms }; dt = ms since the last step.
+export const DUCK_ENV = { attackMs: 150, releaseMs: 800, holdMs: 700 }
+export function duckStep(env, { loud, now, dt }, o = DUCK_ENV) {
+  const lastLoud = loud ? now : env?.lastLoud ?? -Infinity
+  const on = now - lastLoud < o.holdMs
+  const cur = env?.amount ?? 0
+  const step = Math.max(0, dt) / (on ? o.attackMs : o.releaseMs)
+  return { amount: on ? Math.min(1, cur + step) : Math.max(0, cur - step), lastLoud }
+}
 // Glide towards a target gain so ducking fades instead of clicking (one step per tick).
 export const glide = (cur, target, k = 0.35) => Math.abs(target - cur) < 0.01 ? target : cur + (target - cur) * k
 
 // ── stadium chat commands ──
-// "/play <link>", "/skip", "/queue" (also "/np"). Anything else → null, so the message goes out as usual.
+// "/play <link>", "/skip", "/queue" (also "/np"), "/loop [off|queue|song]". Anything else → null, so the message goes out as usual.
 export function parseMusicCommand(text) {
-  const m = (text || '').trim().match(/^\/(play|p|skip|s|queue|q|np|nowplaying)(?:\s+([\s\S]*))?$/i)
+  const m = (text || '').trim().match(/^\/(play|p|skip|s|queue|q|np|nowplaying|loop|repeat)(?:\s+([\s\S]*))?$/i)
   if (!m) return null
-  const cmd = { p: 'play', s: 'skip', q: 'queue', np: 'queue', nowplaying: 'queue' }[m[1].toLowerCase()] || m[1].toLowerCase()
+  const cmd = { p: 'play', s: 'skip', q: 'queue', np: 'queue', nowplaying: 'queue', repeat: 'loop' }[m[1].toLowerCase()] || m[1].toLowerCase()
   const arg = (m[2] || '').trim()
   if (cmd === 'play') return arg ? { cmd, arg } : { cmd, error: '/play needs a link: /play https://youtu.be/…' }
+  if (cmd === 'loop') {
+    if (!arg) return { cmd } // no word: cycle to the next mode
+    const mode = LOOP_WORDS[arg.toLowerCase()]
+    return mode ? { cmd, mode } : null // "/loop me in" is just a message
+  }
   return arg ? null : { cmd } // "/skip to the good part" is just a message
 }
+
+// ── the row, and the off switch ──
+// A stadium_music row as the client keeps it. `disabled` arrives with 042; before that (or with junk) it's simply on.
+export const rowFrom = data => ({
+  state: data?.state && typeof data.state === 'object' && !Array.isArray(data.state) ? data.state : {},
+  queue: Array.isArray(data?.queue) ? data.queue : [],
+  disabled: data?.disabled === true,
+})
+// Only "there is no radio here" (table not created yet, or no access) hides the radio. A blip (network, a realtime
+// reconnect) keeps what we had: dropping the row would unmount the player and restart the song.
+export const radioGone = error => !!error && (['42P01', 'PGRST205', '42501'].includes(error.code) || /does not exist|schema cache/i.test(error.message || ''))
+// What a stadium shows: 'none' (no radio, or turned off and you're not a mod) · 'off' (turned off; mods get a chip
+// to turn it back on) · 'on'.
+export const radioMode = (row, isMod) => !row ? 'none' : row.disabled ? (isMod ? 'off' : 'none') : 'on'
+export const RADIO_OFF = 'The radio is turned off in this stadium.'
+
+// ── loop ──
+// state.loop: 'off' | 'queue' (finished songs go to the back of the queue) | 'one' (the song starts over). Missing = off.
+export const LOOPS = ['off', 'queue', 'one']
+export const loopOf = state => LOOPS.includes(state?.loop) ? state.loop : 'off'
+export const nextLoop = mode => LOOPS[(LOOPS.indexOf(LOOPS.includes(mode) ? mode : 'off') + 1) % LOOPS.length]
+export const LOOP_LABEL = { off: 'Loop off', queue: 'Looping the queue', one: 'Looping this song' }
+const LOOP_WORDS = { off: 'off', none: 'off', queue: 'queue', all: 'queue', song: 'one', one: 'one', track: 'one', '1': 'one' }

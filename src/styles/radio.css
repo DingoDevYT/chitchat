@@ -1,14 +1,19 @@
-/* Chit Radio (Radio.jsx): the now-playing card over the stage's top-left corner, and the queue drawer.
+/* Chit Radio (Radio.jsx): the now-playing card at the stage's bottom-left, and the queue drawer that opens from there.
    `body` prefix: the main styles.css loads after component CSS. */
 body .radio-card {
-  position: absolute; top: 28px; left: 28px; z-index: 70; width: min(340px, calc(100% - 56px));
+  position: absolute; bottom: 14px; left: 16px; z-index: 70; width: min(340px, calc(100% - 32px));
   display: grid; gap: 8px; padding: 10px 10px 10px; border-radius: 20px;
   background: color-mix(in srgb, var(--bubble) 88%, transparent); backdrop-filter: blur(8px);
   box-shadow: var(--shadow), inset 0 0 0 2px var(--line); color: var(--text);
   animation: rise .35s var(--ease);
 }
-body .radio-card.below { top: 74px; } /* under a stream's LIVE caption */
+/* Tucked away: a little spinning record (the same art slot, so a playing YouTube frame isn't reloaded) */
 body .radio-card.min { width: auto; padding: 0; background: none; box-shadow: none; backdrop-filter: none; display: flex; align-items: center; gap: 8px; }
+body .radio-card.min .radio-top { display: block; }
+body .radio-card.min .radio-art { width: 52px; height: 52px; border-radius: 50%; box-shadow: var(--shadow), 0 0 0 3px var(--bg-3); }
+/* turned off by a mod: just a chip for mods to turn it back on */
+body .radio-card.radio-off { width: auto; padding: 0; background: none; box-shadow: none; backdrop-filter: none; }
+body .radio-card.radio-off .btn { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-2); box-shadow: var(--shadow), inset 0 0 0 1px var(--line); }
 
 body .radio-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
 body .radio-art {
@@ -19,14 +24,31 @@ body .radio-art {
 body .radio-art img { width: 100%; height: 100%; object-fit: cover; }
 body .radio-art .radio-vinyl { color: var(--accent); display: grid; place-items: center; }
 body .radio-art.sm { width: 40px; height: 40px; border-radius: 10px; }
-body .radio-host { position: absolute; inset: 0; pointer-events: none; }
-body .radio-host:empty { display: none; }
-body .radio-host iframe, body .radio-host > div { width: 100%; height: 100%; border: 0; display: block; }
-body .radio-art.live { background: #000; }
-/* Bigger player: the YouTube / SoundCloud frame takes the card's width */
+/* The YouTube / SoundCloud frame (RadioPlayer): one per call, in <body>, so it survives leaving the stadium page.
+   It floats over the card's art (placed by script) and waits off-screen otherwise. YouTube wants its player at least
+   200×200 and not display:none, so the frame is laid out at 356×200 and scaled down into the art, centred and cropped;
+   transforms don't change the size the frame sees. z-index: over the stage (and a page-full stadium, 40), under the
+   phone chat sheet (45), the sidebar (50), the queue drawer (90) and popups. */
+body .radio-float { position: fixed; z-index: 42; overflow: hidden; pointer-events: none; }
+body .radio-float.off { left: -10000px; top: 0; width: 356px; height: 200px; --k: 1; }
+body .radio-float .radio-host { position: absolute; inset: 0; }
+body .radio-float .radio-host > iframe, body .radio-float .radio-host > div {
+  position: absolute; top: 0; left: 50%; width: 356px; height: 200px; border: 0; display: block; max-width: none;
+  transform-origin: 50% 0; transform: translateX(-50%) scale(var(--k, 1));
+}
+body .radio-float.video { pointer-events: auto; }
+body .radio-float.video .radio-host > iframe, body .radio-float.video .radio-host > div { left: 0; width: 100%; height: 100%; transform: none; }
+/* Bigger player: the art spot takes the card's width, at full size, and the frame follows it */
 body .radio-card.video .radio-top { grid-template-columns: minmax(0, 1fr) auto; }
-body .radio-card.video .radio-art { grid-column: 1 / -1; grid-row: 1; width: 100%; height: auto; aspect-ratio: 16 / 9; }
-body .radio-card.video .radio-host { pointer-events: auto; }
+body .radio-card.video .radio-art { grid-column: 1 / -1; grid-row: 1; width: 100%; height: auto; aspect-ratio: 16 / 9; min-height: 200px; }
+
+/* the sidebar call panel's now-playing line (RadioMini) */
+body .radio-mini { display: flex; align-items: center; gap: 4px; margin: 6px 0 2px; padding: 4px 4px 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); min-width: 0; }
+body .radio-mini-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 800; color: var(--text); }
+body .radio-mini .icon-btn { width: 28px; height: 28px; flex: none; border-radius: 50%; }
+body .radio-mini .icon-btn.on { color: var(--accent); }
+/* the tucked record is one big button over the art */
+body .radio-disc { position: absolute; inset: 0; z-index: 1; padding: 0; border: 0; border-radius: inherit; background: none; cursor: pointer; }
 
 body .radio-meta { display: grid; gap: 2px; min-width: 0; }
 body .radio-eyebrow { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
@@ -57,6 +79,9 @@ body .radio-ctl .btn.small { padding: 6px 12px; font-size: 13px; display: inline
 body .radio-skip { background: var(--bg-3); color: var(--text); }
 body .radio-skip.on { color: var(--accent); }
 body .radio-skip:disabled { opacity: .85; cursor: default; }
+body .radio-loop.on { color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+body .radio-loop:disabled { cursor: default; opacity: .9; }
+body .radio-loop-wide { display: inline-flex; align-items: center; gap: 6px; margin: 6px 4px 0; }
 body .radio-q { margin-left: auto; }
 body .radio-note { margin: 0; font-size: 12.5px; color: var(--muted); font-weight: 700; }
 
@@ -66,21 +91,20 @@ body .radio-tap-cover {
   background: color-mix(in srgb, var(--bubble) 70%, transparent); backdrop-filter: blur(2px); cursor: pointer;
 }
 body .radio-tap-cover .btn { pointer-events: none; display: inline-flex; align-items: center; gap: 6px; }
-
-/* Tucked away: a little spinning record */
-body .radio-disc { width: 52px; height: 52px; border-radius: 50%; padding: 0; box-shadow: var(--shadow), 0 0 0 3px var(--bg-3); overflow: hidden; }
-body .radio-disc .radio-art { width: 100%; height: 100%; border-radius: 50%; }
-body .radio-card.spinning .radio-disc .radio-art > img, body .radio-card.spinning .radio-disc .radio-vinyl { animation: radio-spin 6s linear infinite; }
+body .radio-card.spinning .radio-art > img, body .radio-card.spinning .radio-art > .radio-vinyl { animation: radio-spin 6s linear infinite; }
 @keyframes radio-spin { to { rotate: 360deg; } }
 body .radio-tap { display: inline-flex; align-items: center; gap: 6px; }
 
-/* ── queue drawer ── */
+/* ── queue drawer ──
+   Lives in .stadium-split (beside the stage, which is its own stacking context), so it sits above the Chat button and
+   the phone chat sheet. Desktop: a panel down the stage's left side, where the card is. Phones: a bottom sheet. */
 body .stage { position: relative; }
 body .radio-drawer {
-  position: absolute; top: 12px; right: 12px; bottom: 12px; z-index: 90; width: min(360px, calc(100% - 24px));
+  position: absolute; top: 12px; left: 12px; bottom: 12px; z-index: 90; width: min(360px, calc(100% - 24px));
   display: flex; flex-direction: column; border-radius: 22px; overflow: hidden;
   background: var(--paper, none), var(--bg-2); box-shadow: var(--shadow), inset 0 0 0 2px var(--line);
 }
+body .radio-scrim { display: none; }
 body .radio-drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 10px 16px; border-bottom: 2px dashed var(--stitch); }
 body .radio-drawer h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 900; }
 body .radio-drawer h3 .icon { color: var(--accent); }
@@ -107,18 +131,28 @@ body .radio-vol .small { width: 48px; text-align: right; font-weight: 800; }
 body .radio-drawer .radio-duck { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; text-align: left; gap: 8px; margin: 0; font-weight: 700; font-size: 14px; cursor: pointer; }
 body .radio-drawer .radio-duck input { width: auto; margin: 0; flex: none; }
 body .radio-drawer footer p { margin: 0; }
+body .radio-mod { display: flex; flex-wrap: wrap; gap: 6px; }
 body .radio-drawer footer .btn { justify-self: start; display: inline-flex; align-items: center; gap: 6px; }
 
-/* Phones: card spans the screen's top, the drawer becomes a bottom sheet */
+/* Phones (the stage is narrow): the card spans the stage's bottom edge */
 @container (max-width: 560px) {
-  body .radio-card { top: 14px; left: 14px; width: calc(100% - 28px); padding: 8px; gap: 6px; border-radius: 16px; }
-  body .radio-card.below { top: 52px; }
-  body .radio-card.min { width: auto; }
+  body .radio-card { bottom: 10px; left: 10px; width: min(340px, calc(100% - 20px)); padding: 8px; gap: 6px; border-radius: 16px; }
+  body .radio-card.min, body .radio-card.radio-off { width: auto; }
   body .radio-art { width: 52px; height: 52px; border-radius: 12px; }
   body .radio-title { font-size: 14px; -webkit-line-clamp: 1; }
-  body .radio-drawer { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 82%; border-radius: 22px 22px 0 0; }
   body .radio-ctl .btn.small { padding: 6px 10px; }
 }
+@media (max-width: 720px) {
+  /* chat sheet open: the stage's bottom is under it, so the card moves up to the stage's top-left */
+  body .stadium-split.chat-open .radio-card { bottom: auto; top: 8px; }
+  /* the queue is a bottom sheet over everything (chat sheet and call bar included), with a dimmed backdrop */
+  body .radio-scrim { display: block; position: fixed; inset: 0; z-index: 89; background: #0006; animation: radio-fade .2s ease both; }
+  @keyframes radio-fade { from { opacity: 0; } }
+  body .radio-drawer {
+    position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 82vh; max-height: 82dvh;
+    border-radius: 22px 22px 0 0; padding-bottom: env(safe-area-inset-bottom);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  body .radio-eq.on i, body .radio-card.spinning .radio-disc .radio-art > img, body .radio-card.spinning .radio-disc .radio-vinyl, body .radio-bar i.unknown { animation: none; }
+  body .radio-eq.on i, body .radio-card.spinning .radio-art > img, body .radio-card.spinning .radio-art > .radio-vinyl, body .radio-bar i.unknown { animation: none; }
 }

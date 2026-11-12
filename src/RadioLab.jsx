@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { online, primeProfiles, setPref } from './lib/store'
 import { app } from './menus'
 import { VoiceStage } from './Voice'
-import { radio, radioApi, radioUi } from './Radio'
+import { RadioPlayer, radio, radioApi, radioUi } from './Radio'
 
 // Dev-only review sheet at #/radio: a stadium with Chit Radio on a mock state (no database, silent players).
 //   #/radio?drawer  queue drawer open · ?idle  nothing playing · ?out  not joined · ?min  card tucked away · ?member  not a mod
@@ -42,6 +42,9 @@ radioApi.act = async (cid, action, arg) => {
     if (action === 'pause') st.paused_at = Date.now()
     if (action === 'resume') { st.started_at = Date.now() - (st.paused_at - st.started_at); st.paused_at = null }
     if (action === 'clear') out = { state: {}, queue: [] }
+    if (action === 'loop') out.state = { ...st, loop: arg.mode }
+    if (action === 'disable') out = { state: {}, queue: [], disabled: true }
+    if (action === 'enable') out = { ...out, disabled: false }
     return { ...s, [cid]: out }
   })
   return true
@@ -56,6 +59,7 @@ export default function RadioLab() {
         <VoiceStage channel={channel} meId="lab-me" joined={!q.has('out')} onJoin={() => {}} vstate={vstate} setVstate={setVstate}
           onLive={() => {}} onCam={() => {}} onMenu={() => {}} onLeave={() => {}} />
       </main>
+      {!q.has('out') && <RadioPlayer cid={CID} deafened={vstate.deafened} />}
     </div>
   )
 }

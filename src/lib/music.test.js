@@ -1,8 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  parseTrackUrl, validTrack, titleFromFile, titleFromSc, clockOffset, position, isOver, correction, fmtTime,
+  parseTrackUrl, validTrack, titleFromFile, titleFromSc, clockOffset, position, isOver, fmtTime,
   votesNeeded, canSkipNow, skipStatus, voteSkips, musicGain, anyoneTalking, glide, parseMusicCommand, DUCK,
+  pickOffset, mergeOffset, syncStep, syncMem, SYNC, duckStep, DUCK_ENV, loopOf, nextLoop, rowFrom, radioGone, radioMode,
 } from './music.js'
 
 test('parseTrackUrl: YouTube in all its shapes', () => {
@@ -83,16 +84,119 @@ test('clock offset and synced position', () => {
   assert.equal(isOver({ ...st, track: { id: 't' } }, 999_999), false)
 })
 
-test('correction: seek when far off, glide when close, rest when in sync', () => {
-  assert.deepEqual(correction(10, 12), { seek: 12 })
-  assert.deepEqual(correction(13.5, 12), { seek: 12 })
-  assert.deepEqual(correction(NaN, 12), { seek: 12 })
-  assert.deepEqual(correction(12.05, 12, { canRate: true }), { rate: 1 })
-  assert.deepEqual(correction(12.5, 12), { rate: 1 }) // a player that can't change speed just lives with half a second
-  const ahead = correction(12.5, 12, { canRate: true }).rate, behind = correction(11.5, 12, { canRate: true }).rate
-  assert.ok(ahead < 1 && ahead >= 0.95, `ahead ${ahead}`)
-  assert.ok(behind > 1 && behind <= 1.05, `behind ${behind}`)
-  assert.equal(correction(12.9, 12, { canRate: true }).rate, 0.95) // capped at 5%
+test('clock offset: the quickest round trip wins, and a sloppier one never nudges it', () => {
+  const best = pickOffset([
+    { t0: 0, t1: 400, server: 50_300 },   // rtt 400 → offset 50100
+    { t0: 1000, t1: 1040, server: 51_020 }, // rtt 40 → offset 50000
+    { t0: 2000, t1: 2900, server: 53_000 }, // rtt 900
+    { t0: 5, t1: 4, server: 1 },           // nonsense: negative rtt
+    { t0: 0, t1: 9000, server: 1 },        // too slow to trust
+  ])
+  assert.deepEqual(best, { offset: 50_000, rtt: 40 })
+  assert.equal(pickOffset([]), null)
+  assert.equal(pickOffset([{ t0: 0, t1: 10, server: NaN }]), null)
+  const prev = { offset: 50_000, rtt: 40 }
+  assert.equal(mergeOffset(prev, { offset: 50_300, rtt: 600 }), prev) // slow trip: keep the precise one
+  assert.deepEqual(mergeOffset(prev, { offset: 50_010, rtt: 60 }), { offset: 50_010, rtt: 60 }) // about as good: take it
+  assert.deepEqual(mergeOffset(prev, { offset: 58_000, rtt: 300 }), { offset: 58_000, rtt: 300 }) // clocks really moved
+  assert.equal(mergeOffset(null, prev), prev)
+  assert.equal(mergeOffset(prev, null), prev)
+})
+
+test('syncStep: waits for steady playback, confirms, rate-limits seeks', () => {
+  const now = 100_000
+  // not steady yet (just started, buffering, just seeked): never acts, however far off
+  assert.equal(syncStep(syncMem(), { actual: 0, target: 60, now, steadyFor: 1000 }).seek, undefined)
+  // far off once: wait for a second look (a getCurrentTime blip shouldn't cause a seek)
+  let r = syncStep(syncMem(), { actual: 10, target: 20, now, steadyFor: 5000 })
+  assert.equal(r.seek, undefined)
+  assert.equal(r.mem.over, 1)
+  r = syncStep(r.mem, { actual: 11, target: 21, now: now + 1000, steadyFor: 6000 })
+  assert.equal(r.seek, 21)
+  assert.equal(r.mem.lastSeekAt, now + 1000)
+  // still far off right after: no second seek within minGapMs, even confirmed
+  let m = r.mem
+  for (let i = 1; i <= 5; i++) { r = syncStep(m, { actual: 30, target: 40, now: now + 1000 + i * 1000, steadyFor: 5000 }); m = r.mem; assert.equal(r.seek, undefined) }
+  r = syncStep(m, { actual: 30, target: 40, now: now + 1000 + SYNC.minGapMs, steadyFor: 5000 })
+  assert.equal(r.seek, 40)
+  // a blip back in range resets the confirmation count
+  r = syncStep({ ...syncMem(), over: 1 }, { actual: 20.5, target: 20, now, steadyFor: 5000 })
+  assert.equal(r.mem.over, 0)
+  // up to the threshold, YouTube / SoundCloud are left alone (each seek is an audible rebuffer)
+  for (const d of [0.5, 1.5, 2.9, -2.9]) {
+    r = syncStep(syncMem(), { actual: 20 + d, target: 20, now, steadyFor: 9000 })
+    assert.equal(r.seek, undefined, `d=${d}`); assert.equal(r.rate, undefined, `d=${d}`)
+  }
+  // NaN time counts as far off
+  r = syncStep({ ...syncMem(), over: 1 }, { actual: NaN, target: 5, now, steadyFor: 9000 })
+  assert.equal(r.seek, 5)
+})
+
+test('syncStep: <audio> nudges its speed, with hysteresis', () => {
+  const at = (mem, d) => syncStep(mem, { actual: 20 + d, target: 20, now: 1e6, steadyFor: 9000, canRate: true })
+  let r = at(syncMem(), 0.2) // under nudgeOn: leave it
+  assert.equal(r.rate, 1); assert.equal(r.mem.nudging, false)
+  r = at(r.mem, 0.5) // past nudgeOn: slow down a little
+  assert.ok(r.rate < 1 && r.rate >= 0.95, `rate ${r.rate}`); assert.equal(r.mem.nudging, true)
+  r = at(r.mem, 0.15) // still above nudgeOff: keep nudging (no flapping around one threshold)
+  assert.ok(r.rate < 1)
+  r = at(r.mem, 0.05) // settled
+  assert.equal(r.rate, 1); assert.equal(r.mem.nudging, false)
+  assert.ok(at({ ...syncMem(), nudging: true }, -0.5).rate > 1) // behind: speed up
+  assert.equal(at({ ...syncMem(), nudging: true }, 2.5).rate, 0.95) // capped at 5%
+  r = syncStep({ ...syncMem(), over: 1 }, { actual: 30, target: 20, now: 1e6, steadyFor: 9000, canRate: true })
+  assert.deepEqual([r.seek, r.rate], [20, 1]) // a seek resets the speed too
+})
+
+test('duck envelope: holds through gaps between words, eases in and out', () => {
+  let env = { amount: 0, lastLoud: -Infinity }, t = 0
+  const step = loud => { t += 100; env = duckStep(env, { loud, now: t, dt: 100 }); return env.amount }
+  assert.ok(step(true) > 0.6) // attack: most of the way in after 100 ms
+  assert.equal(step(true), 1) // fully in by ~150 ms
+  // a talker's flicker (loud, quiet, loud...) keeps it fully down: no pumping
+  for (let i = 0; i < 10; i++) assert.equal(step(i % 3 === 0), 1)
+  // silence: held for holdMs, then released over releaseMs
+  const quietFrom = t
+  while (t - quietFrom < DUCK_ENV.holdMs - 100) assert.equal(step(false), 1)
+  const a1 = step(false), a2 = step(false)
+  assert.ok(a1 <= 1 && a2 < a1 && a2 > 0.6, `${a1} ${a2}`)
+  for (let i = 0; i < 10; i++) step(false)
+  assert.equal(env.amount, 0)
+  assert.equal(duckStep(undefined, { loud: false, now: 0, dt: 100 }).amount, 0)
+  // the gain follows the amount smoothly between full and ducked
+  assert.equal(musicGain({ vol: 1, amount: 0 }), 1)
+  assert.equal(musicGain({ vol: 1, amount: 1 }), DUCK)
+  assert.ok(Math.abs(musicGain({ vol: 1, amount: 0.5 }) - (1 + DUCK) / 2) < 1e-9)
+  assert.equal(musicGain({ vol: 1, amount: 1, duck: false }), 1)
+})
+
+test('loop modes: off → queue → one → off, missing = off', () => {
+  assert.equal(loopOf({}), 'off')
+  assert.equal(loopOf(null), 'off')
+  assert.equal(loopOf({ loop: 'queue' }), 'queue')
+  assert.equal(loopOf({ loop: 'banana' }), 'off')
+  assert.equal(nextLoop('off'), 'queue')
+  assert.equal(nextLoop('queue'), 'one')
+  assert.equal(nextLoop('one'), 'off')
+  assert.equal(nextLoop(undefined), 'queue')
+})
+
+test('the row and the off switch', () => {
+  // before 042 there's no `disabled` column: on
+  assert.deepEqual(rowFrom({ state: { track: null }, queue: [] }), { state: { track: null }, queue: [], disabled: false })
+  assert.deepEqual(rowFrom(null), { state: {}, queue: [], disabled: false }) // no row yet: an empty radio
+  assert.deepEqual(rowFrom({ state: [], queue: 'x', disabled: 'yes' }), { state: {}, queue: [], disabled: false })
+  assert.equal(rowFrom({ disabled: true }).disabled, true)
+  assert.equal(radioMode(null, true), 'none') // no radio here at all
+  assert.equal(radioMode(rowFrom({}), false), 'on')
+  assert.equal(radioMode(rowFrom({ disabled: true }), false), 'none') // members don't see a turned-off radio
+  assert.equal(radioMode(rowFrom({ disabled: true }), true), 'off') // mods get the chip
+  // only "no table / no access" hides the radio; a network blip keeps the row (and the music)
+  assert.equal(radioGone({ code: '42P01', message: 'relation "public.stadium_music" does not exist' }), true)
+  assert.equal(radioGone({ code: 'PGRST205', message: 'Could not find the table in the schema cache' }), true)
+  assert.equal(radioGone({ message: 'TypeError: Failed to fetch' }), false)
+  assert.equal(radioGone({ code: '57014', message: 'canceling statement due to statement timeout' }), false)
+  assert.equal(radioGone(null), false)
 })
 
 test('fmtTime', () => {
@@ -149,4 +253,10 @@ test('parseMusicCommand', () => {
   assert.equal(parseMusicCommand('/player'), null)
   assert.equal(parseMusicCommand('play something'), null)
   assert.equal(parseMusicCommand('/shrug'), null)
+  assert.deepEqual(parseMusicCommand('/loop'), { cmd: 'loop' })
+  assert.deepEqual(parseMusicCommand('/loop song'), { cmd: 'loop', mode: 'one' })
+  assert.deepEqual(parseMusicCommand('/LOOP Queue'), { cmd: 'loop', mode: 'queue' })
+  assert.deepEqual(parseMusicCommand('/repeat off'), { cmd: 'loop', mode: 'off' })
+  assert.equal(parseMusicCommand('/loop me in on this'), null)
+  assert.equal(parseMusicCommand('/looping'), null)
 })

@@ -23,7 +23,7 @@ import './styles/stadium-crowd.css'
 import { GAMES_ON, useTable, create as createGame } from './games/useGame'
 import GamePicker from './games/GamePicker'
 import { Entrance, seatFx, useArrivals } from './Entrances'
-import { RadioCard, RadioDrawer } from './Radio'
+import { RadioCard, RadioDrawer, RadioPlayer } from './Radio'
 import { canFullscreen, enterFullscreen, exitFullscreen, useFullscreenEl } from './lib/fullscreen'
 
 const GameScreen = lazy(() => import('./games/GameScreen')) // games (and three.js) load only when a table opens
@@ -465,7 +465,8 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError, onCal
     }
   }, [vstate.cam]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  return null
+  // Chit Radio plays for as long as you're in a stadium's call, whatever page you're looking at.
+  return channel.kind === 'voice' ? <RadioPlayer cid={channel.id} deafened={!!vstate.deafened} /> : null
 }
 
 export function Screen({ stream }) {
