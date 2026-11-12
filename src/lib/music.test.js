@@ -4,6 +4,7 @@ import {
   parseTrackUrl, validTrack, titleFromFile, titleFromSc, clockOffset, position, isOver, fmtTime,
   votesNeeded, canSkipNow, skipStatus, voteSkips, musicGain, anyoneTalking, glide, parseMusicCommand, DUCK,
   pickOffset, mergeOffset, syncStep, syncMem, SYNC, duckStep, DUCK_ENV, loopOf, nextLoop, rowFrom, radioGone, radioMode,
+  nextUp, ytPlayerVars, deckPlan, outputVolume, DEFAULT_MUSIC_VOL, MUSIC_MASTER,
 } from './music.js'
 
 test('parseTrackUrl: YouTube in all its shapes', () => {
@@ -259,4 +260,43 @@ test('parseMusicCommand', () => {
   assert.deepEqual(parseMusicCommand('/repeat off'), { cmd: 'loop', mode: 'off' })
   assert.equal(parseMusicCommand('/loop me in on this'), null)
   assert.equal(parseMusicCommand('/looping'), null)
+})
+
+test('nextUp: what plays after this song', () => {
+  const a = { id: 'a', src: 'A' }, b = { id: 'b', src: 'B' }
+  assert.equal(nextUp({ track: a }, [b]), b)
+  assert.equal(nextUp({ track: a }, []), null)
+  assert.equal(nextUp({ track: a, loop: 'one' }, [b]), a)
+  assert.equal(nextUp({ track: a, loop: 'queue' }, [b]), b)
+  assert.equal(nextUp({ track: a, loop: 'queue' }, []), a)
+  assert.equal(nextUp({}, [b]), b)
+  assert.equal(nextUp(null, null), null)
+})
+
+test('ytPlayerVars: a hidden, sound-only player', () => {
+  const v = ytPlayerVars('https://chit.example')
+  assert.equal(v.controls, 0); assert.equal(v.fs, 0); assert.equal(v.rel, 0); assert.equal(v.iv_load_policy, 3)
+  assert.equal(v.playsinline, 1); assert.equal(v.disablekb, 1); assert.equal(v.origin, 'https://chit.example')
+  assert.equal('origin' in ytPlayerVars(''), false)
+})
+
+test('deckPlan: reuse, swap to the cued player, or load', () => {
+  assert.equal(deckPlan({ ok: true, vid: 'A' }, null, 'A'), 'reuse')
+  assert.equal(deckPlan({ ok: true, vid: 'A' }, { ok: true, vid: 'B' }, 'B'), 'swap')
+  assert.equal(deckPlan({ ok: true, vid: 'A' }, { ok: false, vid: 'B' }, 'B'), 'load')
+  assert.equal(deckPlan({ ok: true, vid: 'A' }, { ok: true, vid: 'C' }, 'B'), 'load')
+  assert.equal(deckPlan(null, null, 'B'), 'load')
+  assert.equal(deckPlan({ ok: true, vid: 'A' }, { ok: true, vid: 'B' }, 'B', true), 'load')
+})
+
+test('outputVolume: default 20%, and the whole scale halved on the way out', () => {
+  assert.equal(DEFAULT_MUSIC_VOL, 0.2)
+  assert.equal(MUSIC_MASTER, 0.5)
+  assert.equal(outputVolume(1), 0.5)
+  assert.equal(outputVolume(0), 0)
+  assert.ok(Math.abs(outputVolume(musicGain({ vol: DEFAULT_MUSIC_VOL })) - 0.1) < 1e-9)
+  assert.ok(Math.abs(outputVolume(musicGain({ vol: 1, talking: true })) - 0.5 * DUCK) < 1e-9)
+  assert.equal(outputVolume(musicGain({ vol: 0.8, muted: true })), 0)
+  assert.equal(outputVolume(2), 0.5)
+  assert.equal(outputVolume(-1), 0)
 })

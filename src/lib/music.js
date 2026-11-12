@@ -150,6 +150,12 @@ export function voteSkips(skips, uid, listeners) {
 // Music volume for this moment: your slider, muted/deafened, and ducked while anyone is talking.
 // amount: how far the duck is in, 0..1 (from duckStep); `talking` is the on/off shorthand.
 export const DUCK = 0.3
+// The slider starts at 20% for anyone who hasn't moved it, and the whole range is halved on the way out: 100% on the
+// slider is half of what the players could do (full-volume YouTube was far louder than voices).
+export const DEFAULT_MUSIC_VOL = 0.2
+export const MUSIC_MASTER = 0.5
+// The level handed to YouTube setVolume / SoundCloud setVolume / audio.volume, after the slider, mute and ducking.
+export const outputVolume = gain => Math.max(0, Math.min(1, gain)) * MUSIC_MASTER
 export function musicGain({ vol = 0.6, muted = false, deafened = false, duck = true, talking = false, amount = talking ? 1 : 0 }) {
   if (muted || deafened) return 0
   const a = duck ? Math.max(0, Math.min(1, amount)) : 0
@@ -208,4 +214,28 @@ export const LOOPS = ['off', 'queue', 'one']
 export const loopOf = state => LOOPS.includes(state?.loop) ? state.loop : 'off'
 export const nextLoop = mode => LOOPS[(LOOPS.indexOf(LOOPS.includes(mode) ? mode : 'off') + 1) % LOOPS.length]
 export const LOOP_LABEL = { off: 'Loop off', queue: 'Looping the queue', one: 'Looping this song' }
+
+// ── fast start ──
+// The song that plays after this one (so a hidden player can get it ready): looping one song plays it again; looping
+// the queue with nothing queued brings the same song back round; otherwise the head of the queue.
+export function nextUp(state, queue) {
+  if (!state?.track) return Array.isArray(queue) && queue[0] || null
+  const loop = loopOf(state)
+  if (loop === 'one') return state.track
+  return (Array.isArray(queue) && queue[0]) || (loop === 'queue' ? state.track : null)
+}
+// Hosts to warm up before the first song: the YouTube API and player, artwork, the video servers, SoundCloud's widget.
+export const RADIO_ORIGINS = ['https://www.youtube.com', 'https://www.youtube-nocookie.com', 'https://i.ytimg.com',
+  'https://googlevideo.com', 'https://w.soundcloud.com']
+// The hidden YouTube player's settings: no controls, captions or related videos; sound only as far as we're concerned.
+export const ytPlayerVars = origin => ({ controls: 0, disablekb: 1, playsinline: 1, modestbranding: 1, rel: 0, iv_load_policy: 3, fs: 0, autoplay: 0, ...(origin ? { origin } : {}) })
+// Which of the two hidden YouTube players takes a new song. slots: { vid, ok } | null.
+//   'reuse': the active player already has this video (a looped song) · 'swap': the standby one has it cued, so it
+//   starts at once · 'load': load it on the active player. A paused start always cues on the active player.
+export function deckPlan(active, standby, id, paused = false) {
+  if (paused) return 'load'
+  if (active?.ok && active.vid === id) return 'reuse'
+  if (standby?.ok && standby.vid === id) return 'swap'
+  return 'load'
+}
 const LOOP_WORDS = { off: 'off', none: 'off', queue: 'queue', all: 'queue', song: 'one', one: 'one', track: 'one', '1': 'one' }
