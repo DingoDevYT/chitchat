@@ -5,13 +5,14 @@
 // Phones: a 4-up ticket strip at the top and everything you can do in one bottom sheet. GameScreen renders this
 // instead of its shared top bar, last-move toast and dock.
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Avatar from '../../Avatar'
 import { botChar, botUrl } from '../bots.js'
-import { BONUS, BRIDGE, HOSTS, ITEMS, MINIGAMES, ROUNDS } from './data.js'
+import { BONUS, BRIDGE, HOSTS, ITEMS, MINIGAMES, MINI_RESULTS_MS, ROUNDS } from './data.js'
 import { dists, lastLanterns, legal, ranking, starPrice, turn } from './rules.js'
 import { bonusOf, miniNews, news, spaceName } from './news.js'
 import { Ic } from './Ic.jsx'
-import { MiniPhase } from './mini.jsx'
+import MiniStage from './minis/Stage.jsx'
 import './hud.css'
 
 const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -24,7 +25,7 @@ export function Face({ p, size = 32 }) {
   return <span className="sc-face" style={{ width: size, height: size }}><img src={botUrl(botChar(p.bot, p.seat))} alt="" width={size} height={size} draggable="false" /></span>
 }
 
-export function Hud({ v, me, nm, act, busy, pending, people, deadline, version, canPlay, tools }) {
+export function Hud({ v, me, nm, act, busy, pending, people, deadline, version, canPlay, tools, seats }) {
   const short = pid => (pid === me ? 'You' : nm(pid))
   const person = pid => people.find(p => p.pid === pid)
   const mv = move => act('move', { move })
@@ -113,15 +114,30 @@ export function Hud({ v, me, nm, act, busy, pending, people, deadline, version, 
         </div>
       </div>
 
-      {v.phase === 'mini' && <MiniPhase v={v} me={me} act={act} busy={off} canPlay={canPlay} short={short} />}
+      <StageMount v={v} me={me} nm={nm} act={act} seats={seats} busy={off} />
       {!v.winners && v.phase !== 'mini' && <Dock v={v} me={me} t={t} mine={mine} off={off} mv={mv} short={short} canPlay={canPlay} nm={nm} />}
       {mine && v.phase === 'star' && <StarOffer v={v} me={me} off={off} mv={mv} />}
       {mine && v.phase === 'shop' && <Shop v={v} me={me} off={off} mv={mv} />}
 
       {moment && <Moment key={moment.id} m={moment} p={person(moment.who)} />}
-      {v.winners && <Ceremony v={v} people={people} short={short} me={me} />}
+      {v.winners && <AfterResults v={v}><Ceremony v={v} people={people} short={short} me={me} /></AfterResults>}
     </div>
   )
+}
+
+// The minigame Stage (minis/Stage.jsx) covers the whole game screen, for players and spectators alike; it draws itself
+// only during a minigame and its results reveal, so it stays mounted all game long.
+function StageMount(props) {
+  const at = useRef(null), [host, setHost] = useState(null)
+  useEffect(() => setHost(at.current?.closest('.gs') || null), [])
+  return <span ref={at} hidden>{host && createPortal(<MiniStage {...props} />, host)}</span>
+}
+// The final round's minigame results show first; the ceremony starts once they've had their moment.
+function AfterResults({ v, children }) {
+  const left = v.miniResult?.at ? v.miniResult.at + MINI_RESULTS_MS + 4000 - Date.now() : 0
+  const [ok, setOk] = useState(left <= 0)
+  useEffect(() => { if (ok) return; const k = setTimeout(() => setOk(true), Math.min(left, 15000)); return () => clearTimeout(k) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  return ok ? children : null
 }
 
 // One lantern per round: lit for rounds played, the current one flickering, Last Lanterns rounds in warm orange.

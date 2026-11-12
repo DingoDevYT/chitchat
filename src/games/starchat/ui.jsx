@@ -1,7 +1,7 @@
 // Starchat's UI module for GameScreen: the board is Table3D's StarchatScene, the HUD is starchat/hud.jsx (it replaces
 // the shared top bar and dock), and Flat is the no-WebGL board. banner/lastText feed the screen reader.
 import { BOARD_NAME, ITEMS, KINDS, MINIGAMES, SPACES } from './data.js'
-import { lastLanterns, legal, starPrice, turn } from './rules.js'
+import { bot, lastLanterns, legal, move, starPrice, timeout, turn } from './rules.js'
 import { BOARD_D, BOARD_W, PATH, POND, SPOTS } from './geom.js'
 import { news, spaceName } from './news.js'
 
@@ -49,7 +49,14 @@ export function Flat({ v, people }) {
 }
 
 // GameLab test situations (#/table?g=starchat&n=4&lab=star): put the lab player (me) straight into a moment.
+// lab=mini jumps to the first minigame (with &mini=catch|bun|count), lab=results plays it out to show the reveal.
 export function lab(st, me, name) {
+  if (name === 'mini' || name === 'results') {
+    let s = st, k = 0
+    while (s.pub.phase !== 'mini' && k++ < 500) s = move(s, turn(s), timeout(s))
+    if (name === 'results') while (s.pub.phase === 'mini' && k++ < 2000) { const w = turn(s); s = move(s, w, bot({ ...s.pub }, w, w === me ? 'hard' : 'normal', Math.random) ?? timeout(s)) }
+    return s
+  }
   const pub = JSON.parse(JSON.stringify(st.pub))
   const at = pub.order.indexOf(me)
   const mine = () => Object.assign(pub, { turn: at, phase: 'roll', walk: null, fork: null, shop: null, used: false, diceN: 1, boat: null })

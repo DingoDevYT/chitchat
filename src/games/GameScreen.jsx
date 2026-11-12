@@ -170,7 +170,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
       {hud
         ? <UI.Hud v={v} me={meId} nm={nm} act={doAct} busy={busy} pending={pending} people={people} turnPid={turnPid}
-          deadline={playing ? game.deadline : null} version={game.version} canPlay={playing && inRound} tools={tools} gameId={game.id} />
+          deadline={playing ? game.deadline : null} version={game.version} canPlay={playing && inRound} tools={tools} gameId={game.id} seats={seats} />
         : <div className="gs-top">
           <span className="gs-title"><Icon name="cards" size={18} /> {title}</span>
           {v && !lobby && <span key={turnPid === meId ? 'mine' : 'other'} className={`gs-banner${turnPid === meId ? ' mine' : ''}`}>{UI.banner(v, nm, meId)}{playing && game.deadline && <Timer deadline={game.deadline} version={game.version} />}</span>}
@@ -189,7 +189,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
       {playing && inRound && !hud && (
         <div className="gs-hand" aria-label="Your controls">
-          <UI.Controls v={v} me={meId} act={doAct} nm={nm} busy={busy} pending={pending} />
+          <UI.Controls v={v} me={meId} act={doAct} nm={nm} busy={busy} pending={pending} seats={seats} />
         </div>
       )}
 

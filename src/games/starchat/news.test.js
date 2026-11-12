@@ -26,6 +26,15 @@ test('news: every event of a whole bot game becomes a line with a known icon', (
   for (const k of ['roll', 'glow', 'drizzle']) assert.ok(seen.has(k), `saw ${k}`)
 })
 
+test('legal: every usable item in the satchel is offered (the HUD greys out the rest)', () => {
+  const s = R.setup(['me', 'bot:1', 'bot:2'], 4, {}), p = s.pub
+  p.turn = p.order.indexOf('me'); p.satchel.me = ['jar', 'snail', 'umbrella']
+  const items = R.legal(p, 'me').filter(m => m.type === 'item')
+  assert.ok(items.some(m => m.item === 'jar'))
+  assert.ok(items.filter(m => m.item === 'snail').every(m => m.target && m.target !== 'me'))
+  assert.ok(!items.some(m => m.item === 'umbrella'))
+})
+
 test('geom: every space has a spot, the bridge runs across the pond, neighbours are spread out', () => {
   assert.equal(SPOTS.length, SPACES.length)
   const w = SPOTS[BRIDGE.from], e = SPOTS[SPACES[SPACES.length - 1].next[0]]

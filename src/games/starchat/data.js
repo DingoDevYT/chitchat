@@ -103,10 +103,16 @@ export const BONUS = [
 ]
 export const BONUS_DRAWN = 3
 
-// Minigames, by id (mechanics in minis/<id>.js).
+// Minigames, by id (mechanics in minis/<id>.js, listed in minis/index.js). min/max: the table sizes it plays at.
+// turnMs: a turn game's per-decision timer.
 export const MINIGAMES = {
-  count: { name: 'Firefly Count', text: 'Fireflies blink in a jar. Guess how many; closest wins, an exact guess earns a bonus.', lo: 5, hi: 30, window: 9, exact: 5 },
+  catch: { name: 'Wishfall Catch', text: 'Slide your jam jar to catch falling stars. Big stars +3, stardust +1, dud clouds knock off 2.', min: 1, max: 8 },
+  bun: { name: 'Hot Bun', text: 'Puff 1-3 steam into the bun and pass it on. It pops somewhere from 10 to 20; whoever holds it then is out.', min: 2, max: 8, lo: 10, hi: 20, bonus: [0, 1, 2], turnMs: 12000 },
+  count: { name: 'Firefly Count', text: 'Fireflies blink in a jar for 6 seconds. Guess how many; closest wins, an exact guess earns a bonus.', min: 1, max: 8, lo: 5, hi: 30, exact: 5, showMs: 6000, pickMs: 15000 },
 }
+export const MINI_LEAD_MS = 6500 // from the minigame starting to "go": the intro card, then 3-2-1
+export const MINI_GRACE_MS = 8000 // slack after a timed minigame before anyone still out gets timed out
+export const MINI_RESULTS_MS = 6000 // the results reveal before the board carries on
 
 // The news log's cast.
 export const HOSTS = { star: 'Chit', stall: 'Marzipan', tea: 'Juniper', owl: 'Inkwell', rounds: 'Biscuit' }

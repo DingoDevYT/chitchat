@@ -6,7 +6,7 @@ import { rng } from '../rng.js'
 
 // A two-player table where a moves first, with any public fields overridden.
 const base = (extra = {}, opts = {}, players = ['a', 'b']) => {
-  const s = R.setup(players, 7, opts)
+  const s = R.setup(players, 7, { mini: 'count', ...opts }) // the minigame tests below play Firefly Count
   return { ...s, pub: { ...s.pub, order: [...players], turn: 0, star: 4, ...extra } }
 }
 const bag = (s, pid, items) => ({ ...s, pub: { ...s.pub, satchel: { ...s.pub.satchel, [pid]: items } } })
@@ -223,8 +223,8 @@ test('starchat minigame: everyone posts one secret guess, bots first, payout by 
   const s = toMini(base({}, {}, ['a', 'bot:1', 'c']))
   assert.equal(s.pub.phase, 'mini'); assert.equal(s.pub.mini.id, 'count')
   assert.equal(R.turn(s), 'bot:1', 'a due bot first')
-  const [lo, hi] = s.pub.mini.state.hint, target = s.secret.mini.secret.target
-  assert.ok(lo <= target && target <= hi)
+  const target = s.secret.mini.secret.target, lo = target > 6 ? target - 2 : target + 1, hi = target < 29 ? target + 2 : target - 3
+  assert.ok(s.pub.mini.startAt > 0, 'a synced start')
   assert.ok(!JSON.stringify(R.view(s)).includes('"target"'))
   // c posts out of turn; the guess is not public
   const c = R.move(s, 'c', { type: 'mini', guess: target })
@@ -248,7 +248,6 @@ test('starchat minigame: everyone posts one secret guess, bots first, payout by 
   // the module's own contract
   const M = R.MINIS.count
   const b = M.begin(['x'], rng(1), D.MINIGAMES.count)
-  assert.equal(b.pub.hint[1] - b.pub.hint[0] + 1, D.MINIGAMES.count.window)
   for (const lv of ['easy', 'normal', 'hard']) { const m = M.bot(b.pub, 'x', lv, rng(2)); assert.doesNotThrow(() => M.submit(b.pub, 'x', m)) }
 })
 
@@ -341,6 +340,7 @@ test('starchat bot games finish over many seeds and stay deterministic', () => {
   assert.ok(stars / games > 2, 'stars get bought')
   assert.ok(wins.hard > wins.easy, `hard beats easy (${JSON.stringify(wins)})`)
   const a = play(4, 42, {}), b = play(4, 42, {})
-  assert.equal(JSON.stringify(a.s), JSON.stringify(b.s), 'same seed and moves, same game')
+  const noClock = s => JSON.stringify(s).replace(/"(startAt|at)":\d+/g, '')
+  assert.equal(noClock(a.s), noClock(b.s), 'same seed and moves, same game (bar the clock stamps)')
   assert.notEqual(JSON.stringify(play(4, 43, {}).s.pub), JSON.stringify(a.s.pub))
 })
