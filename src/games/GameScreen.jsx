@@ -16,9 +16,10 @@ import * as property from './property/ui.jsx'
 import * as isle from './isle/ui.jsx'
 import * as chitchen from './chitchen/ui.jsx'
 import * as flyer from './flyer/ui.jsx'
+import * as pillow from './pillow/ui.jsx'
 import './games.css'
 
-export const UIS = { highcard, snack, poker, property, isle, chitchen, flyer }
+export const UIS = { highcard, snack, poker, property, isle, chitchen, flyer, pillow }
 const Table3D = lazy(() => import('./Table3D'))
 const HOUSE = {
   snack: [['stack', 'Stack draw cards'], ['drawUntil', 'Draw until you can play']],
@@ -34,6 +35,11 @@ const HOUSE = {
     ['quick', 'Quick game: first to 8 points'],
     ['friendly', "Friendly raccoon: it won't bother anyone under 3 points"],
     ['bigBaskets', 'Big baskets: only put back on a 7 when holding more than 9'],
+  ],
+  pillow: [
+    ['quick', 'Quick fight: 2 rounds (off: 3)'],
+    ['long', 'Long night: 5 rounds'],
+    ['longDraw', 'Take your time: 2 minutes to draw'],
   ],
   flyer: [['whistle', 'Kettle Whistle: talking (or sprinkles) fills a meter for a short steam burst you can fly through anything in']],
 }

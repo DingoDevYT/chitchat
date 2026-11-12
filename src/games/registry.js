@@ -6,5 +6,6 @@ import * as property from './property/rules.js'
 import * as isle from './isle/rules.js'
 import * as chitchen from './chitchen/rules.js'
 import * as flyer from './flyer/rules.js'
+import * as pillow from './pillow/rules.js'
 
-export const GAMES = { snack, property, poker, highcard, isle, chitchen, flyer }
+export const GAMES = { snack, property, poker, highcard, isle, chitchen, flyer, pillow }
