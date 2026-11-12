@@ -17,10 +17,10 @@ const CW = 0.56, CH = 0.8 // card size in world units
 
 // ── per-game framing ──
 const LAYOUT = {
-  snack: { shape: 'round', R: 2.35, felt: '#c7836a', seatR: 3.2, cam: [0, 6.2, 7.4], look: [0, -0.7, 0.2], H: 2.0 },
-  highcard: { shape: 'round', R: 2.2, felt: '#3f6b5c', seatR: 3.0, cam: [0, 5.8, 7.0], look: [0, -0.7, 0.2], H: 1.9 },
-  poker: { shape: 'round', R: 2.5, felt: '#2f6b4f', seatR: 3.3, cam: [0, 5.6, 7.6], look: [0, -0.6, 0.2], H: 2.1 },
-  property: { shape: 'square', R: 3.1, felt: '#d9c7a3', seatR: 4.0, cam: [0, 8.4, 6.4], look: [0, 0, 0.5], H: 2.3 },
+  snack: { shape: 'round', R: 2.35, felt: '#c7836a', seatR: 3.2, cam: [0, 6.2, 7.4], look: [0, -0.15, 0.4], H: 2.0 },
+  highcard: { shape: 'round', R: 2.2, felt: '#3f6b5c', seatR: 3.0, cam: [0, 5.8, 7.0], look: [0, -0.15, 0.4], H: 1.9 },
+  poker: { shape: 'round', R: 2.5, felt: '#2f6b4f', seatR: 3.3, cam: [0, 5.6, 7.6], look: [0, -0.1, 0.4], H: 2.1 },
+  property: { shape: 'square', R: 3.1, felt: '#d9c7a3', seatR: 4.0, cam: [0, 8.4, 6.6], look: [0, 0.5, 0.2], H: 2.3 },
 }
 
 // ── canvas textures (cached) ──
@@ -290,10 +290,10 @@ function HandFan({ s, n, kind, R }) {
   if (!n) return null
   const back = cardMats(kind, null)
   const step = Math.min(0.2, 1.3 / n)
-  const reach = Math.min(R * 0.92, s.r - 0.55)
+  const reach = Math.min(R * 0.8, s.r - 0.9) // well in front of them, so the fan sits below their face from the camera
   return (
-    <group position={[Math.cos(s.a) * reach, 0.1, Math.sin(s.a) * reach]} rotation-y={Math.PI / 2 - s.a}>
-      <group rotation-x={0.42} scale={0.78}>
+    <group position={[Math.cos(s.a) * reach, 0.04, Math.sin(s.a) * reach]} rotation-y={Math.PI / 2 - s.a}>
+      <group rotation-x={0.75} scale={0.62}>
         {Array.from({ length: n }, (_, k) => (
           <group key={k} rotation-z={(k - (n - 1) / 2) * -step}>
             <mesh geometry={cardGeo} material={back} position={[0, CH * 0.5, -k * 0.004]} rotation-x={Math.PI / 2} castShadow />
@@ -598,7 +598,7 @@ function Projector({ seats, els }) {
       if (!el) return
       const top = SEAT_Y + FIG_H + 0.28
       _v.set(s.x, top, s.z).project(camera)
-      const x = Math.min(size.width - 70, Math.max(70, (_v.x + 1) / 2 * size.width)), y = Math.max(96, (1 - _v.y) / 2 * size.height) // never under the top bar
+      const x = Math.min(size.width - 70, Math.max(70, (_v.x + 1) / 2 * size.width)), y = Math.max(84, (1 - _v.y) / 2 * size.height) // never under the top bar
       const y0 = (1 - _v.y) / 2 * size.height
       _v.set(s.x, top + 1, s.z).project(camera)
       const d = Math.max(0.6, Math.min(1.05, (y0 - (1 - _v.y) / 2 * size.height) / 110))

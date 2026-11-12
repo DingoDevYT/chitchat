@@ -52,9 +52,17 @@ function FlatCard({ kind, id }) {
   return <Card kind={kind} id={id} back={id == null} small className="mini" />
 }
 
+// Draining bar plus a seconds count (bots move in about a second, so the count only shows when it's someone's real timer).
 function Timer({ deadline, version }) {
+  const left = () => Math.max(0, Math.ceil((Date.parse(deadline) - Date.now()) / 1000))
+  const [s, setS] = useState(left)
+  useEffect(() => { setS(left()); const t = setInterval(() => setS(left()), 250); return () => clearInterval(t) }, [deadline]) // eslint-disable-line react-hooks/exhaustive-deps
   const ms = Math.max(0, Date.parse(deadline) - Date.now())
-  return <span key={version} className="gs-timer" style={{ '--ms': `${ms}ms` }} aria-hidden="true"><i /></span>
+  return (
+    <span key={version} className={`gs-timer${s <= 10 ? ' low' : ''}`} style={{ '--ms': `${ms}ms` }} aria-hidden="true">
+      <span className="gs-timer-bar"><i /></span>{s > 3 && <b>{s}s</b>}
+    </span>
+  )
 }
 
 function Confetti() {
@@ -121,13 +129,12 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
       <div className="gs-top">
         <span className="gs-title"><Icon name="cards" size={18} /> {R.meta.name}</span>
-        {v && !lobby && <span key={turnPid === meId ? 'mine' : 'other'} className={`gs-banner${turnPid === meId ? ' mine' : ''}`}>{UI.banner(v, nm, meId)}</span>}
+        {v && !lobby && <span key={turnPid === meId ? 'mine' : 'other'} className={`gs-banner${turnPid === meId ? ' mine' : ''}`}>{UI.banner(v, nm, meId)}{playing && game.deadline && <Timer deadline={game.deadline} version={game.version} />}</span>}
                 <span className="gs-tools">
           <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Back to the stadium screen' : 'Full view'} aria-label={full ? 'Back to the stadium screen' : 'Full view'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
           {host && <button className="icon-btn gs-btn" onClick={close} title="Close table" aria-label="Close table"><Icon name="close" size={18} /></button>}
         </span>
       </div>
-      {playing && game.deadline && <Timer deadline={game.deadline} version={game.version} />}
       {v && !lobby && UI.lastText(v, nm) && <div className="gs-last" key={game.version}>{UI.lastText(v, nm)}</div>}
 
       {lobby && (

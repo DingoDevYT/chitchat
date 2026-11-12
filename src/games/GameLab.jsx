@@ -30,7 +30,8 @@ export default function GameLab() {
     return () => clearTimeout(t)
   }, [s]) // eslint-disable-line react-hooks/exhaustive-deps
   const seats = useMemo(() => players.map((p, i) => ({ seat: i, user_id: p === ME ? ME : null, bot: p === ME ? null : levels[i] })), [])
-  const game = { id: 'lab', game: G, status: R.over(s) ? 'done' : 'playing', pub: s.pub, version: v, deadline: null, host_id: ME, opts: {} }
+  const deadline = useMemo(() => new Date(Date.now() + (who === ME ? 45000 : 900)).toISOString(), [v, who]) // looks like the real timer
+  const game = { id: 'lab', game: G, status: R.over(s) ? 'done' : 'playing', pub: s.pub, version: v, deadline, host_id: ME, opts: {} }
   const table = { game, seats, hand: s.priv[ME] ?? null, act: async (action, extra) => { if (action === 'move') apply(ME, extra.move) } }
   return <div style={{ position: 'fixed', inset: 0, display: 'flex' }}><GameScreen table={table} meId={ME} joined full onFull={() => {}} channelName="Lab" /></div>
 }
