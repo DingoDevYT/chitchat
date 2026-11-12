@@ -178,11 +178,12 @@ export function dmItems(c, el) {
 export const dmHidden = (c, closed) => closed?.[c.id] != null && (c.last_message_id || 0) <= closed[c.id]
 
 // ── stream on the stadium big screen / thumbnails ──
-export function streamItems(id, { me, focused, focus, hide, video }) {
+export function streamItems(id, { me, focused, focus, unfocus, hide, video }) {
   const P = prefs.get()
   const full = () => (video?.requestFullscreen?.() ?? Promise.reject()).catch(() => video?.webkitEnterFullscreen?.() ?? toast("Couldn't go fullscreen."))
   return [
     !focused && { label: 'Focus this stream', icon: 'focus', onClick: focus },
+    focused && unfocus && { label: 'Stop focusing', icon: 'focus', onClick: unfocus },
     video && { label: 'Pop out to fullscreen', icon: 'fullscreen', onClick: full },
     !me && { separator: true },
     !me && { label: 'Stream volume', icon: 'volume', slider: { value: P.streamVol[id] ?? 1, min: 0, max: 2, step: 0.05, format: pct,

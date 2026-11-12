@@ -165,6 +165,7 @@ function sections() {
       [['←'], ['→'], 'Previous / next picture in the viewer'],
     ]],
     ['Stadiums', [
+      [['Esc'], 'Stop focusing a stream or camera'],
       P.ptt ? [[keyLabel(P.pttKey)], 'Hold to talk (push-to-talk)'] : [['—'], 'Push-to-talk is off (Settings → Voice & video)'],
     ]],
   ]

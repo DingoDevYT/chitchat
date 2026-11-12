@@ -483,7 +483,17 @@ button.reply-ref::before { left: 34px; }
   border-radius: var(--r-lg); box-shadow: inset 0 0 0 6px var(--bg-3), var(--shadow);
   background: radial-gradient(ellipse at 50% 115%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 60%), #0e1c25;
 }
-.stage-screen > video { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); object-fit: contain; background: #000; border-radius: calc(var(--r-lg) - 6px); }
+.stage-screen > .zoom { inset: 6px; background: #000; border-radius: calc(var(--r-lg) - 6px); }
+/* Zoomable stream (ZoomScreen): the video is moved with a transform; the − % + pill shows on hover or while zoomed. */
+.zoom { position: absolute; inset: 0; overflow: hidden; touch-action: none; }
+.zoom > video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.zoom.zoomed { cursor: grab; }
+.zoom.zoomed:active { cursor: grabbing; }
+.zoom-ctl { position: absolute; top: 10px; left: 50%; translate: -50% 0; display: flex; /* top: the crowd overlaps the bottom */ align-items: center; padding: 3px; border-radius: 999px; background: #000a; color: #f6eee6; font-size: 12px; font-weight: 800; opacity: 0; transition: opacity .15s; cursor: default; }
+.zoom:hover .zoom-ctl, .zoom.zoomed .zoom-ctl, .zoom-ctl:focus-within { opacity: 1; }
+.zoom-ctl button { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; }
+.zoom-ctl button:hover { background: #fff2; }
+.zoom-ctl span { min-width: 40px; text-align: center; font-variant-numeric: tabular-nums; }
 .stage-screen:not(.on)::before, .stage-screen:not(.on)::after {
   content: ''; position: absolute; top: -10%; width: 36%; height: 130%; pointer-events: none; transform-origin: 50% 0;
   background: linear-gradient(color-mix(in srgb, var(--accent-2) 30%, transparent), transparent 80%);
@@ -519,6 +529,7 @@ button.reply-ref::before { left: 34px; }
   .stage-seat { zoom: .62; margin: 0 -10px 6px; }
   .stage-seat .name { font-size: 19px; }
   .stage-thumb { width: 96px; }
+  .zoom-ctl { top: 48px; left: 10px; translate: none; } /* under the caption, clear of the thumbnails */
 }
 
 /* ── welcome ── */

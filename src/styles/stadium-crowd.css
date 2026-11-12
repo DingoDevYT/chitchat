@@ -43,7 +43,7 @@ body .stage-tiles.grid { grid-template-columns: repeat(auto-fit, minmax(min(100%
 body .stage-tiles.side { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
 body .stage-tile { position: relative; aspect-ratio: 16 / 9; min-height: 0; border-radius: calc(var(--r-lg) - 6px); overflow: hidden; background: #000; }
 body .stage-tiles.side .stage-tile { aspect-ratio: auto; height: 100%; }
-body .stage-tile > video { width: 100%; height: 100%; object-fit: contain; display: block; }
+body .stage-tile { cursor: pointer; }
 body .stage-tile .stage-caption { top: 8px; left: 8px; font-size: 12px; }
 
 @media (prefers-reduced-motion: reduce) { body .stadium .crowd .stage-seat { transition: none; } }

@@ -13,10 +13,11 @@ import gateUrl from './lib/voice.js?url'
 import Avatar, { Name } from './Avatar'
 import Icon from './icons/Icon'
 import { openMenu } from './ContextMenu'
-import { app, personMenu, streamItems } from './menus'
+import { app, personItems, personMenu, streamItems } from './menus'
 import { RoomTitle, roomVars } from './Rooms'
 import ThemeBackdrop, { useRoomTheme } from './themes/ThemeBackdrop'
 import { fitCrowd, ROW } from './lib/crowd'
+import { clampPan, zoomAt, toggleAt } from './lib/zoom'
 import './styles/stadium-crowd.css'
 import { GAMES_ON, GAME_LIST, useTable, create as createGame } from './games/useGame'
 
@@ -447,6 +448,77 @@ export function Screen({ stream }) {
   return <video ref={ref} autoPlay playsInline muted />
 }
 
+// A stream you can zoom (wheel, pinch, double-click/tap, the − % + buttons) and drag around when zoomed.
+// Yours only; lives in refs and the video's transform so wheel ticks don't re-render. Remount (key) to reset.
+function ZoomScreen({ stream }) {
+  const box = useRef(null), pct = useRef(null), z = useRef({ s: 1, x: 0, y: 0 })
+  const g = useRef({ pts: new Map(), moved: 0, tap: 0 }) // live pointers, drag distance, last tap time
+  const set = (next, ease) => {
+    z.current = next
+    const v = box.current.querySelector('video')
+    v.style.transition = ease ? 'transform .2s ease' : 'none'
+    v.style.transform = next.s > 1 ? `translate(${next.x}px, ${next.y}px) scale(${next.s})` : ''
+    pct.current.textContent = `${Math.round(next.s * 100)}%`
+    box.current.classList.toggle('zoomed', next.s > 1)
+  }
+  // Pointer position relative to the box centre, plus the box size.
+  const at = (cx, cy) => { const r = box.current.getBoundingClientRect(); return [cx - r.left - r.width / 2, cy - r.top - r.height / 2, r.width, r.height] }
+  const step = k => { const [, , w, h] = at(0, 0); set(zoomAt(z.current, z.current.s * k, 0, 0, w, h), true) }
+  useEffect(() => {
+    const el = box.current
+    const wheel = e => { // a plain wheel and a trackpad pinch (ctrl+wheel) both zoom; React's onWheel is passive
+      e.preventDefault()
+      const [px, py, w, h] = at(e.clientX, e.clientY)
+      set(zoomAt(z.current, z.current.s * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.002)), px, py, w, h))
+    }
+    el.addEventListener('wheel', wheel, { passive: false })
+    return () => el.removeEventListener('wheel', wheel)
+  }, [])
+  const down = e => {
+    const { pts } = g.current
+    if (!pts.size) g.current.moved = 0
+    if (e.button !== 0 || e.target.closest('.zoom-ctl')) return
+    pts.set(e.pointerId, [e.clientX, e.clientY])
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const move = e => {
+    const { pts } = g.current, p = pts.get(e.pointerId)
+    if (!p) return
+    const [ox, oy] = p, dx = e.clientX - ox, dy = e.clientY - oy
+    if (pts.size === 2) { // pinch: scale by the change in finger distance, about the midpoint, and follow the midpoint
+      const q = [...pts].find(([id]) => id !== e.pointerId)[1]
+      const d0 = Math.hypot(ox - q[0], oy - q[1]), d1 = Math.hypot(e.clientX - q[0], e.clientY - q[1])
+      const [px, py, w, h] = at((e.clientX + q[0]) / 2, (e.clientY + q[1]) / 2)
+      const zz = zoomAt(z.current, z.current.s * (d1 / (d0 || 1)), px, py, w, h)
+      set(clampPan({ ...zz, x: zz.x + dx / 2, y: zz.y + dy / 2 }, w, h))
+    } else if (z.current.s > 1) {
+      const [, , w, h] = at(0, 0)
+      set(clampPan({ ...z.current, x: z.current.x + dx, y: z.current.y + dy }, w, h))
+    }
+    g.current.moved += Math.abs(dx) + Math.abs(dy)
+    pts.set(e.pointerId, [e.clientX, e.clientY])
+  }
+  const up = e => {
+    const { pts } = g.current
+    if (!pts.delete(e.pointerId) || pts.size || g.current.moved > 8) return
+    // Our own double-tap/-click detection: touch browsers don't reliably send dblclick.
+    if (e.timeStamp - g.current.tap < 300) { const [px, py, w, h] = at(e.clientX, e.clientY); set(toggleAt(z.current, px, py, w, h), true); g.current.tap = 0 }
+    else g.current.tap = e.timeStamp
+  }
+  return (
+    <div className="zoom" ref={box} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onLostPointerCapture={up}
+      onClickCapture={e => { if (g.current.moved > 8) e.stopPropagation() }}>{/* a drag isn't a click on the tile */}
+      <Screen stream={stream} />
+      <div className="zoom-ctl" onClick={e => e.stopPropagation()}>
+        <button onClick={() => step(1 / 1.5)} aria-label="Zoom out"><Icon name="minus" size={16} /></button>
+        <span ref={pct}>100%</span>
+        <button onClick={() => step(1.5)} aria-label="Zoom in"><Icon name="plus" size={16} /></button>
+        <button onClick={() => set({ s: 1, x: 0, y: 0 }, true)} aria-label="Reset zoom"><Icon name="rotate" size={16} /></button>
+      </div>
+    </div>
+  )
+}
+
 // Speech bubble over a seat: typing dots, then their latest stadium-chat message for a few seconds.
 export function Bubble({ id }) {
   const b = bubbles.use(s => s[id])
@@ -473,9 +545,11 @@ function useSize() {
   return [ref, size]
 }
 
-function Seat({ id, me, size, back, tile, live, face, style }) {
+// pin: the "Focus camera" / "Stop focusing" menu item, for a seat showing a live camera (tapping it toggles too).
+function Seat({ id, me, size, back, tile, live, face, pin, style }) {
+  const menu = pin ? { onClick: pin.onClick, onContextMenu: e => openMenu(e, () => [pin, { separator: true }, ...personItems(id, e.currentTarget)]) } : personMenu(id)
   return (
-    <div className={`stage-seat${me ? ' me' : ''}${back ? ' back' : ''}`} style={style} {...personMenu(id)}>
+    <div className={`stage-seat${me ? ' me' : ''}${back ? ' back' : ''}`} style={style} {...menu}>
       {live && <b className="live-badge"><Icon name="live" size="1.25em" /> LIVE</b>}
       <Bubble id={id} />
       <Avatar id={id} size={size} full={!tile} mode="stage" vbadge>{face && <Screen stream={face} />}</Avatar>
@@ -499,19 +573,32 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   const list = ids ? ids.split(',') : []
   const lives = liveIds ? liveIds.split(',') : []
   const shown = joined ? Object.keys(all).filter(id => !hidden.includes(id)) : []
-  const main = shown.includes(pick) ? pick : shown[0]
-  const tiles = layout !== 'focus' && shown.length > 1
-  const streamMenu = id => e => openMenu(e, () => [...streamItems(id, {
-    me: id === meId, focused: id === main && !tiles, video: e.currentTarget.querySelector('video'),
-    focus: () => { setPick(id); if (tiles) setPref('streamLayout', 'focus') }, hide: () => setHidden(h => [...h, id]),
-  }), { separator: true }, ...viewItems()])
+  // Focus (pick): a stream id, or `cam:<user id>` for someone's camera. It takes the big screen, the other streams go to
+  // the thumbnails; null = automatic (first stream, tiles per your layout).
+  const camOf = k => k?.startsWith('cam:') && joined && faces[k.slice(4)]
+  const focused = pick && (shown.includes(pick) || camOf(pick)) ? pick : null
+  useEffect(() => { if (pick && !focused) setPick(null) }, [pick, focused]) // focused stream ended or hidden: back to automatic
+  useEffect(() => {
+    if (!pick) return
+    const esc = e => { if (e.key === 'Escape' && !e.defaultPrevented && !e.target.closest?.('input, textarea, [contenteditable="true"]')) setPick(null) }
+    addEventListener('keydown', esc)
+    return () => removeEventListener('keydown', esc)
+  }, [pick])
+  const main = focused || shown[0], mainId = main?.replace(/^cam:/, '')
+  const tiles = !focused && layout !== 'focus' && shown.length > 1
+  const unfocus = () => setPick(null)
+  const camItem = id => pick === `cam:${id}` ? { label: 'Stop focusing', icon: 'focus', onClick: unfocus } : { label: 'Focus camera', icon: 'focus', onClick: () => setPick(`cam:${id}`) }
+  const streamMenu = id => e => openMenu(e, () => [...(id.startsWith('cam:') ? [camItem(id.slice(4))] : streamItems(id, {
+    me: id === meId, focused: id === pick, unfocus, video: e.currentTarget.querySelector('video'),
+    focus: () => setPick(id), hide: () => setHidden(h => [...h, id]),
+  })), { separator: true }, ...viewItems()])
   const gamesOn = GAMES_ON && channel.games_enabled !== false
   const table = useTable(channel.id, meId, gamesOn)
   const g = gamesOn && table.game
   const atTable = new Set(g ? table.seats.map(s => s.user_id) : []) // seated players walk from the crowd to the table
   const others = list.filter(id => id !== meId && !atTable.has(id))
   const crowd = view !== 'list' && box.w ? fitCrowd(others.length, box.w, box.h * 0.5, list.includes(meId) && !atTable.has(meId)) : null
-  const seat = id => ({ id, live: lives.includes(id), face: joined && faces[id] })
+  const seat = id => ({ id, live: lives.includes(id), face: joined && faces[id], pin: joined && faces[id] && camItem(id) })
   const theme = useRoomTheme(channel, app.ctx?.server)
   const gameFull = prefs.use(s => !!g && s.gameView?.[g.game] === 'full') // screen or full view, per person per game
   const pickGame = e => openMenu(e, GAME_LIST.map(([id, label]) => ({ label, icon: 'cards', onClick: () => createGame(channel.id, id).then(r => r && table.refresh()) })))
@@ -535,17 +622,17 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
           ) : tiles ? (
             <div className={`stage-tiles ${layout}`}>
               {shown.map(id => (
-                <div key={id} className="stage-tile" onContextMenu={streamMenu(id)}>
-                  <Screen stream={all[id]} />
+                <div key={id} className="stage-tile" onClick={() => setPick(id)} onContextMenu={streamMenu(id)} title="Focus this stream">
+                  <ZoomScreen stream={all[id]} />
                   <div className="stage-caption"><b className="live-badge"><Icon name="live" size="1.25em" /> LIVE</b> <Name id={id} /></div>
                 </div>
               ))}
             </div>
           ) : main ? (
             <>
-              <Screen stream={all[main]} />
-              <div className="stage-caption"><b className="live-badge"><Icon name="live" size="1.25em" /> LIVE</b> <Name id={main} /></div>
-              {shown.length > 1 && (
+              <ZoomScreen key={main} stream={camOf(main) || all[main]} />
+              <div className="stage-caption"><b className="live-badge"><Icon name="live" size="1.25em" /> LIVE</b> <Name id={mainId} /></div>
+              {shown.some(id => id !== main) && (
                 <div className="stage-thumbs">
                   {shown.filter(id => id !== main).map(id => (
                     <button key={id} className="stage-thumb" onClick={() => setPick(id)} onContextMenu={streamMenu(id)} title="Watch this stream">
