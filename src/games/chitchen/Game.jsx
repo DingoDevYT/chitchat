@@ -17,6 +17,7 @@ import { createNet } from './net.js'
 import { setProximity } from '../../lib/proximity'
 import { Chore } from './chores.jsx'
 import { createBaker } from './kit/baker3d.js'
+import { CAM_FPS, CamAvatar, camReady, useCamVideo } from '../cams'
 import { play as sfx, startLoop } from './kit/sfx.js'
 import './chitchen.css'
 
@@ -53,6 +54,13 @@ function FaceFeed({ pid, uid, into }) {
   useEffect(() => { into.current[pid] = { src, talk: f.talk, color } }, [pid, src, f.talk, color, into])
   return null
 }
+// Their webcam, if it's on, for the TV screen. The 3D loop only paints screens it draws, so the fog of war and the
+// ghost rules hide a camera exactly like they hide the avatar.
+function CamFeed({ pid, id, into }) {
+  const cam = useCamVideo(id)
+  useEffect(() => { into.current[pid] = cam; return () => { if (into.current[pid] === cam) delete into.current[pid] } }, [pid, cam, into])
+  return null
+}
 
 // A little TV with the player on its screen (role reveal, meeting cards, the end). Smashed when dead.
 function TvCard({ who, size = 64, dead, children, className = '' }) {
@@ -61,7 +69,7 @@ function TvCard({ who, size = 64, dead, children, className = '' }) {
   return (
     <div className={`cc-tv${dead ? ' dead' : ''} ${className}`} style={{ '--casing': look.casing, '--trim': look.trim, '--sz': `${size}px` }}>
       <div className="cc-tv-screen" style={{ background: SCREEN_BG[who.idx % 8] }}>
-        {who.user_id ? <Avatar id={who.user_id} size={Math.round(size * 0.66)} /> : <img src={botUrl(botChar(who.bot, who.seat))} alt="" draggable="false" />}
+        {who.user_id ? (dead || size < 48 ? <Avatar id={who.user_id} size={Math.round(size * 0.66)} /> : <CamAvatar id={who.user_id} size={Math.round(size * 0.66)} />) :<img src={botUrl(botChar(who.bot, who.seat))} alt="" draggable="false" />}
         {dead && <i className="cc-tv-crack" />}
       </div>
       <i className="cc-tv-knob" />
@@ -71,7 +79,7 @@ function TvCard({ who, size = 64, dead, children, className = '' }) {
 }
 
 export default function Chitchen({ v, me, nm: nmRaw, act, people, tools, gameId }) {
-  const mount = useRef(), vRef = useRef(v), faces = useRef({}), live = useRef({})
+  const mount = useRef(), vRef = useRef(v), faces = useRef({}), live = useRef({}), camFeeds = useRef({})
   vRef.current = v
   const mine = v.me
   const inGame = v.players.includes(me)
@@ -208,11 +216,12 @@ export default function Chitchen({ v, me, nm: nmRaw, act, people, tools, gameId 
       const c = botChar(levelOf(pid), seatOf(pid))
       return { src: botUrl(c, false), talk: false, color: c.color }
     }
-    const paint = (a, f, state, seat) => {
-      const key = `${f.src}|${f.talk}|${state}|${f.color}`
+    const paint = (a, f, state, seat, cam) => {
+      const on = camReady(cam) ? cam : null // a camera repaints ~15 fps; off, the screen goes back to the avatar
+      const key = on ? `cam|${Math.floor(performance.now() * CAM_FPS / 1000)}|${state}` : `${f.src}|${f.talk}|${state}|${f.color}`
       if (a.key === key) return
       a.key = key
-      drawScreen(a.canvas, { src: f.src, color: f.color, talk: f.talk, state, bg: SCREEN_BG[seat % 8] }, () => { a.key = '' })
+      drawScreen(a.canvas, { src: f.src, color: f.color, talk: f.talk, state, bg: SCREEN_BG[seat % 8], cam: on }, () => { a.key = '' })
       a.tex.needsUpdate = true
     }
 
@@ -315,7 +324,7 @@ export default function Chitchen({ v, me, nm: nmRaw, act, people, tools, gameId 
         }
         a.prev = [...at]
         a.group.position.set(at[0], sitting ? 0.42 : phase === 'reveal' ? 0.35 : 0, at[1])
-        paint(a, f, phase === 'reveal' && V.reveal?.role === 'nibbler' && tNow - revealStart > 5000 ? 'mask' : 'live', seat)
+        paint(a, f, phase === 'reveal' && V.reveal?.role === 'nibbler' && tNow - revealStart > 5000 ? 'mask' : 'live', seat, camFeeds.current[pid])
         a.b.update(dt, { texture: a.tex, color: a.color, state, facing: a.want, speed, talking: f.talk && !ghost })
       }
 
@@ -478,6 +487,7 @@ export default function Chitchen({ v, me, nm: nmRaw, act, people, tools, gameId 
   return (
     <div className={`cc${touch ? ' touch' : ''}${mi?.kind === 'flour' && play ? ' flour' : ''}${ghostMe && play ? ' ghosting' : ''}`}>
       {humans.map(p => <FaceFeed key={p.pid} pid={p.pid} uid={p.user_id} into={faces} />)}
+      {people.map(p => <CamFeed key={p.pid} pid={p.pid} id={p.user_id || p.pid} into={camFeeds} />)}{/* the lab hands Chitbots a camera to preview it */}
       <div ref={mount} className="cc-view" />
       {mi?.kind === 'flour' && play && <div className="cc-flour" aria-hidden="true">{Array.from({ length: 28 }, (_, i) => <i key={i} style={{ '--i': i }} />)}</div>}
 
