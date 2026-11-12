@@ -14,6 +14,8 @@ export const GAME_INFO = [
   { id: 'isle', name: 'Chitter Cove', blurb: 'Gather twigs, wool, clay, berries and tea on a cozy island, build paths, cottages and lodges, trade, and shoo the raccoon. First to 10 points.', players: '2–4', kind: 'Board game' },
   { id: 'chitchen', name: 'Midnight Chitchen', blurb: 'Bake through the night as a little TV-head, but a Nibbler or two is tucking bakers in for naps. Talk it out over tea, then spoon your suspect.', players: '4–8', kind: 'Party game' },
   { id: 'flyer', name: 'Chatterflies', blurb: 'Hold to thrust, let go to fall: fly the lantern-lit Long Burrow as your own PNGtuber, dodge yarn, paper cranes and steam, and ride teapots.', players: '1–8', kind: 'Flying game' },
+  // Dev only until the board is on screen (rules: starchat/rules.js; meta.devOnly keeps the referee from opening a table).
+  ...(import.meta.env?.DEV ? [{ id: 'starchat', name: 'Starchat', blurb: 'Roll round Lantern Hollow at the Wishfall Festival, buy the falling star wherever it lands, and play a minigame every round. Most stars wins.', players: '2–8', kind: 'Party game' }] : []),
 ]
 export const GAME_LIST = GAME_INFO.map(g => [g.id, g.name])
 export const gameName = (id, fallback) => GAME_INFO.find(g => g.id === id)?.name || fallback
