@@ -5,3 +5,9 @@ import * as bun from './bun.js'
 import * as count from './count.js'
 
 export const MINIS = { catch: catchMini, bun, count }
+
+// Lantern Lift, Teacup Tap, Owl Says
+import * as lift from './lift.js'
+import * as tap from './tap.js'
+import * as owl from './owl.js'
+Object.assign(MINIS, { lift, tap, owl })

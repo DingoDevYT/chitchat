@@ -1,0 +1,69 @@
+/* Lantern Lift, Teacup Tap and Owl Says (the shared pieces, .mc-head / .mc-scores / .ms-title, are in stage.css). */
+
+/* ── Lantern Lift ── */
+body .ll { position: absolute; inset: 0; background: #1b1a45; touch-action: none; cursor: pointer; }
+body .ll-field { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+body .ll-tag { font: 700 20px var(--display); fill: #fff3dc; }
+body .ll-tag.me { font-size: 17px; fill: #ffd877; }
+body .ll-mark { font: 700 15px var(--display); fill: #ffe7a0; opacity: .85; }
+body .ll-mark.bad { fill: #f6b2b6; }
+body .ll-pips { position: absolute; right: 10px; top: 10px; list-style: none; margin: 0; padding: 6px; display: flex; gap: 6px; background: var(--cream); border: 5px solid #b4784a; border-radius: 16px; pointer-events: none; }
+body .ll-pips li { min-width: 34px; height: 30px; padding: 0 6px; border-radius: 10px; display: grid; place-items: center; background: #ead9b8; color: #8a6a50; font: 700 14px var(--display); }
+body .ll-pips li.now { box-shadow: 0 0 0 3px var(--honey); color: var(--ink); }
+body .ll-pips li.ok { background: linear-gradient(#ffd877, #f2b13e); color: #5a3412; }
+body .ll-pips li.burst { background: #f3c3c6; color: #9a3a44; font-size: 12px; }
+body .ll-say { position: absolute; left: 50%; top: 84px; transform: translateX(-50%); background: #261c3ae6; color: #fff3dc; padding: 7px 16px; border-radius: 99px; font: 600 16px var(--display); white-space: nowrap; pointer-events: none; }
+body .ll-hold { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; font: 700 22px var(--display); color: #5a3412; background: linear-gradient(#ffd877, #f2b13e); box-shadow: 0 6px 0 #c27f22, 0 12px 20px #0006; pointer-events: none; opacity: .92; }
+body .ll-hold.on { transform: translateX(-50%) translateY(5px); box-shadow: 0 1px 0 #c27f22, 0 0 30px #ffd45a; }
+
+/* ── Teacup Tap ── */
+body .tt { position: absolute; inset: 0; background: #2b2659; touch-action: manipulation; cursor: pointer; }
+body .tt-field { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+body .tt-legend b { font: 700 14px var(--display); min-width: 26px; color: #8a5a1a; }
+
+/* ── Owl Says ── */
+body .ow { position: absolute; inset: 0; background: linear-gradient(#1f1d4d, #3a3266 55%, #2c5446); }
+body .ow-sky { position: absolute; left: 0; top: 0; width: 100%; height: 50%; display: block; }
+body .ow-perch { position: absolute; left: 50%; top: 76px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; width: min(760px, calc(100% - 20px)); justify-content: center; }
+body .ow-owl { width: min(260px, 34vw); height: auto; flex: none; filter: drop-shadow(0 8px 10px #0006); }
+body .ow-bubble { position: relative; background: var(--cream); border: 6px solid #b4784a; border-radius: 22px; padding: 12px 18px 16px; font: 600 22px var(--display); color: #6b3e24; min-width: 200px; max-width: 360px; text-align: center; box-shadow: 0 6px 0 #6b3e24; overflow: hidden; }
+body .ow-bubble b { font-size: 34px; color: var(--ink); }
+body .ow-bubble.says { border-color: #4f8a42; }
+body .ow-bubble.quiet { opacity: .8; font-size: 20px; }
+body .ow-time { position: absolute; left: 0; bottom: 0; height: 5px; background: linear-gradient(90deg, #ffd877, #f2b13e); }
+body .ow-chip { position: absolute; left: 50%; top: 52%; transform: translateX(-50%); padding: 6px 16px; border-radius: 99px; font: 700 20px var(--display); background: #d8f0c9; color: #24451e; box-shadow: 0 4px 0 #0004; animation: ms-in .25s cubic-bezier(.3, 1.6, .5, 1); pointer-events: none; white-space: nowrap; z-index: 2; }
+body .ow-chip.wrong, body .ow-chip.fooled, body .ow-chip.early { background: #f3c3c6; color: #7a2a34; }
+body .ow-pad { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: grid; grid-template-columns: repeat(3, 92px); grid-template-rows: repeat(3, 92px); gap: 6px; }
+body .ow-btn { width: 92px; height: 92px; border-radius: 50%; border: 5px solid #fff8ec; background: radial-gradient(circle at 40% 35%, #fff8 0, transparent 45%), var(--c); box-shadow: 0 6px 0 #0005, 0 0 18px #0003; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; cursor: pointer; touch-action: manipulation; color: #3a2a3f; padding: 0; }
+body .ow-btn small { font: 800 12px var(--body); text-transform: uppercase; letter-spacing: .04em; }
+body .ow-btn:disabled { opacity: .55; cursor: default; }
+body .ow-btn.hit, body .ow-btn:not(:disabled):active { transform: translateY(4px); box-shadow: 0 2px 0 #0005, 0 0 26px var(--c); }
+body .ow-btn:focus-visible { outline: 3px solid #fff3b0; outline-offset: 3px; }
+body .ow-up { grid-area: 1 / 2; } body .ow-left { grid-area: 2 / 1; } body .ow-right { grid-area: 2 / 3; } body .ow-down { grid-area: 3 / 2; }
+
+@media (max-width: 640px) {
+  body .ll-say { top: auto; bottom: 124px; font-size: 14px; }
+  body .ll-pips { top: auto; bottom: 16px; right: 8px; border-width: 3px; padding: 4px; }
+  body .ll-pips li { min-width: 28px; height: 26px; font-size: 12px; }
+  body .ll-hold { width: 84px; height: 84px; }
+  body .ll .mc-head, body .tt .mc-head, body .ow .mc-head { top: 10px; bottom: auto; left: auto; right: 8px; transform: none; }
+  body .ll .ms-title b, body .tt .ms-title b, body .ow .ms-title b { font-size: 17px; }
+  body .ll .mc-ring, body .tt .mc-ring, body .ow .mc-ring { width: 46px; height: 46px; }
+  body .ll .mc-ring span, body .tt .mc-ring span, body .ow .mc-ring span { width: 34px; height: 34px; font-size: 16px; }
+  body .ll .ms-title small, body .tt .ms-title small, body .ow .ms-title small { display: none; }
+  body .tt-legend { top: auto; bottom: 54px; right: 6px; padding: 4px 6px; border-width: 3px; }
+  body .tt-legend li { font-size: 11px; }
+  body .ow-perch { top: 120px; flex-direction: column; gap: 4px; }
+  body .ow-owl { width: 150px; }
+  body .ow-bubble { font-size: 18px; padding: 8px 14px 12px; min-width: 0; }
+  body .ow-bubble b { font-size: 28px; }
+  body .ow-chip { top: auto; bottom: 330px; font-size: 17px; }
+  body .ow-pad { grid-template-columns: repeat(3, 98px); grid-template-rows: repeat(3, 98px); gap: 4px; bottom: 18px; }
+  body .ow-btn { width: 98px; height: 98px; }
+}
+@media (max-height: 560px) and (min-width: 641px) {
+  body .ow-perch { top: 70px; }
+  body .ow-owl { width: 150px; }
+  body .ow-pad { grid-template-columns: repeat(3, 76px); grid-template-rows: repeat(3, 76px); right: 20px; left: auto; transform: none; }
+  body .ow-btn { width: 76px; height: 76px; }
+}
