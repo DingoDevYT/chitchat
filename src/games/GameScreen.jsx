@@ -14,9 +14,10 @@ import * as snack from './snack/ui.jsx'
 import * as poker from './poker/ui.jsx'
 import * as property from './property/ui.jsx'
 import * as isle from './isle/ui.jsx'
+import * as flyer from './flyer/ui.jsx'
 import './games.css'
 
-export const UIS = { highcard, snack, poker, property, isle }
+export const UIS = { highcard, snack, poker, property, isle, flyer }
 const Table3D = lazy(() => import('./Table3D'))
 const HOUSE = {
   snack: [['stack', 'Stack draw cards'], ['drawUntil', 'Draw until you can play']],
@@ -32,6 +33,7 @@ const HOUSE = {
     ['friendly', "Friendly raccoon: it won't bother anyone under 3 points"],
     ['bigBaskets', 'Big baskets: only put back on a 7 when holding more than 9'],
   ],
+  flyer: [['whistle', 'Kettle Whistle: talking (or sprinkles) fills a meter for a short steam burst you can fly through anything in']],
 }
 
 // WebGL, unless ?flat is in the address (forces the 2D table for testing).
@@ -122,7 +124,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
   }, [playing, turnPid, meId, UI, game.version]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // A little blip (the UI-sound setting applies) when it becomes your turn.
-  useEffect(() => { if (playing && turnPid === meId) uiSound('got') }, [playing, turnPid === meId]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (playing && turnPid === meId && !UI.Stage) uiSound('got') }, [playing, turnPid === meId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Table sounds (dice, cards, chips, coins, gavel, fanfare) for everyone watching, from what changed in the view.
   const prevV = useRef(v)
@@ -140,6 +142,15 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
       <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Back to the stadium screen' : 'Full view'} aria-label={full ? 'Back to the stadium screen' : 'Full view'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
       {host && <button className="icon-btn gs-btn" onClick={close} title="Close table" aria-label="Close table"><Icon name="close" size={18} /></button>}
     </span>
+  )
+
+  // A game with its own full-screen stage (Chatterflies' canvas runner) skips the table, banner and hand.
+  if (UI.Stage) return (
+    <div className={`gs g-${game.game}${full ? ' full' : ''}`}>
+      <UI.Stage v={lobby ? null : v} game={game} seats={seats} people={people} me={meId} nm={nm} act={doAct} refresh={table.refresh} tools={tools} title={title}
+        buttons={again => <LobbyButtons again={again} {...{ seated, joined, busy, run, seats, R, level, setLevel, host, game, meId }} />} />
+      <div className="sr-only" aria-live="polite">{said}</div>
+    </div>
   )
 
   return (

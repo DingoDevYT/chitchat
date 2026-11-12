@@ -13,6 +13,8 @@ export const GAME_INFO = [
   { id: 'highcard', name: 'Chit Flip', blurb: 'Everyone gets one hidden card: keep it or swap it once. Highest card wins. Thirty seconds of chaos.', players: '2–10', kind: 'Quick game' },
   // Not shipped yet: dev builds only (the referee isn't redeployed with it).
   { id: 'isle', name: 'Chitter Cove', blurb: 'Gather twigs, wool, clay, berries and tea on a cozy island, build paths, cottages and lodges, trade, and shoo the raccoon. First to 10 points.', players: '2–4', kind: 'Board game' },
+  // Dev builds only until the referee is redeployed with flyer/*.js and 037_flyer_ghosts.sql is applied.
+  ...(import.meta.env?.DEV ? [{ id: 'flyer', name: 'Chatterflies', blurb: 'Hold to thrust, let go to fall: fly the lantern-lit Long Burrow as your own PNGtuber, dodge yarn, paper cranes and steam, and ride teapots.', players: '1–8', kind: 'Flying game' }] : []),
 ]
 export const GAME_LIST = GAME_INFO.map(g => [g.id, g.name])
 export const gameName = (id, fallback) => GAME_INFO.find(g => g.id === id)?.name || fallback
