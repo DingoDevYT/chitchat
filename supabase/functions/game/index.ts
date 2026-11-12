@@ -7,7 +7,7 @@
 //   { action: 'start', gameId }                       host: deal (also "Again?" after a round)
 //   { action: 'move', gameId, version, move }         your move; refused unless it's still `version`
 //   { action: 'tick', gameId }                        anyone watching, once `deadline` passes: a timeout or a Chitbot's turn
-//   { action: 'leave', gameId }                       host: close the table (anyone, once it's been idle 10 minutes)
+//   { action: 'leave', gameId }                       host or a server admin/mod: close the table, any state (anyone, once it's been idle 10 minutes)
 // The rules are the same files the browser uses (src/games/*), bundled at deploy time: see src/games/README.md.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { GAMES } from '../../../src/games/registry.js'
@@ -100,6 +100,7 @@ async function handle(req: Request, body: any) {
     }
     case 'bot': {
       if (!between) throw new Nope('Wait for this round to finish.')
+      if (R.meta.noBots) throw new Nope('This game has no Chitbots.')
       if (!mine) throw new Nope('Sit down first.')
       if (!LEVELS.includes(body.level)) throw new Nope('Easy, Normal or Hard?')
       const seat = freeSeat()
@@ -152,8 +153,9 @@ async function handle(req: Request, body: any) {
       return save(payload(R, st, next, seats))
     }
     case 'leave': {
+      // The host, anyone once it's been idle 10 minutes, or a server admin/mod (Manage rooms / Manage messages), in any state.
       const idle = Date.now() - Date.parse(g.updated_at) > 10 * 60_000
-      if (g.host_id !== uid && !idle) throw new Nope('Only the host can close the table.', 403)
+      if (g.host_id !== uid && !idle && !(await isMod(asUser, g.channel_id))) throw new Nope('Only the host or a server admin can close the game.', 403)
       const { error } = await db.from('games').delete().eq('id', g.id)
       if (error) throw new Nope(error.message)
       if (g.game === 'pillow') await tidyCries(dropCries(g.id), sweepCries())
@@ -185,6 +187,17 @@ async function sweepCries() {
   for (const id of ids) if (!keep.has(id)) await dropCries(id)
 }
 const tidyCries = (...jobs: Promise<unknown>[]) => Promise.all(jobs).catch(e => console.warn('battle-cries cleanup', e))
+
+// Server admins and mods may close any game in their stadiums (public.has_perm, asked as the caller).
+async function isMod(asUser: any, cid: string) {
+  const { data: ch } = await db.from('channels').select('server_id').eq('id', cid).maybeSingle()
+  if (!ch?.server_id) return false
+  for (const perm of ['manage_channels', 'manage_messages']) {
+    const { data } = await asUser.rpc('has_perm', { sid: ch.server_id, perm })
+    if (data === true) return true
+  }
+  return false
+}
 
 const stamp = (R: any, a: any) => (R.meta.realtime ? { ...(a || {}), now: Date.now() } : a)
 

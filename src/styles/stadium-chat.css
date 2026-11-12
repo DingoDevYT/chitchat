@@ -8,10 +8,23 @@
 @keyframes sc-in { from { transform: translateX(24px); opacity: 0; } }
 @keyframes sc-up { from { transform: translateY(48px); opacity: 0; } }
 @media (max-width: 1100px) { .stadium-chat { width: 300px; } }
+.stadium-chat-close { display: none; }
 @media (max-width: 720px) {
+  /* the sheet stops above a slim call bar (Mute / Deafen / Leave stay a tap away while you chat) */
+  .stadium-split { --sc-bar: calc(60px + env(safe-area-inset-bottom)); }
   .stadium-chat {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; width: auto; height: 72vh; height: 72dvh;
+    position: fixed; left: 0; right: 0; bottom: var(--sc-bar); z-index: 45; width: auto; height: calc(72vh - 60px); height: calc(72dvh - 60px);
     border: 0; border-radius: var(--r-lg) var(--r-lg) 0 0; box-shadow: var(--shadow); animation-name: sc-up;
+  }
+  .stadium-split.chat-open .stage-actions {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 46; height: var(--sc-bar); align-items: center; flex-wrap: nowrap;
+    padding: 0 12px env(safe-area-inset-bottom); background: var(--bg); border-top: 2px dashed var(--stitch, var(--line));
+  }
+  .stadium-split.chat-open .stage-actions > .btn:not(.join-voice) { display: none; } /* Games, Show hidden: back when the chat closes */
+  .stadium-split.chat-open .stage-actions .join-voice { min-height: 0; padding-block: 8px; }
+  .stadium-chat-close {
+    display: inline-flex; align-items: center; gap: 4px; position: absolute; top: -16px; left: 50%; transform: translateX(-50%); z-index: 2;
+    padding: 6px 16px 6px 12px; border-radius: 999px; background: var(--bg-2); color: var(--text); font-weight: 800; font-size: 13px; box-shadow: var(--shadow);
   }
 }
 

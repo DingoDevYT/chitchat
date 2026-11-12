@@ -15,10 +15,13 @@ import { SoundControl } from './SoundControl.jsx'
 import './flyer.css'
 
 // Portrait phones: the tunnel is a landscape game, so ask for a turn (it still plays if you'd rather not).
-let rotateDismissed = false
+// "Play upright" sticks across loads.
+const ROTATE_KEY = 'fly-upright'
+let rotateDismissed = (() => { try { return localStorage.getItem(ROTATE_KEY) === '1' } catch { return false } })()
 function RotateHint() {
   const [gone, setGone] = useState(rotateDismissed)
   if (gone) return null
+  const dismiss = () => { rotateDismissed = true; setGone(true); try { localStorage.setItem(ROTATE_KEY, '1') } catch { /* private mode */ } }
   return (
     <div className="fly-rotate" role="dialog" aria-label="Turn your phone sideways">
       <div className="fly-rotate-card">
@@ -28,7 +31,7 @@ function RotateHint() {
         </svg>
         <b>Turn your phone sideways</b>
         <small>Chatterflies flies best in landscape</small>
-        <button type="button" className="btn" onClick={() => { rotateDismissed = true; setGone(true) }}>Play upright</button>
+        <button type="button" className="btn" onClick={dismiss}>Play upright</button>
       </div>
     </div>
   )

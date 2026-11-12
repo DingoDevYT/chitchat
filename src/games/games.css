@@ -9,6 +9,20 @@ body .gs-loading { position: absolute; inset: 0; display: grid; place-items: cen
 body .stage.game-full .stage-crowd { display: none; }
 body .stage.game-full .stage-screen { margin-bottom: 0 !important; }
 body .stage.game-full .stadium { padding-bottom: 8px; }
+/* real fullscreen (Voice.jsx toggleFull) puts the whole stadium split in the browser's top layer: no room header,
+   the stage keeps its call controls and the chat still opens beside or over it */
+body .stadium-split:fullscreen { background: var(--bg); width: 100%; height: 100%; }
+body .stadium-split:-webkit-full-screen { background: var(--bg); width: 100%; height: 100%; }
+body .stadium-split:fullscreen .stage > .room-head { display: none; }
+body .stadium-split:-webkit-full-screen .stage > .room-head { display: none; }
+/* no element fullscreen (iPhone Safari): the stadium covers the whole page instead, edge to edge */
+body .stadium-split:has(> .stage.page-full) { position: fixed; inset: 0; z-index: 40; height: auto; background: var(--bg);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+body .stage.page-full > .room-head { display: none; }
+/* while the game's code loads (Voice.jsx Suspense) */
+body .gs-setup { inset: 6px; border-radius: calc(var(--r-lg) - 6px); background: #2a1f2b; align-content: center; gap: 10px; animation: gs-setup-in .3s ease both .15s; }
+body .gs-setup .dots i { width: 9px; height: 9px; background: #e8d9c4; }
+@keyframes gs-setup-in { from { opacity: 0; } }
 
 /* ── the 3D table and the people on it ── */
 body .g3d, body .g3d canvas { position: absolute !important; inset: 0; }

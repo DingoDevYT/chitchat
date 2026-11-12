@@ -3,6 +3,7 @@ import { GAMES } from './registry.js'
 import { gameName } from './useGame'
 import { ensureProfiles, profiles } from '../lib/store'
 import { ask } from '../Dialog'
+import { app } from '../menus'
 import { uiAudio, uiSound } from '../lib/animalese'
 import { playSfx, sfxFor } from './sfx'
 import Icon from '../icons/Icon'
@@ -147,11 +148,15 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
   // Screen readers hear every move and whose turn it is.
   const said = v && !lobby ? [UI.lastText(v, nm), UI.banner(v, nm, meId)].filter(Boolean).join(' ') : ''
-  const close = async () => { if (await ask({ text: `Close the ${title} table for everyone?`, confirm: 'Close table', danger: true })) run('leave') }
+  // The host, or a server admin/mod (Manage rooms or Manage messages, checked again by the referee), can close the game
+  // in any state, seated or not. The button lives in `tools`, which every game shows (also while fullscreen).
+  const mod = !!(app.ctx?.can?.('manage_channels') || app.ctx?.can?.('manage_messages'))
+  const canClose = host || mod
+  const close = async () => { if (await ask({ text: `Close the ${title} game for everyone?${host ? '' : ' (You are closing it as a server admin.)'}`, confirm: 'Close game', danger: true })) run('leave') }
   const tools = (
     <span className="gs-tools">
-      <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Back to the stadium screen' : 'Full view'} aria-label={full ? 'Back to the stadium screen' : 'Full view'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
-      {host && <button className="icon-btn gs-btn" onClick={close} title="Close table" aria-label="Close table"><Icon name="close" size={18} /></button>}
+      <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Exit fullscreen (Esc)' : 'Fullscreen'} aria-label={full ? 'Exit fullscreen' : 'Fullscreen'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
+      {canClose && <button className="icon-btn gs-btn" onClick={close} title="Close game" aria-label="Close game"><Icon name="close" size={18} /></button>}
     </span>
   )
 
@@ -222,7 +227,7 @@ function LobbyButtons({ again, seated, joined, busy, run, seats, R, level, setLe
         {host && <button className="btn primary" disabled={busy || seats.length < R.meta.min} onClick={() => run('start')}>{again ? 'Again?' : 'Start'}</button>}
         {!host && again && <span className="muted small">Waiting for the host to go again.</span>}
       </div>
-      {seated && !full && (
+      {seated && !full && !R.meta.noBots && (
         <div className="gs-row gs-bots">
           <span className="seg" role="radiogroup" aria-label="Bot difficulty">
             {Object.entries(LEVEL_NAMES).map(([k, l]) => <button key={k} role="radio" aria-checked={level === k} className={level === k ? 'on' : ''} onClick={() => setLevel(k)}>{l}</button>)}

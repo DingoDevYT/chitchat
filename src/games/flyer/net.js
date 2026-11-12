@@ -15,6 +15,9 @@ export function ghostLink(channelId, me) {
   const buf = new Map() // pid -> [older, newer] samples with local receive time
   const rescues = []
   if (!channelId) return { send() {}, sample: () => null, close() {}, rescue() {}, rescued: () => null }
+  // Only send once joined: before that supabase-js falls back to REST broadcasts, which fail on a cold start.
+  // Earlier updates are dropped, not queued (a newer position follows in 80 ms anyway).
+  let ok = true, live = false
   const ch = supabase.channel(`fly:${channelId}`, { config: { private: true, broadcast: { self: false } } })
   ch.on('broadcast', { event: 'p' }, ({ payload: m }) => {
     if (!m || typeof m.id !== 'string' || m.id === me) return
@@ -23,12 +26,11 @@ export function ghostLink(channelId, me) {
     buf.set(m.id, [b[1] || s, s])
   }).on('broadcast', { event: 'r' }, ({ payload: m }) => {
     if (m && m.to === me && typeof m.id === 'string' && m.id !== me) rescues.push(m.id)
-  }).subscribe()
-  let ok = true
+  }).subscribe(status => { live = status === 'SUBSCRIBED' && ok })
   return {
     // The bubble goes out exactly (it's checked against the rescuer's replay), the rest rounded.
     send(st) {
-      if (!ok) return
+      if (!ok || !live) return
       const b = st.bub ? [st.bub.n0, st.bub.d0, st.bub.y0] : 0
       ch.send({ type: 'broadcast', event: 'p', payload: { id: me, y: Math.round(st.y), d: Math.round(st.d), v: st.veh, f: st.flip, a: st.alive, b, k: !!st.spin } })
     },
@@ -41,10 +43,14 @@ export function ghostLink(channelId, me) {
       const f = span > 0 ? Math.max(0, Math.min(1.5, (t - p.t) / span)) : 1
       return { y: p.y + (q.y - p.y) * Math.min(1, f), d: p.d + (q.d - p.d) * f, veh: q.v, flip: q.f, alive: q.a, bub: q.b, spin: q.k }
     },
-    // Tell a friend you flew through their bubble (at your tick t).
-    rescue(to, t) { if (ok) ch.send({ type: 'broadcast', event: 'r', payload: { id: me, to, t } }) },
+    // Tell a friend you flew through their bubble (at your tick t). Retried a few times if we're not joined yet: it matters.
+    rescue(to, t) {
+      let n = 0
+      const go = () => { if (!ok) return; if (live) ch.send({ type: 'broadcast', event: 'r', payload: { id: me, to, t } }); else if (n++ < 20) setTimeout(go, 100) }
+      go()
+    },
     // Who popped my bubble, if anyone has since the last call.
     rescued: () => rescues.shift() ?? null,
-    close() { ok = false; supabase.removeChannel(ch) },
+    close() { ok = live = false; supabase.removeChannel(ch) },
   }
 }

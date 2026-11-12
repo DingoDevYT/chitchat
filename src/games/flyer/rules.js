@@ -27,7 +27,8 @@ export const LEAD_MS = 6000 // line-up countdown before everyone launches
 const GRACE_MS = 20000, CLOCK_SLACK_MS = 15000
 export const RESCUE_LAG = 90, RESCUE_EARLY = 30 // ticks the rescue may trail / lead the rescuer's touch
 export const meta = {
-  name: 'Chatterflies', min: 1, max: 8, turnMs: MAX_TICKS * TICK_MS + GRACE_MS,
+  // noBots: people only (the referee refuses Chitbot seats; the pilot code stays for tests and the lab).
+  name: 'Chatterflies', min: 1, max: 8, noBots: true, turnMs: MAX_TICKS * TICK_MS + GRACE_MS,
   blurb: 'Hold to thrust, let go to fall: fly the Long Burrow as your own PNGtuber, dodge yarn, cranes, looms and steam, and scoop sprinkles.',
 }
 const isBot = pid => typeof pid === 'string' && pid.startsWith('bot:')

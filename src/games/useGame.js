@@ -10,14 +10,15 @@ export const GAME_INFO = [
   { id: 'snack', name: 'Chomp Chat', blurb: 'Match snack flavours and numbers, dodge the Feast, and empty your hand first. Say "Last bite!" on your last card.', players: '2–10', kind: 'Card game' },
   { id: 'property', name: 'Chatterton', blurb: 'Roll around a cozy town, buy streets, trade, build cottages and inns, and charge rent until everyone else is broke.', players: '2–6', kind: 'Board game' },
   { id: 'poker', name: 'Chips & Chatter', blurb: "Texas hold'em with pretend acorns: bet, bluff and read your friends. Tips for newcomers built in.", players: '2–8', kind: 'Card game' },
-  { id: 'highcard', name: 'Chit Flip', blurb: 'Everyone gets one hidden card: keep it or swap it once. Highest card wins. Thirty seconds of chaos.', players: '2–10', kind: 'Quick game' },
   { id: 'isle', name: 'Chitter Cove', blurb: 'Gather twigs, wool, clay, berries and tea on a cozy island, build paths, cottages and lodges, trade, and shoo the raccoon. First to 10 points.', players: '2–4', kind: 'Board game' },
   { id: 'chitchen', name: 'Midnight Chitchen', blurb: 'Bake through the night as a little TV-head, but a Nibbler or two is tucking bakers in for naps. Talk it out over tea, then spoon your suspect.', players: '4–8', kind: 'Party game' },
   { id: 'flyer', name: 'Chatterflies', blurb: 'Hold to thrust, let go to fall: fly the lantern-lit Long Burrow as your own PNGtuber, dodge yarn, paper cranes and steam, and ride teapots.', players: '1–8', kind: 'Flying game' },
   { id: 'pillow', name: 'Pillow Chit Fight', blurb: 'Draw a champion for a silly title, record its battle cry through silly filters, and let the call vote on the pillow fight. Winners defend their title.', players: '2–8', kind: 'Party game' },
 ]
 export const GAME_LIST = GAME_INFO.map(g => [g.id, g.name])
-export const gameName = (id, fallback) => GAME_INFO.find(g => g.id === id)?.name || fallback
+// Chit Flip (highcard) is no longer listed, but its rules and UI stay registered so a table already open still works.
+const UNLISTED = { highcard: 'Chit Flip' }
+export const gameName = (id, fallback) => GAME_INFO.find(g => g.id === id)?.name || UNLISTED[id] || fallback
 
 // Calls the `game` edge function (the referee). Resolves to its JSON, or null after toasting why it said no.
 export async function callGame(body, quiet = false) {
