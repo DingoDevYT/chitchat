@@ -1,0 +1,20 @@
+/* Chatterflies HUD extras: brew tokens, the Flock total, missions, rescue and Second Brew callouts. */
+body .fly-tok, body .fly-flock { font-size: 17px; padding: 6px 12px; }
+body .fly-flock { background: #e6f1fa; color: #2f5a7a; white-space: nowrap; }
+body .fly-missions { position: absolute; left: 10px; top: 72px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
+body .fly-missions li { display: flex; align-items: center; gap: 7px; background: #fff8ecd9; color: #4a3324; border-radius: 12px; padding: 3px 10px 3px 6px; font: 700 13px Nunito, sans-serif; box-shadow: 0 2px 0 #0002; width: max-content; }
+body .fly-missions li i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #c9a27a; flex: none; }
+body .fly-missions li small { color: #8a6a58; font-variant-numeric: tabular-nums; }
+body .fly-missions li.done { background: #eaf4e8e6; color: #3f5f3a; }
+body .fly-missions li.done i { background: #8cc08a; border-color: #6fa86d; }
+body .fly-say { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); background: #fff3c4; color: #8a5a10; font: 800 20px Fredoka, Nunito, sans-serif; padding: 8px 20px; border-radius: 99px; box-shadow: 0 4px 0 #0003; pointer-events: none; white-space: nowrap; animation: fly-pop .3s ease; }
+@keyframes fly-pop { from { transform: translateX(-50%) scale(.6); opacity: 0; } }
+body .fly-bonk.bubble { top: auto; bottom: 18px; transform: translateX(-50%); color: #2f5a7a; font-size: 14px; }
+body .fly-bonk.bubble b { font-size: 22px; color: #2f7aa0; }
+body .fly-ribbon.mission { background: #fff3dc; } body .fly-ribbon.mission > i { background: #f2c14e; } body .fly-ribbon.mission b { color: #8a5a10; }
+body .fly-ribbon.rescue { background: #e3f4fb; } body .fly-ribbon.rescue > i { background: #7fc7d9; } body .fly-ribbon.rescue b { color: #2f6a80; }
+body .fly-ribbon.flock { background: #e6f1fa; } body .fly-ribbon.flock > i { background: #9fcbea; } body .fly-ribbon.flock b { color: #2f5a7a; }
+body .fly-mlist { margin: 4px 0 0; padding: 0; list-style: none; font-size: 13px; font-weight: 700; color: #6b5a50; }
+body .fly-mlist li.done { color: #3f5f3a; }
+body .fly-mlist li::before { content: '○ '; } body .fly-mlist li.done::before { content: '● '; color: #8cc08a; }
+@media (max-width: 700px) { body .fly-missions { top: 64px; } body .fly-missions li { font-size: 11px; } body .fly-flock { display: none; } }

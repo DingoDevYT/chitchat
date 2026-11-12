@@ -5,9 +5,10 @@ import {
   BALL_R, chunkOf, yarnEnds, speed,
 } from './course.js'
 import { BACK_W, NEAR_W } from './art.js'
+import { VEH_NAMES_2, drawVehicle } from './extras.js'
 
 const CH = FLOOR - CEIL
-export const VEH_NAMES = { trotter: 'Teapot Trotter · tap to hop', brolly: 'Brolly Glider · hold to rise', flip: 'Flip-Tub · tap to flip' }
+export const VEH_NAMES = { trotter: 'Teapot Trotter · tap to hop', brolly: 'Brolly Glider · hold to rise', flip: 'Flip-Tub · tap to flip', ...VEH_NAMES_2 }
 
 function tiles(g, img, off, w, y, h) {
   let x = -Math.round(((off % w) + w) % w)
@@ -33,7 +34,7 @@ export function drawFlyer(g, art, f) {
   const { x, y, face, veh, flip = 1, vy = 0, alpha = 1, t = 0, blink = false, size = 64 } = f
   g.save()
   g.globalAlpha = alpha * (blink && Math.floor(t * 12) % 2 ? 0.45 : 1)
-  if (veh === 'trotter') {
+  if (drawVehicle(g, art, f)) { /* the Teacup, Rocket Kettle and Sponge live in extras.js */ } else if (veh === 'trotter') {
     const bob = Math.abs(Math.sin(t * 14)) * (y >= BOT - 1 ? 4 : 0)
     g.drawImage(art.trotter, x - 76, y + R - 112 - bob, 150, 120)
     if (face) g.drawImage(face, x - 26, y - 70 - bob, 52, 52)
@@ -161,9 +162,9 @@ export function drawFrame(g, S) {
       const y = me.alive ? me.y : S.fall.y
       g.save()
       if (!me.alive) { g.translate(PX + S.fall.x, y); g.rotate(S.fall.r); g.translate(-PX - S.fall.x, -y) }
-      drawFlyer(g, art, { x: PX + (me.alive ? 0 : S.fall.x), y, face: S.face, veh: me.alive ? me.veh : null, flip: me.flip, vy: me.vy, t, blink: me.grace > 0 })
+      drawFlyer(g, art, { x: PX + (me.alive ? 0 : S.fall.x), y, face: S.face, veh: me.alive ? me.veh : null, flip: me.flip, vy: me.vy, t, blink: me.grace > 0, held: me.held })
       g.restore()
-      if (me.alive && me.veh) pill(g, VEH_NAMES[me.veh], PX + 40, me.veh === 'trotter' ? me.y - 104 : me.y - 92)
+      if (me.alive && me.veh) pill(g, VEH_NAMES[me.veh], PX + 40, me.y - ({ trotter: 104, cup: 124, rocket: 102 }[me.veh] || 92))
       if (me.alive && me.brew) g.drawImage(art.gift.brew, PX + 26, me.y - 52, 26, 26)
     }
     // Paper cranes: a warning at the right edge that follows your height, turns red and locks, then the crane.

@@ -1,18 +1,22 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  BOT, TOP, START, CHUNK, MAX_TICKS, TICK_MS, PX, LANES, VEHICLE_TICKS, STEAM_CHARGE, CRANE_TRACK, CRANE_LOCK,
-  chunkOf, course, makeWorld, metres, newRun, recorder, replay, sin, cos, speed, step,
+  BOT, TOP, MIDY, START, CHUNK, MAX_TICKS, TICK_MS, PX, LANES, VEHICLE_TICKS, STEAM_CHARGE, CRANE_TRACK, CRANE_LOCK,
+  LOOM_CHARGE, LOOM_FIRE, SPIN_TICKS, BUBBLE_TICKS, REVIVE_GRACE, CEIL, FLOOR, VEHICLES, MISSIONS,
+  bubbleAt, chunkOf, course, makeWorld, metres, missionMask, newRun, pickMissions, recorder, replay, sin, cos, speed, step,
+  touches, yarnEnds,
 } from './course.js'
 import { botRun, search } from './pilot.js'
 import * as R from './rules.js'
 
 // A hand-made tunnel for physics tests: everything empty unless given.
-const fake = (extra = {}, opts = {}) => {
+const fake = (extra = {}, opts = {}, seed = 0) => {
   const c = { k: 0, x0: START, x1: START + CHUNK, yarns: [], spr: [], parcels: [], events: [], ...extra }
   const empty = k => ({ k, x0: START + k * CHUNK, x1: START + (k + 1) * CHUNK, yarns: [], spr: [], parcels: [], events: [] })
-  return { seed: 0, opts: { whistle: false, strict: false, ...opts }, chunk: k => (k === 0 ? c : empty(k)) }
+  return { seed, opts: { whistle: false, flock: false, strict: false, ...opts }, chunk: k => (k === 0 ? c : empty(k)) }
 }
+// A wall of yarn from ceiling to floor at START + x (nothing gets past it).
+const wall = x => ({ x: START + x, y: 360, len: 600, a0: Math.PI / 2, w: 0 })
 const fly = (st, w, n, held) => { for (let i = 0; i < n; i++) step(st, w, typeof held === 'function' ? held(i) : held); return st }
 
 test('sin and cos match Math to 1e-6 everywhere', () => {
@@ -42,7 +46,7 @@ test('course: harder further in (more spinning yarn, cranes and steam), with a p
   const spin = c => c.yarns.filter(y => y.w).length, timed = c => c.events.length
   assert.ok(count(late, spin) > count(early, spin) * 1.5)
   assert.ok(count(late, timed) > count(early, timed))
-  for (let k = 0; k < 10; k++) assert.equal(course(7, k).parcels.length, 1)
+  for (let k = 0; k < 10; k++) assert.equal(course(7, k).parcels.filter(p => p.kind !== 'token').length, 1)
   assert.equal(course(7, 3, { noParcels: true }).parcels.length, 0)
   for (let k = 0; k < 20; k++) for (const e of course(3, k).events) if (e.type === 'steam') {
     assert.ok(e.lanes.length >= 1 && e.lanes.length <= 3) // at least two lanes always stay clear
@@ -160,9 +164,15 @@ test('sprinkles and Kettle Whistle', () => {
 // The heart of it: every chunk the generator makes can be flown without touching anything, from the floor, the
 // middle or the ceiling at its start. search() returns a path only after simulating it, so a found path is a proof.
 test('every generated chunk is survivable (search proves a clean path)', () => {
-  for (const seed of [1, 2, 3, 4, 2024]) {
+  const seen = {}
+  for (const seed of [1, 2, 3, 4, 5, 6, 2024]) {
     const world = makeWorld(seed, { noParcels: true, strict: true })
-    for (let k = 0; k < 14; k++) for (const y of [TOP, (TOP + BOT) / 2, BOT]) {
+    for (let k = 0; k < 16; k++) {
+      const c = world.chunk(k)
+      for (const e of c.events) { const key = e.type === 'loom' ? 'loom:' + e.pat : e.type === 'crane' && e.home ? `homing×${e.n}` : e.type; seen[key] = (seen[key] || 0) + 1 }
+      seen.slidingGate = (seen.slidingGate || 0) + c.yarns.filter(y => y.amp).length
+    }
+    for (let k = 0; k < 16; k++) for (const y of [TOP, (TOP + BOT) / 2, BOT]) {
       const st = newRun()
       Object.assign(st, { d: START + k * CHUNK, y, ek: k, ei: 0, strict: true })
       const ticks = Math.ceil(CHUNK / speed(st.d) * 60) + 30
@@ -174,6 +184,8 @@ test('every generated chunk is survivable (search proves a clean path)', () => {
       assert.ok(s.alive && s.d > START + (k + 1) * CHUNK)
     }
   }
+  // The proof really covered every kind of hazard, new ones included.
+  for (const key of ['crane', 'steam', 'gate', 'loom:pair', 'loom:cage', 'loom:sweep', 'homing×2', 'homing×3', 'slidingGate']) assert.ok(seen[key] > 0, `no ${key} in the proven chunks`)
 })
 
 test('replay: a recorded run replays exactly, and stops early when asked', () => {
@@ -243,4 +255,200 @@ test('referee: farthest wins, ties go to sprinkles, a dead heat shares the win',
   assert.deepEqual(R.over({ pub }), ['b'])
   pub.results.a.spr = 3
   assert.deepEqual(R.over({ pub }), ['a', 'b'])
+})
+
+test('course: looms, strand gates and homing volleys appear (more further in), and brew tokens ride along', () => {
+  const tally = ks => { const o = { loom: 0, gate: 0, home: 0, tok: 0 }; for (let seed = 1; seed <= 6; seed++) for (const k of ks) { const c = course(seed, k); for (const e of c.events) { if (e.type === 'loom') o.loom++; if (e.type === 'gate') o.gate++; if (e.type === 'crane' && e.home) o.home++ } o.tok += c.parcels.filter(p => p.kind === 'token').length } return o }
+  const early = tally([0, 1, 2]), late = tally([12, 13, 14])
+  assert.ok(late.loom > early.loom && late.home > early.home, JSON.stringify({ early, late }))
+  assert.ok(early.gate > 0 && late.tok + early.tok > 0)
+  for (let seed = 1; seed <= 4; seed++) for (let k = 0; k < 16; k++) {
+    const c = course(seed, k)
+    for (const e of c.events) if (e.type === 'loom') {
+      assert.ok(e.beams.every(b => b.y >= TOP && b.y <= BOT))
+      // Somewhere in the corridor there is always a band wider than the flyer that no strand of the loom covers.
+      const ys = [TOP - 40, ...e.beams.map(b => b.y).sort((a, b) => a - b), BOT + 40]
+      assert.ok(ys.some((y, i) => i && y - ys[i - 1] > 2 * 28 + 24), `loom ${e.pat} leaves no gap`)
+    }
+    // Gate strands come in pairs at one x: the gap between them is never under 175 px.
+    const gates = c.yarns.filter(y => y.a0 === Math.PI / 2 && (y.y - y.len / 2 < CEIL || y.y + y.len / 2 > FLOOR) && y.len > 0)
+    for (let i = 0; i + 1 < gates.length; i++) if (gates[i].x === gates[i + 1].x) {
+      const [top, bot] = gates[i].y < gates[i + 1].y ? [gates[i], gates[i + 1]] : [gates[i + 1], gates[i]]
+      for (const n of [0, 37, 200]) { const a = yarnEnds(top, n), b = yarnEnds(bot, n); assert.ok(Math.min(b[1], b[3]) - Math.max(a[1], a[3]) >= 175) }
+    }
+  }
+})
+
+test('vehicles 2: the Teacup bounces, the Rocket Kettle dashes, the Sponge flaps and soaks', () => {
+  const at = kind => fake({ parcels: [{ x: START + 40, y: BOT, kind }], spr: [{ x: START + 1300, y: BOT - 200 }] })
+  const start = w => { const s = newRun(); s.d = START; return fly(s, w, 3, false) }
+  // Teacup: never rests on the floor; holding through the fall slams down for a higher bounce.
+  let w = at('cup'), s = start(w)
+  assert.equal(s.veh, 'cup')
+  let floorRun = 0, maxRun = 0
+  for (let i = 0; i < 240; i++) { step(s, w, false); floorRun = s.y >= BOT ? floorRun + 1 : 0; maxRun = Math.max(maxRun, floorRun) }
+  assert.ok(maxRun <= 1, 'it bounces straight off the floor')
+  const peak = held => { const q = start(at('cup')); let p = BOT; for (let i = 0; i < 200; i++) { step(q, w, held && q.vy > 0); if (i > 120) p = Math.min(p, q.y) } return BOT - p }
+  assert.ok(peak(true) > peak(false) + 80, `slam ${peak(true)} vs float ${peak(false)}`)
+  assert.ok(peak(true) > 400, 'a big bounce reaches near the ceiling')
+  // Rocket Kettle: holding dashes forward 60% faster and climbs gently.
+  w = at('rocket')
+  const run = held => { const q = start(w); const d0 = q.d; fly(q, w, 60, held); return { dd: q.d - d0, q } }
+  const dash = run(true), coast = run(false)
+  assert.ok(dash.dd > coast.dd * 1.5, `${dash.dd} vs ${coast.dd}`)
+  assert.ok(dash.q.vy >= -440 && dash.q.y < BOT)
+  // Sprinkle Sponge: a tap is an instant flap; holding doesn't keep you up; sprinkles 200 px away get soaked up.
+  w = at('sponge'); s = start(w)
+  assert.equal(s.veh, 'sponge')
+  step(s, w, true)
+  assert.ok(s.vy < -700, 'flap')
+  fly(s, w, 40, true)
+  assert.equal(s.y, BOT, 'holding is not flying')
+  fly(s, w, 160, false)
+  assert.ok(s.y === BOT && s.spr === 1, 'soaked up from 200 px away')
+  assert.ok(VEHICLES.length === 6)
+})
+
+test('yarn looms tremble then snap tight; strand gates slide; homing cranes follow you', () => {
+  // Loom: safe while it charges, a bonk on its line once it fires, and outlasting it counts.
+  const loom = beams => fake({ events: [{ x: START + 10, type: 'loom', pat: 'pair', beams, dur: LOOM_CHARGE + LOOM_FIRE }] })
+  let w = loom([{ y: BOT, at: 0 }]), s = newRun(); s.d = START
+  fly(s, w, LOOM_CHARGE - 1, false)
+  assert.ok(s.alive)
+  fly(s, w, 3, false)
+  assert.equal(s.cause, 'loom')
+  w = loom([{ y: 300, at: 0 }]); s = newRun(); s.d = START
+  fly(s, w, LOOM_CHARGE + LOOM_FIRE + 10, false)
+  assert.ok(s.alive && s.looms === 1)
+  // Gate: through the gap is fine (and counts), the strand is a bonk.
+  const gate = (amp = 0) => fake({
+    yarns: [{ x: START + 600, y: (CEIL - 30 + 300) / 2, len: 300 - CEIL + 30, a0: Math.PI / 2, w: 0, amp, om: 2, ph: 0 },
+      { x: START + 600, y: (500 + FLOOR + 30) / 2, len: FLOOR + 30 - 500, a0: Math.PI / 2, w: 0, amp, om: 2, ph: 0 }],
+    events: [{ x: START + 640, type: 'gate' }],
+  })
+  s = newRun(); s.d = START; s.y = 400; w = gate()
+  fly(s, w, 90, () => s.y > 400)
+  assert.ok(s.alive && s.gates === 1)
+  s = newRun(); s.d = START; w = gate()
+  fly(s, w, 90, false)
+  assert.equal(s.cause, 'yarn')
+  const slide = gate(80).chunk(0).yarns[0]
+  assert.ok(Math.abs(yarnEnds(slide, 0)[1] - yarnEnds(slide, 47)[1]) > 60, 'the gap slides')
+  // Homing: after the lock, a homing crane keeps easing towards you; a plain one flies straight. Dodged ones count.
+  const drift = home => {
+    const ww = fake({ events: [{ x: START + 10, type: 'crane', n: 1, home }] })
+    const q = newRun(); q.d = START; q.y = 300
+    fly(q, ww, CRANE_TRACK + CRANE_LOCK + 2, () => q.y > 300)
+    const y0 = q.cr[0].y
+    fly(q, ww, 12, false) // drop towards the floor
+    return { moved: q.cr[0].y - y0, q, ww }
+  }
+  assert.ok(drift(true).moved > 25 && drift(false).moved === 0)
+  const { q, ww } = drift(false)
+  fly(q, ww, 120, false)
+  assert.ok(q.alive && q.dodged === 1)
+})
+
+test('Second Brew spin: brew tokens pull the reels at a bonk; three teapots fly on, the rest pay sprinkles', () => {
+  let revived = 0, landed = 0
+  for (let seed = 0; seed < 60 && (!revived || !landed); seed++) {
+    const w = fake({ parcels: [{ x: START + 40, y: BOT, kind: 'token' }, { x: START + 80, y: BOT, kind: 'token' }], yarns: [wall(500), wall(5000)] }, {}, seed)
+    const s = newRun(); s.d = START
+    fly(s, w, 5, false)
+    assert.equal(s.tok, 2)
+    while (s.alive && !s.spin) step(s, w, false)
+    assert.ok(s.spin && s.alive && s.cause === 'yarn')
+    const d = s.d, n0 = s.n, pulls = s.spin.pulls.length, spr0 = s.spr
+    assert.equal(s.tok, 2 - pulls)
+    fly(s, w, 10, true)
+    assert.equal(s.d, d, 'the flight waits for the reels')
+    while (s.spin) step(s, w, false)
+    assert.ok(s.n - n0 <= pulls * SPIN_TICKS)
+    if (s.alive) { revived++; assert.ok(s.revives === 1 && s.grace > REVIVE_GRACE - 3 && s.cr.length === 0) } else { landed++; assert.ok(s.spr > spr0 && s.spun === s.spr - spr0 && s.cause === 'yarn') }
+  }
+  assert.ok(revived && landed, `revived ${revived}, landed ${landed}`)
+})
+
+test('Flock bubbles: a bonk floats on in a bubble for 8 s; a rescue revives once; Chitbots get none', () => {
+  const w = fake({ yarns: [wall(500), wall(3000)] }, { flock: true })
+  let s = newRun(); s.d = START
+  while (!s.bub) step(s, w, false)
+  const b = { ...s.bub }
+  for (let i = 0; i < 100; i++) step(s, w, false)
+  const p = bubbleAt(b, s.n)
+  assert.ok(s.alive && s.d === p.d && s.y === p.y, 'the bubble is where bubbleAt says')
+  assert.ok(touches(b, s.n, p.d, p.y + 60) && !touches(b, s.n, p.d, p.y + 120))
+  while (s.alive) step(s, w, false)
+  assert.ok(s.n - b.n0 === BUBBLE_TICKS && s.d === b.d0 && s.cause === 'yarn', 'nobody came: you land where you bonked')
+  // Rescued: back in the air with grace, once.
+  s = newRun(); s.d = START
+  while (!s.bub) step(s, w, false)
+  fly(s, w, 50, false); step(s, w, false, false, true)
+  assert.ok(s.alive && !s.bub && s.rescued && s.bubLog.nR === s.n && s.grace > 0)
+  while (s.alive) step(s, w, false)
+  assert.ok(!s.bub && s.d > START + 2900, 'the second bonk is the last')
+  const bot = newRun({ bot: true }); bot.d = START
+  while (bot.alive) step(bot, w, false)
+  assert.equal(bot.bubLog, null)
+})
+
+test('replays: bots that whistle, spin and dodge looms replay to the same tick and the same sprinkles', () => {
+  let whistled = 0
+  for (const seed of [31, 62, 93]) for (const opts of [{ whistle: true }, { whistle: true, flock: true }]) {
+    const a = botRun(seed, 1, 'hard', opts)
+    whistled += a.log.w.length
+    const back = replay(seed, a.log, opts, MAX_TICKS, { bot: true })
+    assert.deepEqual([back.n, back.d, back.spr, back.revives, back.looms, back.gates], [a.st.n, a.st.d, a.st.spr, a.st.revives, a.st.looms, a.st.gates])
+  }
+  assert.ok(whistled > 0, 'Chitbots blow the Kettle Whistle')
+  assert.equal(botRun(31, 1, 'hard', {}).log.w.length, 0, 'not without the house rule')
+})
+
+test('missions: three per round from the seed, read from the replay', () => {
+  const a = pickMissions(5), b = pickMissions(5)
+  assert.deepEqual(a, b)
+  assert.equal(new Set(a.map(m => m.k)).size, 3)
+  assert.ok(a.every(m => MISSIONS[m.k].n.includes(m.n)))
+  const st = newRun(); st.d = 1000 * 50; st.spr = 45; st.gates = 9
+  assert.equal(missionMask([{ k: 'far', n: 900 }, { k: 'spr', n: 70 }, { k: 'gate', n: 4 }], st), 0b101)
+})
+
+test('referee: Flock rescue claims hold only if the rescuer really flew through the bubble', () => {
+  const seed = 4242, opts = { flock: true }, now = 1_000_000
+  // A sits on the floor until something gets them; C does the same (and so can't save anyone).
+  const lazy = replay(seed, { t: [] }, opts, MAX_TICKS, { noRescue: true })
+  const bub = { n0: lazy.bubLog.n0, d0: lazy.bubLog.d0, y0: lazy.bubLog.y0 }
+  // B flies cleanly (the look-ahead), steering for the bubble once it's out.
+  const world = makeWorld(seed, opts), st = newRun(), rec = recorder()
+  let touchAt = -1, h = false
+  while (st.alive && st.n < bub.n0 + 200) {
+    if (st.n % 5 === 0) { const tgt = st.n >= bub.n0 ? bubbleAt(bub, st.n + 10).y : MIDY; const r = search(world, st, 60, { target: tgt, maxNodes: 4000 }); h = r.path.length ? r.path[0] : st.y > tgt }
+    rec.input(st, h, false); step(st, world, h)
+    if (touchAt < 0 && st.alive && touches(bub, st.n, st.d, st.y)) touchAt = st.n
+  }
+  assert.ok(st.alive && touchAt > 0, `B touched the bubble at ${touchAt}`)
+  const bLog = rec.log, bTicks = st.n
+  const aLog = { t: [], r: [touchAt + 12], rb: 'B' }
+  const a = replay(seed, aLog, opts)
+  assert.ok(a.rescued && metres(a) > metres(lazy))
+  const late = now + R.LEAD_MS + MAX_TICKS * TICK_MS
+  let s = R.setup(['A', 'B', 'C'], seed, { now, flock: true })
+  s = R.move(s, 'A', { type: 'run', ticks: a.n, m: metres(a), spr: a.spr, log: aLog }, late)
+  assert.equal(s.pub.results.A.resc.ok, null, 'waits for the rescuer')
+  s = R.move(s, 'B', { type: 'run', ticks: bTicks, m: metres(st), spr: st.spr, log: bLog }, late)
+  assert.equal(s.pub.results.A.resc.ok, true)
+  assert.equal(s.pub.results.A.m, metres(a))
+  s = R.move(s, 'C', { type: 'run', ticks: lazy.n, m: metres(lazy), spr: lazy.spr, log: { t: [] } }, late)
+  assert.equal(s.pub.flock, metres(a) + metres(st) + metres(lazy))
+  assert.ok(s.pub.winner)
+  // The same claim naming C (who never came near) is replayed without the rescue.
+  let f = R.setup(['A', 'B', 'C'], seed, { now, flock: true })
+  f = R.move(f, 'C', { type: 'run', ticks: lazy.n, m: metres(lazy), spr: lazy.spr, log: { t: [] } }, late)
+  f = R.move(f, 'A', { type: 'run', ticks: a.n, m: metres(a), spr: a.spr, log: { ...aLog, rb: 'C' } }, late)
+  assert.equal(f.pub.results.A.resc.ok, false)
+  assert.equal(f.pub.results.A.m, metres(lazy))
+  // Without the Flock rule a rescue claim is ignored outright.
+  let n = R.setup(['A', 'B'], seed, { now })
+  n = R.move(n, 'A', { type: 'run', ticks: a.n, m: metres(a), spr: a.spr, log: aLog }, late)
+  assert.ok(!n.pub.results.A.resc && n.pub.results.A.m < metres(a))
 })

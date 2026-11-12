@@ -35,7 +35,10 @@ const HOUSE = {
     ['friendly', "Friendly raccoon: it won't bother anyone under 3 points"],
     ['bigBaskets', 'Big baskets: only put back on a 7 when holding more than 9'],
   ],
-  flyer: [['whistle', 'Kettle Whistle: talking (or sprinkles) fills a meter for a short steam burst you can fly through anything in']],
+  flyer: [
+    ['whistle', 'Kettle Whistle: talking (or sprinkles) fills a meter for a short steam burst you can fly through anything in'],
+    ['flock', 'Flock: fly as one team for a combined distance; a bonked friend floats in a bubble you can fly through to revive them once'],
+  ],
 }
 
 // WebGL, unless ?flat is in the address (forces the 2D table for testing).
