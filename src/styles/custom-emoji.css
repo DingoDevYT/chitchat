@@ -23,3 +23,9 @@
 @media (prefers-reduced-motion: reduce) {
   .emoji-ac button { transition: none; }
 }
+.ep-srv-tab.dragging { opacity: .4; }
+.ep-grid h4 { display: flex; align-items: center; }
+.ep-move { margin-left: auto; display: inline-flex; gap: 2px; }
+.ep-move button { display: grid; place-items: center; width: 22px; height: 20px; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+.ep-move button:hover:not(:disabled) { background: var(--bg-3); color: var(--text); }
+.ep-move button:disabled { opacity: .3; cursor: default; }

@@ -514,6 +514,9 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   const seat = id => ({ id, live: lives.includes(id), face: joined && faces[id] })
   const theme = useRoomTheme(channel, app.ctx?.server)
   const gameFull = prefs.use(s => !!g && s.gameView?.[g.game] === 'full') // screen or full view, per person per game
+  // Spotlights hold still and only sweep for a few seconds when someone arrives or leaves.
+  const [sweep, setSweep] = useState(true)
+  useEffect(() => { setSweep(true); const t = setTimeout(() => setSweep(false), 5000); return () => clearTimeout(t) }, [ids])
   const pickGame = e => openMenu(e, GAME_LIST.map(([id, label]) => ({ label, icon: 'cards', onClick: () => createGame(channel.id, id).then(r => r && table.refresh()) })))
 
   return (
@@ -524,7 +527,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
         <RoomTitle c={channel} />
       </header>
       <div className="stadium" ref={boxRef} style={crowd ? { '--floor': `${crowd.floor}px`, '--s': `${crowd.s}px` } : undefined}>
-        <div className={`stage-screen${main || g ? ' on' : ''}${g ? ' game' : ''}`} onContextMenu={main && !tiles && !g ? streamMenu(main) : undefined}>
+        <div className={`stage-screen${main || g ? ' on' : ''}${g ? ' game' : ''}${sweep ? ' sweep' : ''}`} onContextMenu={main && !tiles && !g ? streamMenu(main) : undefined}>
           {g ? (
             <>
               <Boundary key={g.id}><Suspense fallback={null}>
