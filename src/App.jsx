@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { Component, lazy, Suspense, useEffect, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { unlockAudio } from './lib/animalese'
 import Auth from './Auth'
@@ -14,6 +14,21 @@ const isDocs = () => location.hash.startsWith('#/docs')
 export function Splash({ children }) {
   return <div className="splash"><div className="col" style={{ alignItems: 'center', textAlign: 'center' }}>
     <Critter size={96} color="#ff9f6b" talk={!children} />{children}</div></div>
+}
+
+// A render crash takes down only its own pane (root: the whole app shows a calm Chit) instead of blanking the page.
+// Pane "Reload" just remounts that pane; the root one reloads the page.
+export class Boundary extends Component {
+  state = { err: null }
+  static getDerivedStateFromError(err) { return { err } }
+  componentDidCatch(err, info) { console.error(err, info.componentStack) }
+  render() {
+    if (!this.state.err) return this.props.children
+    const say = <p className="muted">Oops, something here tripped over its own feet.</p>
+    if (this.props.root) return <Splash>{say}<button className="btn primary" onClick={() => location.reload()}>Reload</button></Splash>
+    return <div className="welcome"><div className="welcome-card pop">
+      <Critter size={64} color="#ff9f6b" />{say}<button className="btn primary" onClick={() => this.setState({ err: null })}>Reload</button></div></div>
+  }
 }
 
 export default function App() {

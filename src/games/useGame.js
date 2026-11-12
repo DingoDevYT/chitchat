@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { freshChannel, supabase } from '../lib/supabase'
 import { toast } from '../lib/store'
 
 // Feature flag: stadium games show only in dev builds until the owner has tried them. Flip to `true` to ship.
@@ -37,7 +37,7 @@ export function useTable(channelId, meId, on = GAMES_ON) {
     if (!on || !channelId) return
     refresh()
     // Every write bumps games.version, so one subscription is enough to know when to re-read (hands included).
-    const ch = supabase.channel(`game:${channelId}`)
+    const ch = freshChannel(`game:${channelId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `channel_id=eq.${channelId}` }, refresh)
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'games' }, refresh) // deletes can't be filtered
       .subscribe(st => { if (st === 'SUBSCRIBED') refresh() })

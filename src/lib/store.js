@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
-import { supabase } from './supabase'
+import { freshChannel, supabase } from './supabase'
 import { friendly } from './errors'
 
 // Tiny global store. Selectors must return existing references or primitives.
@@ -31,7 +31,7 @@ export async function refreshProfile(id) {
 }
 // One realtime channel for every profile edit (avatar, name, colour, bio, voice...). Returns a cleanup.
 export function startProfileSync() {
-  const ch = supabase.channel('profiles')
+  const ch = freshChannel('profiles')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, ({ new: row }) => {
       if (profiles.get()[row.id]) primeProfiles([{ ...profiles.get()[row.id], ...row }])
     })

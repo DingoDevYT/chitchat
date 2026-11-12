@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App'
+import App, { Boundary } from './App'
 import { startLook } from './lib/look'
 import { uiSound } from './lib/animalese'
 import './styles.css'
@@ -28,4 +28,4 @@ const dev = devKey()
 const DevPage = dev && lazy(devPages[dev])
 if (import.meta.env.DEV) addEventListener('hashchange', () => { if (devKey() !== dev) location.reload() })
 
-createRoot(document.getElementById('root')).render(DevPage ? <Suspense><DevPage /></Suspense> : <App />)
+createRoot(document.getElementById('root')).render(DevPage ? <Suspense><DevPage /></Suspense> : <Boundary root><App /></Boundary>)

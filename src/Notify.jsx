@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { supabase } from './lib/supabase'
+import { freshChannel, supabase } from './lib/supabase'
 import { createStore, ensureProfiles, isDND, prefs, profiles, setPref, toast } from './lib/store'
 import { blockedDM, channelMuted } from './lib/mute'
 import { blocks, isBlocked } from './lib/blocks'
@@ -51,7 +51,7 @@ function startSync(userId) {
     if (data) notifyStore.set(s => ({ ...s, settings: Object.fromEntries(data.map(r => [r.target_id, r])) }))
   })
   load()
-  const ch = supabase.channel('notify:' + userId)
+  const ch = freshChannel('notify:' + userId)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notify_settings', filter: `user_id=eq.${userId}` }, ({ new: r }) => put(r))
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notify_settings', filter: `user_id=eq.${userId}` }, ({ new: r }) => put(r))
     // DELETE events can't be filtered and only carry the key

@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { supabase } from './lib/supabase'
+import { freshChannel, supabase } from './lib/supabase'
 import { online, prefs, setPref, toast } from './lib/store'
 import { uploadFile } from './lib/upload'
 import { IMAGE_TYPES, checkImage } from './lib/crop'
@@ -32,7 +32,7 @@ function useMemberIds(key) {
       for (const r of data) (m[r.server_id] ||= []).push(r.user_id)
       setMap(m)
     })
-    const ch = supabase.channel('rail-members:' + key)
+    const ch = freshChannel('rail-members:' + key)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'members' }, ({ new: r }) =>
         setMap(m => m[r.server_id] && !m[r.server_id].includes(r.user_id) ? { ...m, [r.server_id]: [...m[r.server_id], r.user_id] } : m))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'members' }, ({ old: r }) =>

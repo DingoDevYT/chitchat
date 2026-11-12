@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { Boundary } from './App'
 import { supabase } from './lib/supabase'
 import { online, setVoiceTalking, streams, cams, dropStream, toast, prefs, setPref, micLevel, pttDown, peerState, setPeerState, isDND } from './lib/store'
 import { peerStatus, diffMembers, playChime } from './lib/voicecues'
@@ -526,9 +527,9 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
         <div className={`stage-screen${main || g ? ' on' : ''}${g ? ' game' : ''}`} onContextMenu={main && !tiles && !g ? streamMenu(main) : undefined}>
           {g ? (
             <>
-              <Suspense fallback={null}>
+              <Boundary key={g.id}><Suspense fallback={null}>
                 <GameScreen table={table} meId={meId} joined={joined} full={gameFull} onFull={() => setPref('gameView', { ...prefs.get().gameView, [g.game]: gameFull ? 'screen' : 'full' })} />
-              </Suspense>
+              </Suspense></Boundary>
               {shown.length > 0 && !gameFull && <div className="stage-thumbs game-thumbs">{shown.map(id => <div key={id} className="stage-thumb" onContextMenu={streamMenu(id)} title="Live"><Screen stream={all[id]} /></div>)}</div>}
             </>
           ) : tiles ? (

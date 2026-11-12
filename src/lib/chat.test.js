@@ -1,7 +1,18 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { tokenize, isJumbo } from './markdown.js'
-import { startsGroup, mergeIncoming, applyReaction, summarizeReactions, overLimit } from './chat.js'
+import { startsGroup, mergeIncoming, applyReaction, summarizeReactions, overLimit, settleSent } from './chat.js'
+
+test('settleSent replaces the optimistic row even after it timed out to failed', () => {
+  const tmp = { id: 'tmp-1', key: 'tmp-1', failed: true, author_id: 'u', content: 'hi', reactions: [] }
+  const row = { id: 9, author_id: 'u', content: 'hi' }
+  assert.deepEqual(settleSent([tmp], 'tmp-1', row), [{ ...row, reactions: [], key: 'tmp-1' }])
+  // realtime delivered it first: the optimistic row just goes
+  assert.deepEqual(settleSent([tmp, { ...row, key: 9 }], 'tmp-1', row), [{ ...row, key: 9 }])
+  // the failed row was deleted meanwhile, but it did send: show it
+  assert.equal(settleSent([], 'tmp-1', row)[0].id, 9)
+  assert.equal(settleSent(null, 'tmp-1', row), null)
+})
 
 test('overLimit counts code points after trimming, like the DB check', () => {
   assert.equal(overLimit('a'.repeat(4000)), 0)
