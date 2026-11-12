@@ -19,7 +19,8 @@ import ThemeBackdrop, { useRoomTheme } from './themes/ThemeBackdrop'
 import { fitCrowd, ROW } from './lib/crowd'
 import { clampPan, zoomAt, toggleAt } from './lib/zoom'
 import './styles/stadium-crowd.css'
-import { GAMES_ON, GAME_LIST, useTable, create as createGame } from './games/useGame'
+import { GAMES_ON, useTable, create as createGame } from './games/useGame'
+import GamePicker from './games/GamePicker'
 
 const GameScreen = lazy(() => import('./games/GameScreen')) // games (and three.js) load only when a table opens
 
@@ -604,7 +605,8 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   // Spotlights hold still and only sweep for a few seconds when someone arrives or leaves.
   const [sweep, setSweep] = useState(true)
   useEffect(() => { setSweep(true); const t = setTimeout(() => setSweep(false), 5000); return () => clearTimeout(t) }, [ids])
-  const pickGame = e => openMenu(e, GAME_LIST.map(([id, label]) => ({ label, icon: 'cards', onClick: () => createGame(channel.id, id).then(r => r && table.refresh()) })))
+  const [picking, setPicking] = useState(false) // the Games panel (a grid of game cards with gameplay banners)
+  const pickGame = id => { setPicking(false); createGame(channel.id, id).then(r => r && table.refresh()) }
 
   return (
     <div className={`stage view-${view === 'list' ? 'list' : 'crowd'}${gameFull ? ' game-full' : ''}`} onContextMenu={e => openMenu(e, viewItems)}>
@@ -676,7 +678,8 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
         {joined && hidden.length > 0 && <button className="btn ghost" onClick={() => setHidden([])}><Icon name="eye" size={18} /> Show {hidden.length} hidden</button>}
         {joined && canShare && <button className={`btn ${live ? 'danger' : 'primary'}`} onClick={onLive}><Icon name={live ? 'stop' : 'screen'} size={18} /> {live ? 'Stop sharing' : 'Go live'}</button>}
         {joined && canCam && <button className={`btn ${cam ? 'danger' : 'primary'}`} onClick={onCam}><Icon name={cam ? 'camera-off' : 'camera'} size={18} /> {cam ? 'Camera off' : 'Camera'}</button>}
-        {joined && gamesOn && !g && <button className="btn primary" onClick={pickGame}><Icon name="cards" size={18} /> Games</button>}
+        {joined && gamesOn && !g && <button className="btn primary" onClick={() => setPicking(true)}><Icon name="cards" size={18} /> Games</button>}
+        {picking && <GamePicker onPick={pickGame} onClose={() => setPicking(false)} />}
       </div>
     </div>
   )

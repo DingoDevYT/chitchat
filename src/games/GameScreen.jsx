@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { GAMES } from './registry.js'
+import { gameName } from './useGame'
 import { ensureProfiles, profiles } from '../lib/store'
 import { ask } from '../Dialog'
 import { uiAudio, uiSound } from '../lib/animalese'
@@ -79,6 +80,7 @@ function Confetti() {
 export default function GameScreen({ table, meId, joined, full, onFull, channelName }) {
   const { game, seats, hand, act } = table
   const R = GAMES[game.game], UI = UIS[game.game]
+  const title = gameName(game.game, R.meta.name) // the picker name (Chomp Chat, Chatterton…) wins over the rules module name
   const [busy, setBusy] = useState(false)
   const [level, setLevel] = useState('normal')
   useProfiles(seats)
@@ -126,7 +128,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
   // Screen readers hear every move and whose turn it is.
   const said = v && !lobby ? [UI.lastText(v, nm), UI.banner(v, nm, meId)].filter(Boolean).join(' ') : ''
-  const close = async () => { if (await ask({ text: `Close the ${R.meta.name} table for everyone?`, confirm: 'Close table', danger: true })) run('leave') }
+  const close = async () => { if (await ask({ text: `Close the ${title} table for everyone?`, confirm: 'Close table', danger: true })) run('leave') }
   const tools = (
     <span className="gs-tools">
       <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Back to the stadium screen' : 'Full view'} aria-label={full ? 'Back to the stadium screen' : 'Full view'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
@@ -146,7 +148,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
         ? <UI.Hud v={v} me={meId} nm={nm} act={doAct} busy={busy} pending={pending} people={people} turnPid={turnPid}
           deadline={playing ? game.deadline : null} version={game.version} canPlay={playing && inRound} tools={tools} />
         : <div className="gs-top">
-          <span className="gs-title"><Icon name="cards" size={18} /> {R.meta.name}</span>
+          <span className="gs-title"><Icon name="cards" size={18} /> {title}</span>
           {v && !lobby && <span key={turnPid === meId ? 'mine' : 'other'} className={`gs-banner${turnPid === meId ? ' mine' : ''}`}>{UI.banner(v, nm, meId)}{playing && game.deadline && <Timer deadline={game.deadline} version={game.version} />}</span>}
           {tools}
         </div>}
@@ -154,7 +156,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
       {lobby && (
         <div className="gs-panel gs-lobby">
-          <h2>{R.meta.name}</h2>
+          <h2>{title}</h2>
           <p className="muted">{R.meta.blurb || 'A quick one to warm up.'} {R.meta.min}–{R.meta.max} players.</p>
           <p className="small">{seats.length} seated{seats.length < R.meta.min ? `, need ${R.meta.min - seats.length} more` : ''}. Everyone else watches from the crowd.</p>
           <LobbyButtons {...{ seated, joined, busy, run, seats, R, level, setLevel, host, game, meId }} />

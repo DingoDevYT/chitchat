@@ -4,8 +4,16 @@ import { toast } from '../lib/store'
 
 // Feature flag: stadium games show only in dev builds until the owner has tried them. Flip to `true` to ship.
 export const GAMES_ON = true
-// The Games picker (names match each rules module's meta.name; kept here so the picker doesn't load the rules).
-export const GAME_LIST = [['snack', 'Snack Stack'], ['property', 'Teacup Town'], ['poker', "Acorn Hold'em"], ['highcard', 'High card']]
+// The Games picker: display name, a one-line "what is it", player count, and a real gameplay banner (public/games/<id>.jpg).
+// Kept here so the picker doesn't load the rules; these names win over each rules module's meta.name on screen.
+export const GAME_INFO = [
+  { id: 'snack', name: 'Chomp Chat', blurb: 'Match snack flavours and numbers, dodge the Feast, and empty your hand first. Say "Last bite!" on your last card.', players: '2–10', kind: 'Card game' },
+  { id: 'property', name: 'Chatterton', blurb: 'Roll around a cozy town, buy streets, trade, build cottages and inns, and charge rent until everyone else is broke.', players: '2–6', kind: 'Board game' },
+  { id: 'poker', name: 'Chips & Chatter', blurb: "Texas hold'em with pretend acorns: bet, bluff and read your friends. Tips for newcomers built in.", players: '2–8', kind: 'Card game' },
+  { id: 'highcard', name: 'Chit Flip', blurb: 'Everyone gets one hidden card: keep it or swap it once. Highest card wins. Thirty seconds of chaos.', players: '2–10', kind: 'Quick game' },
+]
+export const GAME_LIST = GAME_INFO.map(g => [g.id, g.name])
+export const gameName = (id, fallback) => GAME_INFO.find(g => g.id === id)?.name || fallback
 
 // Calls the `game` edge function (the referee). Resolves to its JSON, or null after toasting why it said no.
 export async function callGame(body, quiet = false) {

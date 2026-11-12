@@ -85,7 +85,7 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
   return (
     <div className={`tt${panel === 'streets' ? ' tt-album-open' : ''}`} ref={root}>
       <Sprite />
-      <div className="tt-gtitle"><I n="cup" />Teacup Town</div>
+      <div className="tt-gtitle"><I n="cup" />Chatterton</div>
       <div className="tt-plank">
         <div className="tt-who"><b>{plank}</b><small>Round {v.round}{v.maxRounds ? `/${v.maxRounds}` : ''}</small></div>
         {deadline && !v.winner && <Steep deadline={deadline} version={version} />}
