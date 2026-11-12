@@ -18,8 +18,9 @@ export function nameOf(pid, seats) {
   return p?.display_name || p?.username || 'Someone'
 }
 // Everyone at the table in seat order: { pid, seat, user_id, bot, color }. During a round, the round's players.
-export function seatList(seats, pub) {
-  const all = seats.map(s => ({ pid: s.user_id || `bot:${s.seat}`, seat: s.seat, user_id: s.user_id, bot: s.bot, color: SEAT_COLORS[s.seat % 10] }))
+// away: people who left mid-round (src/games/away.js), drawn faded like anyone gone.
+export function seatList(seats, pub, away = []) {
+  const all = seats.map(s => ({ pid: s.user_id || `bot:${s.seat}`, seat: s.seat, user_id: s.user_id, bot: s.bot, color: SEAT_COLORS[s.seat % 10], gone: away.includes(s.user_id) || undefined }))
   if (!pub?.players) return all
   return pub.players.map((pid, i) => all.find(x => x.pid === pid) || { pid, seat: isBot(pid) ? seatOf(pid) : i, user_id: isBot(pid) ? null : pid, bot: isBot(pid) ? 'normal' : null, color: SEAT_COLORS[i % 10], gone: true })
 }

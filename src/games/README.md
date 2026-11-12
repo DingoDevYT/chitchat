@@ -15,12 +15,19 @@ The `game` edge function imports `../../../src/games/registry.js`, so it runs th
 - Supabase MCP `deploy_edge_function`, project `nilludyavkfqwastghmw`, name `game`, `verify_jwt: true`,
   `entrypoint_path: "supabase/functions/game/index.ts"`, and `files`:
   - `supabase/functions/game/index.ts`
-  - `src/games/registry.js`, `src/games/rng.js`
+  - `src/games/registry.js`, `src/games/rng.js`, `src/games/away.js`
   - `src/games/highcard/rules.js`, `src/games/snack/rules.js`, `src/games/poker/rules.js`, `src/games/property/rules.js`, `src/games/isle/rules.js`, `src/games/chitchen/rules.js`, `src/games/chitchen/map.js`
   - `src/games/flyer/rules.js`, `src/games/flyer/course.js`, `src/games/flyer/pilot.js`
   - `src/games/pillow/rules.js`, `src/games/pillow/ink.js`, `src/games/pillow/doodles.js`, `src/games/pillow/prompts.js`, `src/games/pillow/cries.js`
   (registry.js imports every game's rules, so any redeploy must bundle all of these files.)
 - Or with the CLI from the repo root: copy those files into a temp folder with the same relative paths and run `supabase functions deploy game --project-ref nilludyavkfqwastghmw`.
+
+## Leaving a game (`quit`, `away.js`)
+Seated players get **Leave game** in the shared tools bar (also in full view), with a confirm. The referee's `quit` works in any state (`away.js` `quitPlan`, tested in `away.test.js`):
+- Lobby or between rounds: same as `stand`.
+- Mid-round: the seat and pid stay (every game's state is keyed by pids, so nothing is renamed) and the uid goes into `games.opts.away` (public, so clients know). In a game with Chitbots, `tick` plays an away person's turns with `R.bot` at Normal from their own view, private hand included (`game_private` keeps it), on the bot's quick clock; quitting on your own turn pulls the deadline in. With `meta.noBots` (Chatterflies) their run just times out to 0 m. Real-time games only hand the stand-in what `turn()` names (Chitchen votes, clock ticks), so their drawing or chores lapse. The referee refuses `move` from an away person. When the round ends (`status: 'done'`), away seats are given up and the list cleared (`settleAway`), so they can sit again next round. `start` never passes `away` to `setup`.
+- A host who quits hands the table to the first other present person in seat order (`game_save` can't change `host_id`, so the referee updates `games` directly). If no present person would be left seated (Chitbots and away people don't count), the table closes.
+After leaving, `Voice.jsx` hides the table for you ("Show the game" brings it back); spectators get the same with **Back to stadium** in the tools bar. Away people are drawn faded at the table and walk back to the crowd.
 
 ## Chatterflies (flyer/): a real-time game in a turn-based referee
 Everyone flies at once, so the referee only judges the start and each landing. `course.js` is the pure tunnel generator and 60 Hz sim (same input log, same run, on every engine: no Math.sin/sqrt in anything that decides a hit), `pilot.js` the look-ahead search (tests prove every chunk is flyable) and the Chitbot pilots, `rules.js` the referee: bots' runs are flown from the seed when their "turn" comes just after the start, people post `{ type: 'run', ticks, log }` whenever they bonk and the referee replays the log (a few ms) and keeps the replayed distance. The timeout lands someone who vanished on 0 m. The UI brings its own full-screen `Stage` (GameScreen skips the 3D table for any UI module that exports one). Ghosts go over the private realtime topic `fly:<stadium id>`, which needs `supabase/migrations/037_flyer_ghosts.sql` applied. Real tables are people only: `meta.noBots` hides the bot controls and the referee refuses the `bot` action (the Chitbot pilots stay for tests and the lab). Play it locally: `#/table?g=flyer&n=4` (`&auto=1` lets a bot fly for you, `&veh=trotter|brolly|flip|cup|rocket|sponge`, `&tok=3` brew tokens, `&opts=whistle,flock`, `&lab=podium`).
