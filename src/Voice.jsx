@@ -24,7 +24,6 @@ import { GAMES_ON, useTable, create as createGame } from './games/useGame'
 import GamePicker from './games/GamePicker'
 import { Entrance, seatFx, useArrivals } from './Entrances'
 import { RadioCard, RadioDrawer, RadioPlayer } from './Radio'
-import { canFullscreen, enterFullscreen, exitFullscreen, useFullscreenEl } from './lib/fullscreen'
 
 const GameScreen = lazy(() => import('./games/GameScreen')) // games (and three.js) load only when a table opens
 
@@ -630,21 +629,19 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   const crowd = view !== 'list' && box.w ? fitCrowd(others.length, box.w, box.h * 0.5, list.includes(meId) && !atTable.has(meId)) : null
   const seat = id => ({ id, fx: fx[id], live: lives.includes(id), face: joined && faces[id], pin: joined && faces[id] && camItem(id) })
   const theme = useRoomTheme(channel, app.ctx?.server)
-  // Full view is the browser's real fullscreen on the stadium (stage, call controls and chat), so Esc or the browser's
-  // own exit lands back here. Where that isn't possible (iPhone Safari) the old in-page view stands in, per game.
-  const stageRef = useRef(null)
-  const fsEl = useFullscreenEl()
-  const nativeFull = !!g && !!fsEl && !!stageRef.current && fsEl.contains(stageRef.current)
-  const pageFull = prefs.use(s => !!g && s.gameView?.[g.game] === 'full')
-  const gameFull = nativeFull || pageFull
-  const setPageFull = on => setPref('gameView', { ...prefs.get().gameView, [g.game]: on ? 'full' : 'screen' })
-  const toggleFull = () => {
-    if (gameFull) { if (nativeFull) exitFullscreen(); if (pageFull) setPageFull(false); return }
-    const el = stageRef.current?.closest('.stadium-split') || stageRef.current
-    if (!canFullscreen) return setPageFull(true)
-    enterFullscreen(el, { landscape: g.game === 'flyer' }).then(ok => { if (!ok) setPageFull(true) })
-  }
-  useEffect(() => { if (!g && fsEl && stageRef.current && fsEl.contains(stageRef.current)) exitFullscreen() }, [g, fsEl]) // table closed: back to the window
+  // Full view: the stadium (game, call controls, chat) covers the whole app window inside the page (games.css), not the
+  // browser's fullscreen. Remembered per person per game; the same button or Esc goes back.
+  const gameFull = prefs.use(s => !!g && s.gameView?.[g.game] === 'full')
+  const toggleFull = () => setPref('gameView', { ...prefs.get().gameView, [g.game]: gameFull ? 'screen' : 'full' })
+  useEffect(() => {
+    if (!gameFull) return
+    const esc = e => {
+      if (e.key !== 'Escape' || e.defaultPrevented || e.target.closest?.('input, textarea, [contenteditable="true"]')) return
+      if (document.querySelector('.backdrop, .lightbox, .ctx-menu, [aria-modal="true"]')) return // that popup closes first
+      toggleFull()
+    }
+    addEventListener('keydown', esc); return () => removeEventListener('keydown', esc)
+  })
   // Spotlights hold still and only sweep for a few seconds when someone arrives or leaves.
   const [sweep, setSweep] = useState(true)
   useEffect(() => { setSweep(true); const t = setTimeout(() => setSweep(false), 5000); return () => clearTimeout(t) }, [ids])
@@ -652,7 +649,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   const pickGame = id => { setPicking(false); createGame(channel.id, id).then(r => r && table.refresh()) }
 
   return (
-    <div ref={stageRef} className={`stage view-${view === 'list' ? 'list' : 'crowd'}${gameFull ? ' game-full' : ''}${pageFull && !nativeFull ? ' page-full' : ''}`} onContextMenu={e => openMenu(e, viewItems)}>
+    <div className={`stage view-${view === 'list' ? 'list' : 'crowd'}${gameFull ? ' game-full' : ''}`} onContextMenu={e => openMenu(e, viewItems)}>
       <ThemeBackdrop theme={theme} variant="stadium" />
       <header className="chat-head room-head" style={roomVars(channel, app.ctx?.server)}>
         <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu"><Icon name="menu" /></button>

@@ -4,7 +4,6 @@ import { ensureProfiles, prefs, startProfileSync, toast, toasts, useProfile } fr
 import { startPresence, trackVoice } from './lib/presence'
 import { byPosition, moveId, step } from './lib/reorder'
 import { useDrag } from './lib/useDrag'
-import { FullscreenLayer } from './lib/fullscreen'
 import FriendsHome, { friendships, startFriends, useIncomingCount } from './Friends'
 import { Boundary, Splash } from './App'
 import Avatar, { CropImg } from './Avatar'
@@ -377,14 +376,11 @@ export default function Shell({ userId }) {
       {modal?.type === 'settings' && <Settings me={me} tab={modal.tab} onClose={() => setModal(null)} />}
       {modal?.type === 'forward' && <ForwardModal m={modal.message} ctx={ctx} servers={servers} onClose={() => setModal(null)} />}
 
+      <ConnBanner />
       <YouGotHost userId={userId} />
-      {/* a fullscreen game shows only its own element, so these follow it in there */}
-      <FullscreenLayer>
-        <ConnBanner />
-        <div className="toasts" aria-live="polite">
-          {toastList.map(t => <div key={t.id} className="toast pop">{t.text}</div>)}
-        </div>
-      </FullscreenLayer>
+      <div className="toasts" aria-live="polite">
+        {toastList.map(t => <div key={t.id} className="toast pop">{t.text}</div>)}
+      </div>
       <div className="scrim" onClick={() => setNavOpen(false)} />
     </div>
   )

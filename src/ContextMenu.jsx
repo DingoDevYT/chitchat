@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { overlayRoot } from './lib/fullscreen'
 import { createStore } from './lib/store'
 import { uiSound } from './lib/animalese'
 import Icon from './icons/Icon'
@@ -165,7 +164,7 @@ function Menu({ items, at, anchor, focus, onBack }) {
           </div>
         ))}
     </div>,
-    overlayRoot(),
+    document.body,
   )
 }
 

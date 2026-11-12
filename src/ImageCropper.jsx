@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { overlayRoot } from './lib/fullscreen'
 import Modal from './Modal'
 import { CropImg } from './Avatar'
 import { MAX_ZOOM, SHAPES, clampCrop, cropBox, isAnimatedWebp, zoomCrop } from './lib/crop'
@@ -117,6 +116,6 @@ export default function ImageCropper({ file, shape = 'circle', title = 'Crop ima
         <button type="button" className="btn primary" onClick={apply} disabled={!crop || busy}>{busy ? 'Uploading…' : 'Apply'}</button>
       </div>
     </Modal>,
-    overlayRoot(),
+    document.body,
   )
 }
