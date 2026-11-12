@@ -3,6 +3,8 @@ import { online, primeProfiles, setPref } from './lib/store'
 import { app } from './menus'
 import { VoiceStage } from './Voice'
 import { RadioPlayer, radio, radioApi, radioUi } from './Radio'
+import ContextMenuHost from './ContextMenu'
+import DialogHost from './Dialog'
 
 // Dev-only review sheet at #/radio: a stadium with Chit Radio on a mock state (no database, silent players).
 //   #/radio?drawer  queue drawer open · ?idle  nothing playing · ?out  not joined · ?min  card tucked away · ?member  not a mod
@@ -60,6 +62,8 @@ export default function RadioLab() {
           onLive={() => {}} onCam={() => {}} onMenu={() => {}} onLeave={() => {}} />
       </main>
       {!q.has('out') && <RadioPlayer cid={CID} deafened={vstate.deafened} />}
+      <ContextMenuHost />
+      <DialogHost />
     </div>
   )
 }

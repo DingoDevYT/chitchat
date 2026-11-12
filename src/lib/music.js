@@ -214,6 +214,10 @@ export const LOOPS = ['off', 'queue', 'one']
 export const loopOf = state => LOOPS.includes(state?.loop) ? state.loop : 'off'
 export const nextLoop = mode => LOOPS[(LOOPS.indexOf(LOOPS.includes(mode) ? mode : 'off') + 1) % LOOPS.length]
 export const LOOP_LABEL = { off: 'Loop off', queue: 'Looping the queue', one: 'Looping this song' }
+// The speaker icon for your music volume (an icons/paths name).
+export const volIcon = (vol, muted) => muted || !(vol > 0) ? 'volume-mute' : vol < 0.4 ? 'volume-low' : 'volume'
+// A slider's 0..100 back to the musicVol pref (0..1), clamped and rounded to whole percents.
+export const volFromPct = pct => Math.max(0, Math.min(100, Math.round(+pct || 0))) / 100
 
 // ── fast start ──
 // The song that plays after this one (so a hidden player can get it ready): looping one song plays it again; looping
