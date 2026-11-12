@@ -13,6 +13,7 @@ export const GAME_INFO = [
   { id: 'highcard', name: 'Chit Flip', blurb: 'Everyone gets one hidden card: keep it or swap it once. Highest card wins. Thirty seconds of chaos.', players: '2–10', kind: 'Quick game' },
   { id: 'isle', name: 'Chitter Cove', blurb: 'Gather twigs, wool, clay, berries and tea on a cozy island, build paths, cottages and lodges, trade, and shoo the raccoon. First to 10 points.', players: '2–4', kind: 'Board game' },
   { id: 'chitchen', name: 'Midnight Chitchen', blurb: 'Bake through the night as a little TV-head, but a Nibbler or two is tucking bakers in for naps. Talk it out over tea, then spoon your suspect.', players: '4–8', kind: 'Party game' },
+  { id: 'flyer', name: 'Chatterflies', blurb: 'Hold to thrust, let go to fall: fly the lantern-lit Long Burrow as your own PNGtuber, dodge yarn, paper cranes and steam, and ride teapots.', players: '1–8', kind: 'Flying game' },
 ]
 export const GAME_LIST = GAME_INFO.map(g => [g.id, g.name])
 export const gameName = (id, fallback) => GAME_INFO.find(g => g.id === id)?.name || fallback
