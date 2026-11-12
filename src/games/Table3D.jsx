@@ -749,12 +749,12 @@ function Raccoon({ pos }) {
 }
 const hover = on => { if (typeof document !== 'undefined') document.body.style.cursor = on ? 'pointer' : '' }
 const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
-function Glow({ children, onPick }) { // a pulsing tappable spot
-  const ref = useRef()
-  useFrame(({ clock }) => { if (ref.current) ref.current.scale.setScalar(reduced ? 1 : 1 + Math.sin(clock.elapsedTime * 5) * 0.1) })
-  return <group ref={ref} onClick={e => { e.stopPropagation(); hover(false); onPick() }} onPointerOver={e => { e.stopPropagation(); hover(true) }} onPointerOut={() => hover(false)}>{children}</group>
+// A tappable spot that flashes (opacity only: scaling the group moved spots off their corners and sides).
+function Glow({ children, onPick }) {
+  useFrame(({ clock }) => { glowMat.opacity = reduced ? 0.9 : 0.55 + 0.4 * (0.5 + 0.5 * Math.sin(clock.elapsedTime * 6)) })
+  return <group onClick={e => { e.stopPropagation(); hover(false); onPick() }} onPointerOver={e => { e.stopPropagation(); hover(true) }} onPointerOut={() => hover(false)}>{children}</group>
 }
-const glowMat = mat('isle-glowspot', () => new THREE.MeshBasicMaterial({ color: '#fff3a0', transparent: true, opacity: 0.95, toneMapped: false }))
+const glowMat = mat('isle-glowspot', () => new THREE.MeshBasicMaterial({ color: '#fff3a0', transparent: true, opacity: 0.95, toneMapped: false, depthWrite: false }))
 // The dice roll in a gap between two docks, clear of the HUD: the left side on wide screens, the far side on phones.
 const ISLE_DICE = { wide: [[-3.01, 1.34], [-3.23, 0.69]], tall: [[-1.1, -3.05], [-0.7, -3.22]] }
 
