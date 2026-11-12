@@ -16,8 +16,11 @@ The `game` edge function imports `../../../src/games/registry.js`, so it runs th
   `entrypoint_path: "supabase/functions/game/index.ts"`, and `files`:
   - `supabase/functions/game/index.ts`
   - `src/games/registry.js`, `src/games/rng.js`
-  - `src/games/highcard/rules.js`, `src/games/snack/rules.js`, `src/games/poker/rules.js`, `src/games/property/rules.js`, `src/games/isle/rules.js`
-  (registry.js imports Chitter Cove's rules, so any redeploy must bundle that file too, even while the game is dev-only in GAME_INFO.)
+  - `src/games/highcard/rules.js`, `src/games/snack/rules.js`, `src/games/poker/rules.js`, `src/games/property/rules.js`, `src/games/isle/rules.js`, `src/games/chitchen/rules.js`, `src/games/chitchen/map.js`
+  (registry.js imports Chitter Cove's and Midnight Chitchen's rules, so any redeploy must bundle those files too, even while a game is dev-only.)
 - Or with the CLI from the repo root: copy those files into a temp folder with the same relative paths and run `supabase functions deploy game --project-ref nilludyavkfqwastghmw`.
 
 A new game: add `<id>/rules.js` + `<id>/ui.jsx`, list it in `registry.js`, `GAME_LIST` (useGame.js) and `UIS` (GameScreen.jsx), add a scene in `Table3D.jsx`, then redeploy with the new file added. `npm test` runs every bot through whole games of every registered rules module.
+
+## Real-time games (Midnight Chitchen, `chitchen/`)
+`meta.realtime` games keep a game clock in `pub.clock`. The referee stamps setup (`opts.now`) and every move and tick with `now: Date.now()`, and skips the stale-version 409 for their moves (`game_save` still refuses a racing write). `turn()` names whoever has the next pending decision (a due Chitbot, a bot still to vote, else a clock keeper who can only send the `tick` timeout), and `delay()` is the time to the next scheduled event. Without `now` (tests) a tick jumps to the next event, so bots play whole nights in milliseconds. `meta.devOnly` keeps the referee from opening a table for it until it ships.
