@@ -1,0 +1,102 @@
+/* Acorn Hold'em: the teaching dock, nameplate badges, showdown card and How to play. `body` prefix: styles.css loads later. */
+body .pk-dock { width: 100%; container-type: inline-size; }
+body .pk-in { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+
+/* what's happening: stage track, pot, explain / help */
+body .pk-strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 8px; }
+body .pk-track { display: flex; gap: 2px; margin: 0; padding: 3px; list-style: none; border-radius: 999px; background: #1b1420cc; }
+body .pk-track li { padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #f6eee670; }
+body .pk-track li.done { color: #f6eee6c0; }
+body .pk-track li.now { background: var(--accent); color: var(--accent-ink, #1b1420); font-weight: 900; }
+body .pk-pot { padding: 3px 10px; border-radius: 999px; background: #1b1420cc; font-size: 13px; font-weight: 700; }
+body .pk-pot b { color: #ffd36e; }
+body .pk-link { display: inline-flex; align-items: center; gap: 4px; border: 0; padding: 5px 11px; border-radius: 999px; background: #1b1420cc; color: #f6eee6; font: inherit; font-size: 12.5px; font-weight: 800; cursor: pointer; box-shadow: 0 0 0 1px #ffffff26; }
+body .pk-link:hover { background: #2b2230; }
+body .pk-more { display: none; }
+body .pk-explain, body .pk-need { margin: 0; max-width: 560px; text-align: center; line-height: 1.35; text-shadow: 0 1px 2px #000c; }
+body .pk-explain { font-size: 13px; color: #e8d9c4; }
+body .pk-need { font-size: 14px; font-weight: 800; color: #f6eee6; }
+body .pk-need.owe { color: #ffd36e; }
+
+/* your hand in words */
+body .pk-hand { display: flex; align-items: center; gap: 12px; }
+body .pk-hand-words { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 14px; }
+body .pk-hand-words b { font-weight: 900; }
+body .pk-str { padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; background: #ffffff26; }
+body .pk-str.strong { background: #9bd17a; color: #1b1420; }
+body .pk-str.okay { background: #f2c14e; color: #1b1420; }
+body .pk-role { padding: 1px 8px; border-radius: 999px; background: #fbf3e4; color: #2b2230; font-size: 11.5px; font-weight: 800; font-style: normal; }
+
+/* actions: the main choice is the accent button, Fold sits quietly to the side */
+body .pk-acts { display: flex; gap: 8px; justify-content: center; width: 100%; max-width: 560px; }
+body .pk-act { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 10px; line-height: 1.15; }
+body .pk-act b { font-size: 15px; font-weight: 900; }
+body .pk-act small { font-size: 11.5px; font-weight: 600; opacity: .8; }
+body .pk-fold { flex-grow: .75; }
+body .pk-act.btn:not(.primary):not(.ghost) { background: #1b1420e0; color: #f6eee6; box-shadow: 0 0 0 2px #ffffff40, 0 6px 14px #0006; }
+/* phones: your corner avatar would sit on the Fold button, so it moves up under the top bar while you play */
+@media (max-width: 560px) { body .g-poker:has(.pk-dock) .g-me { bottom: auto; top: 52px; transform: scale(.7); transform-origin: 0 0; } }
+
+/* raise picker */
+body .pk-raise { width: 100%; max-width: 560px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 10px; border-radius: 16px; background: #1b1420eb; box-shadow: 0 0 0 1px #ffffff1a; }
+body .pk-presets { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+body .pk-chip { border: 0; padding: 5px 13px; border-radius: 999px; background: #ffffff1a; color: #f6eee6; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+body .pk-chip.on { background: var(--accent); color: var(--accent-ink, #1b1420); }
+body .pk-slide { display: flex; align-items: center; gap: 8px; width: 100%; }
+body .pk-slide input { flex: 1; min-width: 0; }
+body .pk-slide .icon-btn { background: #ffffff1a; color: #f6eee6; }
+body .pk-sum { margin: 0; font-size: 14px; text-align: center; }
+body .pk-sum b { color: #ffd36e; }
+
+/* showdown card */
+body .pk-results { max-width: 560px; padding: 10px 14px; border-radius: 16px; background: #fbf3e4f2; color: #2b2230; text-align: center; box-shadow: 0 6px 16px #0005; }
+body .pk-results p { margin: 0 0 4px; font-size: 14.5px; font-weight: 800; line-height: 1.3; }
+body .pk-results small { font-size: 12px; color: #5a4c5e; }
+body .pk-win-cards { display: flex; gap: 4px; justify-content: center; margin: 8px 0 4px; }
+body .pk-win-cards .gcard.win { transform: translateY(-4px); box-shadow: 0 0 0 3px #f2b84b, 0 4px 10px #0005; }
+body .pk-win-cards .gcard.dim { opacity: .4; }
+body .pk-win-cards .gcard.gap { margin-left: 10px; }
+body .g-poker:has(.pk-results) .gs-last { display: none; } /* the card already says it */
+
+/* nameplates: dealer / blinds and what they just did; folded players fade */
+body .pk-tags { display: flex; gap: 4px; justify-content: center; margin-top: 3px; }
+body .pk-badge { padding: 1px 8px; border-radius: 999px; background: #fbf3e4; color: #2b2230; font-size: 12px; font-weight: 900; }
+body .pk-badge.raise, body .pk-badge.allin { background: #f2b84b; }
+body .pk-badge.call { background: #7cc4b0; }
+body .pk-badge.check { background: #8fb3e8; }
+body .pk-badge.won { background: #9bd17a; }
+body .pk-badge.folded { background: #ffffff26; color: #f6eee6; }
+body .pk-badge.fresh { animation: pk-pop .5s var(--spring, ease-out); }
+@keyframes pk-pop { 0% { transform: scale(.4); opacity: 0; } 60% { transform: scale(1.2); } }
+body .gp:has(.pk-badge.folded) .gp-plate { opacity: .5; filter: grayscale(.7); }
+
+/* How to play */
+body .pk-help { width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; border: 0; padding: 18px 20px; border-radius: 22px; background: var(--bg-2); color: var(--text); box-shadow: var(--shadow); font-size: 14px; line-height: 1.45; }
+body .pk-help::backdrop { background: #140f18b3; }
+body .pk-help h2 { margin: 0 0 6px; font-size: 20px; }
+body .pk-help h3 { margin: 14px 0 4px; font-size: 15px; }
+body .pk-help p, body .pk-help ol { margin: 0 0 6px; }
+body .pk-help ol { padding-left: 20px; }
+body .pk-help dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; }
+body .pk-help dt { font-weight: 900; }
+body .pk-help dd { margin: 0; }
+body .pk-close { float: right; }
+body .pk-ranks { width: 100%; border-collapse: collapse; font-size: 13px; }
+body .pk-ranks th { text-align: left; padding: 3px 8px 3px 0; white-space: nowrap; }
+body .pk-ranks td { padding: 3px 6px 3px 0; border-top: 1px solid var(--line); }
+body .pk-ranks th { border-top: 1px solid var(--line); }
+body .pk-ex { white-space: nowrap; font-weight: 800; }
+
+/* phones: explanations fold away behind Explain, smaller cards */
+@container (max-width: 560px) {
+  body .pk-more { display: inline-flex; }
+  body .pk-dock:not(.open) .pk-explain { display: none; }
+  body .pk-track li { padding: 2px 6px; font-size: 11px; }
+  body .pk-hand .gcard { width: 46px; height: 66px; }
+  body .pk-act { padding: 7px 6px; }
+  body .pk-act b { font-size: 14px; }
+  body .pk-act small { font-size: 10.5px; }
+  body .pk-win-cards .gcard.small { width: 32px; height: 46px; }
+  body .pk-ranks td:nth-child(2) { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { body .pk-badge.fresh { animation: none; } }
