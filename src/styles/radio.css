@@ -71,6 +71,19 @@ body .radio-loop.on { color: var(--accent); background: color-mix(in srgb, var(-
 body .radio-loop:disabled { cursor: default; opacity: .9; }
 body .radio-loop-wide { display: inline-flex; align-items: center; gap: 6px; margin: 6px 4px 0; }
 body .radio-q { margin-left: auto; }
+/* your volume on the card: speaker (mutes) + a small slider; it takes the rest of the row, or a row of its own */
+body .radio-volc { display: inline-flex; align-items: center; gap: 2px; flex: 1 1 96px; min-width: 96px; max-width: 160px; }
+body .radio-ctl .radio-volc .icon-btn.on { color: var(--accent); }
+body .radio-volc-range { flex: 1; min-width: 0; width: 60px; margin: 0 4px 0 0; accent-color: var(--accent); cursor: pointer; }
+/* phones: just the speaker, which opens the little vertical slider below (in <body>, so nothing clips it) */
+body .radio-volpop {
+  position: fixed; z-index: 1000; translate: -50% 0; display: grid; justify-items: center; gap: 6px; padding: 10px 6px 6px;
+  border-radius: 16px; background: var(--bg-2); box-shadow: var(--shadow), inset 0 0 0 2px var(--line); color: var(--text);
+}
+body .radio-volpop b { font-weight: 800; font-variant-numeric: tabular-nums; }
+body .radio-volpop-range { writing-mode: vertical-lr; direction: rtl; width: 28px; height: 120px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+body .radio-volpop .icon-btn { width: 34px; height: 34px; border-radius: 50%; }
+body .radio-volpop .icon-btn.on { color: var(--accent); }
 body .radio-note { margin: 0; font-size: 12.5px; color: var(--muted); font-weight: 700; }
 
 /* Autoplay blocked: the whole card is the button */
@@ -129,6 +142,8 @@ body .radio-drawer footer .btn { justify-self: start; display: inline-flex; alig
   body .radio-art { width: 52px; height: 52px; border-radius: 12px; }
   body .radio-title { font-size: 14px; -webkit-line-clamp: 1; }
   body .radio-ctl .btn.small { padding: 6px 10px; }
+  body .radio-volc { flex: none; min-width: 0; }
+  body .radio-volc-range { display: none; }
 }
 @media (max-width: 720px) {
   /* chat sheet open: the stage's bottom is under it, so the card moves up to the stage's top-left */

@@ -5,11 +5,12 @@ import { createStore, online, prefs, setPref, toast, voiceLevels } from './lib/s
 import {
   AUDIO_EXT, LOOP_LABEL, MAX_QUEUE, MAX_UPLOAD, RADIO_OFF, anyoneTalking, duckStep, fmtTime, glide, isOver, isPaused, loopOf,
   mergeOffset, musicGain, nextLoop, parseMusicCommand, parseTrackUrl, pickOffset, position, radioGone, radioMode, rowFrom,
-  skipStatus, sourceUrl, syncMem, syncStep, titleFromFile, titleFromSc, ytThumb, canSkipNow, nextUp, RADIO_ORIGINS, ytPlayerVars, deckPlan, DEFAULT_MUSIC_VOL, outputVolume,
+  skipStatus, sourceUrl, syncMem, syncStep, titleFromFile, titleFromSc, ytThumb, canSkipNow, nextUp, RADIO_ORIGINS, ytPlayerVars, deckPlan, DEFAULT_MUSIC_VOL, outputVolume, volIcon, volFromPct,
 } from './lib/music'
 import { uploadFile } from './lib/upload'
 import { app } from './menus'
 import { ask } from './Dialog'
+import { openMenu } from './ContextMenu'
 import Avatar, { Name } from './Avatar'
 import Icon from './icons/Icon'
 import './styles/radio.css'
@@ -553,7 +554,97 @@ export function RadioPlayer({ cid, deafened }) {
   </>
 }
 
-// A line in the sidebar's call panel: what's on, with mute and skip a tap away from any page.
+// ── your music volume: one pref (musicVol / musicMuted / musicDuck) behind the card, the drawer, the menu and the mini ──
+export function setMusicVol(pct) {
+  setPref('musicVol', volFromPct(pct))
+  if (prefs.get().musicMuted) setPref('musicMuted', false) // moving the slider means you want to hear it
+}
+
+export async function turnOffRadio(cid) {
+  if (!await ask({ text: 'Turn Chit Radio off in this stadium? The music stops, the queue is cleared, and only mods can turn it back on.', confirm: 'Turn off', danger: true })) return false
+  if (!await act(cid, 'disable')) return false
+  radioUi.set({ open: null })
+  return true
+}
+
+// The right-click / long-press menu on the card (and, without queue and mod rows, on the sidebar's mini line).
+function radioItems(cid, { openQueue, loop, canLoop, mod } = {}) {
+  const P = prefs.get(), muted = !!P.musicMuted, vol = P.musicVol ?? DEFAULT_MUSIC_VOL, duck = P.musicDuck ?? true
+  return [
+    { label: muted ? 'Music volume (muted)' : 'Music volume', icon: volIcon(vol, muted),
+      slider: { value: Math.round(vol * 100), min: 0, max: 100, step: 1, format: v => `${Math.round(v)}%`, onChange: setMusicVol } },
+    { label: muted ? 'Unmute music' : 'Mute music', icon: muted ? volIcon(vol, false) : 'volume-mute', onClick: () => setPref('musicMuted', !muted) },
+    { label: 'Turn music down while people talk', checked: duck, onClick: () => setPref('musicDuck', !duck) },
+    openQueue && { separator: true },
+    openQueue && { label: 'Open queue', icon: 'stack', onClick: openQueue },
+    (canLoop || mod) && { separator: true },
+    canLoop && { label: 'Loop', icon: <LoopIcon one={loop === 'one'} size={17} />,
+      submenu: ['off', 'queue', 'one'].map(m => ({ label: LOOP_LABEL[m], checked: loop === m, onClick: () => setLoop(cid, m) })) },
+    mod && { label: 'Turn off radio in this stadium', icon: 'block', danger: true, onClick: () => turnOffRadio(cid) },
+  ]
+}
+
+// Speaker + slider. Where the slider fits (the card on a wide stage) the speaker mutes and the slider sits beside it;
+// where it doesn't (phones) the speaker opens a small vertical slider with the percentage and a mute button.
+function VolumeControl({ size = 18 }) {
+  const vol = prefs.use(s => s.musicVol ?? DEFAULT_MUSIC_VOL), muted = prefs.use(s => !!s.musicMuted)
+  const [popMode, setPopMode] = useState(false)
+  const [at, setAt] = useState(null) // the open popover's fixed position
+  const btn = useRef(null), inline = useRef(null), panel = useRef(null)
+  const pct = Math.round(vol * 100)
+  useLayoutEffect(() => {
+    const check = () => setPopMode(!inline.current || getComputedStyle(inline.current).display === 'none')
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(btn.current.closest('.stage') || btn.current) // the card's layout follows the stage's width (container query)
+    return () => ro.disconnect()
+  }, [])
+  useEffect(() => {
+    if (!at) return
+    panel.current?.querySelector('input')?.focus({ preventScroll: true })
+    const close = () => setAt(null)
+    const esc = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); btn.current?.focus() } }
+    const down = e => { if (!panel.current?.contains(e.target) && !btn.current?.contains(e.target)) close() }
+    addEventListener('keydown', esc, true)
+    document.addEventListener('pointerdown', down, true)
+    addEventListener('resize', close)
+    return () => { removeEventListener('keydown', esc, true); document.removeEventListener('pointerdown', down, true); removeEventListener('resize', close) }
+  }, [at])
+  useEffect(() => { if (!popMode) setAt(null) }, [popMode])
+  const toggleMute = () => setPref('musicMuted', !muted)
+  const click = () => {
+    if (!popMode) return toggleMute()
+    if (at) return setAt(null)
+    const r = btn.current.getBoundingClientRect()
+    setAt({ left: r.left + r.width / 2, ...(r.top > 200 ? { bottom: innerHeight - r.top + 8 } : { top: r.bottom + 8 }) })
+  }
+  const range = (ref, cls) => (
+    <input ref={ref} className={cls} type="range" min="0" max="100" value={pct} aria-label="Music volume"
+      aria-valuetext={muted ? `${pct}%, muted` : `${pct}%`} title={muted ? 'Music muted' : `Music volume ${pct}%`}
+      onChange={e => setMusicVol(e.target.value)} />
+  )
+  return (
+    <span className="radio-volc">
+      <button ref={btn} className={`icon-btn${muted ? ' on' : ''}${at ? ' open' : ''}`} onClick={click}
+        aria-pressed={popMode ? undefined : muted} aria-expanded={popMode ? !!at : undefined} aria-haspopup={popMode ? 'dialog' : undefined}
+        title={popMode ? `Music volume${muted ? ' (muted)' : ` ${pct}%`}` : muted ? 'Unmute music' : 'Mute music (just for you)'}
+        aria-label={popMode ? 'Music volume' : muted ? 'Unmute music' : 'Mute music'}><Icon name={volIcon(vol, muted)} size={size} /></button>
+      {range(inline, 'radio-volc-range')}
+      {at && createPortal(
+        <div className="radio-volpop pop" role="dialog" aria-label="Music volume" ref={panel} style={at}
+          onContextMenu={e => e.preventDefault()}>
+          <b className="small">{muted ? 'Muted' : `${pct}%`}</b>
+          {range(null, 'radio-volpop-range')}
+          <button className={`icon-btn${muted ? ' on' : ''}`} onClick={toggleMute} aria-pressed={muted}
+            aria-label={muted ? 'Unmute music' : 'Mute music'} title={muted ? 'Unmute music' : 'Mute music (just for you)'}>
+            <Icon name={muted ? 'volume-mute' : volIcon(vol, false)} size={18} /></button>
+        </div>, document.body)}
+    </span>
+  )
+}
+
+// A line in the sidebar's call panel: what's on, with mute and skip a tap away from any page. Right-click or
+// long-press it for the volume slider and ducking (no room for a slider in the line itself).
 export function RadioMini({ cid }) {
   const row = radio.use(s => s[cid])
   const muted = prefs.use(s => !!s.musicMuted)
@@ -563,7 +654,7 @@ export function RadioMini({ cid }) {
   const st = row.state
   const sk = skipStatus(st, meId(), listenersIn(cid), isMod())
   return (
-    <div className="radio-mini">
+    <div className="radio-mini" onContextMenu={e => openMenu(e, () => radioItems(cid))}>
       <span className={`radio-eq${!isPaused(st) && !muted ? ' on' : ''}`} aria-hidden="true"><i /><i /><i /></span>
       <span className="radio-mini-title" title={`Chit Radio: ${track.title}`}>{track.title}</span>
       {blocked && <button className="icon-btn" onClick={() => { onBlocked(false); dispatchEvent(new Event('radio-tap')) }} title="Tap to listen" aria-label="Start the music"><Icon name="play" size={15} /></button>}
@@ -620,7 +711,6 @@ export function RadioCard({ channel, meId: me, joined, deafened, listeners }) {
   const row = radio.use(s => s[cid])
   const st = row?.state || {}, track = st.track
   const min = prefs.use(s => !!s.radioMin)
-  const muted = prefs.use(s => !!s.musicMuted)
   const blocked = radioPlay.use(s => s.blocked)
   const starting = radioPlay.use(s => s.starting)
   const pending = radioPending.use(s => s[cid])
@@ -653,9 +743,10 @@ export function RadioCard({ channel, meId: me, joined, deafened, listeners }) {
   // "starting…": a song just went in (title on its way), or the player hasn't made a sound yet
   const shown = track || pending
   const isStarting = (!track && !!pending) || (plays && starting && !isPaused(st) && !blocked)
+  const menu = e => openMenu(e, () => radioItems(cid, { openQueue, loop, canLoop: (!!track && owner) || mod, mod }))
 
   return (
-    <section className={cls} aria-label="Chit Radio">
+    <section className={cls} aria-label="Chit Radio" onContextMenu={menu}>
       <div className="radio-top">
         <span className="radio-art">
           <Art track={shown} />
@@ -697,13 +788,10 @@ export function RadioCard({ channel, meId: me, joined, deafened, listeners }) {
             </button>
           )}
           {track && (owner || loop !== 'off') && <LoopButton cid={cid} loop={loop} can={owner} />}
-          {joined && (
-            <button className={`icon-btn${muted ? ' on' : ''}`} onClick={() => setPref('musicMuted', !muted)} aria-pressed={muted}
-              title={muted ? 'Unmute music' : 'Mute music (just for you)'} aria-label={muted ? 'Unmute music' : 'Mute music'}><Icon name={muted ? 'volume-mute' : 'volume'} size={18} /></button>
-          )}
           <button className="btn small ghost radio-q" onClick={openQueue} data-radio-open="">
             <Icon name="stack" size={16} /> {track ? `Queue${row.queue.length ? ` · ${row.queue.length}` : ''}` : 'Add a song'}
           </button>
+          {joined && <VolumeControl />}
         </div>
       )}
       {!min && !joined && track && <p className="radio-note">Join the stadium to listen along.</p>}
@@ -766,10 +854,6 @@ export function RadioDrawer({ channel, meId: me }) {
     await addUpload(cid, f, (a, b) => setUp(a / b))
     setUp(null)
   }
-  const turnOff = async () => {
-    if (!await ask({ text: 'Turn Chit Radio off in this stadium? The music stops, the queue is cleared, and only mods can turn it back on.', confirm: 'Turn off', danger: true })) return
-    if (await act(cid, 'disable')) close()
-  }
   const full = row.queue.length >= MAX_QUEUE
   const body = (
     <>
@@ -807,9 +891,9 @@ export function RadioDrawer({ channel, meId: me }) {
         <footer>
           <div className="radio-vol">
             <button className={`icon-btn${muted ? ' on' : ''}`} onClick={() => setPref('musicMuted', !muted)} aria-pressed={muted}
-              aria-label={muted ? 'Unmute music' : 'Mute music'} title={muted ? 'Unmute music' : 'Mute music'}><Icon name={muted ? 'volume-mute' : vol < 0.4 ? 'volume-low' : 'volume'} size={18} /></button>
+              aria-label={muted ? 'Unmute music' : 'Mute music'} title={muted ? 'Unmute music' : 'Mute music'}><Icon name={volIcon(vol, muted)} size={18} /></button>
             <input type="range" min="0" max="100" value={Math.round(vol * 100)} aria-label="Music volume"
-              onChange={e => { setPref('musicVol', +e.target.value / 100); if (muted) setPref('musicMuted', false) }} />
+              onChange={e => setMusicVol(e.target.value)} />
             <span className="small">{muted ? 'Muted' : `${Math.round(vol * 100)}%`}</span>
           </div>
           <label className="radio-duck"><input type="checkbox" checked={duck} onChange={e => setPref('musicDuck', e.target.checked)} /> Turn music down while people talk</label>
@@ -817,7 +901,7 @@ export function RadioDrawer({ channel, meId: me }) {
           {mod && (
             <div className="radio-mod">
               {(track || row.queue.length > 0) && <button className="btn danger small" onClick={() => act(cid, 'clear')}><Icon name="trash" size={15} /> Stop and clear</button>}
-              <button className="btn ghost small" onClick={turnOff}><Icon name="block" size={15} /> Turn off radio in this stadium</button>
+              <button className="btn ghost small" onClick={() => turnOffRadio(cid)}><Icon name="block" size={15} /> Turn off radio in this stadium</button>
             </div>
           )}
         </footer>

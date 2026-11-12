@@ -4,7 +4,7 @@ import {
   parseTrackUrl, validTrack, titleFromFile, titleFromSc, clockOffset, position, isOver, fmtTime,
   votesNeeded, canSkipNow, skipStatus, voteSkips, musicGain, anyoneTalking, glide, parseMusicCommand, DUCK,
   pickOffset, mergeOffset, syncStep, syncMem, SYNC, duckStep, DUCK_ENV, loopOf, nextLoop, rowFrom, radioGone, radioMode,
-  nextUp, ytPlayerVars, deckPlan, outputVolume, DEFAULT_MUSIC_VOL, MUSIC_MASTER,
+  nextUp, ytPlayerVars, deckPlan, outputVolume, DEFAULT_MUSIC_VOL, MUSIC_MASTER, volIcon, volFromPct,
 } from './music.js'
 
 test('parseTrackUrl: YouTube in all its shapes', () => {
@@ -299,4 +299,15 @@ test('outputVolume: default 20%, and the whole scale halved on the way out', () 
   assert.equal(outputVolume(musicGain({ vol: 0.8, muted: true })), 0)
   assert.equal(outputVolume(2), 0.5)
   assert.equal(outputVolume(-1), 0)
+})
+
+test('volIcon and volFromPct: the speaker icon and the slider value', () => {
+  assert.equal(volIcon(0.2, false), 'volume-low')
+  assert.equal(volIcon(0.8, false), 'volume')
+  assert.equal(volIcon(0.8, true), 'volume-mute')
+  assert.equal(volIcon(0, false), 'volume-mute')
+  assert.equal(volFromPct('35'), 0.35)
+  assert.equal(volFromPct(140), 1)
+  assert.equal(volFromPct(-3), 0)
+  assert.equal(volFromPct('x'), 0)
 })
