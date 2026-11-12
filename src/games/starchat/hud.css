@@ -140,17 +140,6 @@ body .sc .sc-ware:disabled { opacity: .5; }
 body .sc .sc-ware:not(:disabled):hover { transform: translateY(-2px); }
 body .sc .sc-leave { margin-top: 12px; height: 40px; padding: 0 22px; border-radius: 14px; background: #efe2c8; box-shadow: 0 4px 0 #d8c39f; font: 700 15px Fredoka, Nunito, sans-serif; color: #6a5545; }
 
-/* the minigame placeholder card (starchat/mini.jsx) */
-body .sc-mini { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(460px, calc(100% - 24px)); z-index: 3; }
-body .sc-mini .sc-in { padding: 0 18px 16px; text-align: center; }
-body .sc-mini .sc-ribbon { position: relative; top: -14px; }
-body .sc-mini h3 { margin: -4px 0 4px; font: 700 24px Fredoka, Nunito, sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; }
-body .sc-mini h3 .sc-i { font-size: 30px; }
-body .sc-mini p { margin: 0 0 6px; font: 700 13px/1.35 Nunito, sans-serif; color: #6a5545; }
-body .sc-mini-q { font-weight: 900 !important; color: var(--ink) !important; }
-body .sc-mini-pick { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
-body .sc .sc-mini-pick button { width: 42px; height: 42px; border-radius: 13px; background: var(--night); color: #fff6e2; font: 700 16px Fredoka, Nunito, sans-serif; box-shadow: 0 3px 0 #14112b; }
-
 /* big moments in the middle */
 body .sc-moment { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 4; pointer-events: none; display: grid; place-items: center; }
 body .sc-mcard { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 24px; border-radius: 22px; background: var(--cream); box-shadow: var(--sh); max-width: 340px; text-align: center; animation: sc-moment 2.6s cubic-bezier(.3, 1.6, .5, 1) both; }
@@ -203,6 +192,9 @@ body .sc-block big { font: 700 30px/1 Fredoka, Nunito, sans-serif; }
 body .sc-block b { font: 700 14px Fredoka, Nunito, sans-serif; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 body .sc-block span { display: inline-flex; align-items: center; gap: 3px; font: 900 13px Nunito, sans-serif; }
 
+/* GameScreen's results panel (winner, Again?, house rules) sits in the corner so the podium stays in view */
+body .g-starchat .gs-results { left: auto; right: 14px; bottom: 14px; transform: none; width: min(360px, calc(100% - 24px)); max-height: calc(100% - 120px); }
+
 /* ── phones: a ticket strip up top, everything you can do in a bottom sheet ── */
 @container (max-width: 560px) {
   body .sc-title, body .sc-news { display: none; }
@@ -237,12 +229,13 @@ body .sc-block span { display: inline-flex; align-items: center; gap: 3px; font:
   body .sc-shop .sc-in { padding: 0 10px 14px; }
   body .sc-stock { gap: 6px; }
   body .sc .sc-ware small { display: none; }
-  body .sc-mini { top: auto; bottom: 0; left: 0; right: 0; width: auto; transform: none; border-radius: 26px 26px 0 0; }
   body .sc-moment { top: 36%; }
   body .sc-award { width: 150px; height: 150px; }
   body .sc-afront { padding-top: 24px; } body .sc-afront small { font-size: 10px; }
   body .sc-host { display: none; }
   body .sc-block { width: 90px; }
+  body .g-starchat .gs-results { left: 8px; right: 8px; width: auto; max-height: 40%; }
+  body .sc-cer { padding-bottom: 300px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

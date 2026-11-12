@@ -12,7 +12,7 @@ export const info = (v, pid) => `${v.stars[pid]} stars, ${v.coins[pid]} coins`
 export const seatCards = () => []
 
 export function banner(v, nm, me) {
-  if (v.winners) return `${v.winners.map(nm).join(' & ')} ${v.winners.length > 1 ? 'win' : 'wins'} with ${v.stars[v.winners[0]]} stars!`
+  if (v.winners) return `${v.winners.map(nm).join(' & ')} ${v.winners.length > 1 ? 'win' : 'wins'} with ${v.stars[v.winners[0]]} star${v.stars[v.winners[0]] === 1 ? '' : 's'}!`
   if (v.phase === 'mini') return v.mini.posted[me] ? `${MINIGAMES[v.mini.id].name}: waiting for everyone.` : `${MINIGAMES[v.mini.id].name}! ${MINIGAMES[v.mini.id].text}`
   const t = turn({ pub: v })
   const round = `Round ${v.round} of ${v.maxRounds}${lastLanterns(v) ? ' (Last Lanterns)' : ''}`

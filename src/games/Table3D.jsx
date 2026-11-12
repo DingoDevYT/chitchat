@@ -27,7 +27,7 @@ const LAYOUT = {
   isle: { shape: 'round', R: 3.6, felt: '#5fa8bf', seatR: 4.55, cam: [0, 8.5, 6.7], look: [0, -0.15, 0.45], H: 2.2 }, // the felt is the sea
   // Starchat is outdoors: no room, table or chairs, everyone walks the board. `fit` (w × d world units) pulls the
   // camera back until the board fits the width; portrait phones look along the board from the side (camP) instead.
-  starchat: { outdoor: true, follow: true, bg: '#1b1838', seatR: 4, cam: [0, 8.6, 8.4], camP: [10.5, 12.5, 0.4], look: [0, -0.4, 0.55], lookP: [1.2, -0.4, 0], fit: { w: 11.6, d: 7.6 } },
+  starchat: { outdoor: true, follow: true, bg: '#1b1838', seatR: 4, cam: [0, 8.6, 8.4], camP: [10.5, 12.5, 0.4], followK: 1, followY: 0.5, look: [0, -0.4, -0.25], lookP: [1.2, -0.4, 0], fit: { w: 11.6, d: 7.6 } },
 }
 
 // ── canvas textures (cached) ──
@@ -1204,7 +1204,7 @@ function ScChit({ star, offering, cheer }) {
 
 // The star: hovers and bobs over the lit post. When it moves it drifts there along a high arc (the camera follows);
 // when someone buys it, it first swoops into their arms with a burst, then a new one drifts in to the next post.
-const scPostTop = sp => new THREE.Vector3(SC_POST[sp].x, 1.55, SC_POST[sp].z)
+const scPostTop = sp => new THREE.Vector3(SC_POST[sp].x, 1.3, SC_POST[sp].z)
 function ScStar({ v }) {
   const ref = useRef(), glow = useRef(), burst = useRef()
   const anim = useRef(null), pos = useRef(null), seen = useRef(v.star)
@@ -1266,7 +1266,7 @@ const scSpot = (sp, slot, n) => {
   return new THREE.Vector3(p.x + Math.cos(a) * r, scY(sp), p.z + Math.sin(a) * r * 0.8)
 }
 const SC_FIG = 0.95
-function ScWalker({ p, v, slot, n, turn, lead }) {
+function ScWalker({ p, v, slot, n, turn, lead, focus }) {
   const pid = p.pid, target = v.pos[pid]
   const face = useFace(p.user_id, 'stage')
   const talk = p.user_id ? face.talk : turn
@@ -1309,7 +1309,10 @@ function ScWalker({ p, v, slot, n, turn, lead }) {
       y = Math.sin(k * Math.PI) * (s.glide ? 0.9 : 0.28)
       squash = k > 0.8 ? (1 - k) * 2.5 : 0
       if (lead) { camFocus.x = root.current.position.x; camFocus.z = root.current.position.z; camFocus.t = t }
-    } else root.current.position.lerp(to, reduced ? 1 : Math.min(1, dt * 6))
+    } else {
+      root.current.position.lerp(to, reduced ? 1 : Math.min(1, dt * 6))
+      if (focus && !s.queue.length) { camFocus.x = to.x; camFocus.z = to.z; camFocus.t = t } // stopped mid-walk for a choice: stay on them
+    }
     root.current.position.y = to.y + y
     scFeet[pid] = root.current.position
     // talking: squash and stretch with voice (bots chatter on their turn); a little squish on each landing
@@ -1403,7 +1406,7 @@ function StarchatScene({ v, seats }) {
       {v && seats.filter(s => v.players.includes(s.pid)).map(s => {
         const sp = v.pos[s.pid]
         slots[sp] = (slots[sp] || 0) + 1
-        return <ScWalker key={s.pid} p={s} v={v} slot={slots[sp] - 1} n={counts[sp]} turn={s.pid === turnPid} lead={s.pid === v.last?.pid} />
+        return <ScWalker key={s.pid} p={s} v={v} slot={slots[sp] - 1} n={counts[sp]} turn={s.pid === turnPid} lead={s.pid === v.last?.pid} focus={s.pid === turnPid && ['star', 'shop', 'fork'].includes(v.phase)} />
       })}
       {v && <ScDice v={v} />}
     </group>
@@ -1438,7 +1441,8 @@ function Rig({ layout }) {
     const follow = layout.follow && !reduced && clock.elapsedTime - camFocus.t < 0.9
     if (follow) { // lean in along the same view direction, centred near the walking token (gentler on phones)
       const portrait = size.width < size.height * 0.9
-      tl.current.set(camFocus.x * (portrait ? 0.55 : 0.8), 0, camFocus.z * (portrait ? 0.55 : 0.8))
+      const fk = layout.followK ?? (portrait ? 0.55 : 0.8)
+      tl.current.set(camFocus.x * fk, layout.followY || 0, camFocus.z * fk)
       tp.current.copy(base.pos).sub(base.look).multiplyScalar(portrait ? 0.8 : 0.6).add(tl.current)
     } else { tp.current.copy(base.pos); tl.current.copy(base.look) }
     const k = reduced ? 1 : 1 - Math.exp(-Math.min(dt, 0.05) * (follow ? 2.2 : 1.6))
