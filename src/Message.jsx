@@ -151,7 +151,7 @@ function Message({ m, head, me, myName, serverId, canDelete, canPin, replied, ed
               </div>
             )}
           {(m.failed || m.queued) && <div className="msg-retry">
-            <span className={`note small${m.failed ? ' err' : ''}`}>{m.failed ? m.blocked || "Didn't send." : 'Waiting for connection… it sends when you\'re back online.'}</span>
+            <span className={`note small${m.failed ? ' err' : ''}`}>{m.failed ? m.blocked || "Couldn't send." : 'Waiting for connection… it sends when you\'re back online.'}</span>
             {m.failed && !m.blocked && onRetry && <button className="btn primary small" onClick={() => onRetry(m)}>Retry</button>}
             <button className="btn ghost small" onClick={() => onDelete(m)}>Delete</button>
           </div>}

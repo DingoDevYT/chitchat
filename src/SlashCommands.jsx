@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from './lib/supabase'
+import { freshChannel, supabase } from './lib/supabase'
 import { createStore, toast } from './lib/store'
 import { findCommand, optionLabel, parseCommand, suggest } from './lib/slash'
 import Avatar, { Name } from './Avatar'
@@ -34,7 +34,7 @@ export function resolveInteraction(ix) {
 
 // Bots that answer later (bot-api /interactions/:id/reply) put ephemeral replies on the interaction row; listen until then.
 function watch(base, ix) {
-  const ch = supabase.channel('ix:' + ix)
+  const ch = freshChannel('ix:' + ix)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'plugin_interactions', filter: `id=eq.${ix}` }, ({ new: row }) => {
       if (!row.response) return
       put({ ...base, ix, content: row.response.content, embeds: row.response.embeds })

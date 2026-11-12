@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from './lib/supabase'
+import { freshChannel, supabase } from './lib/supabase'
 import { createStore, ensureProfiles, online, toast, profiles } from './lib/store'
 import Avatar, { Name, CustomStatus, Critter } from './Avatar'
 import { LastSeen } from './ChatCues'
@@ -29,7 +29,7 @@ let friendsKnown = null // accepted friends as of the last load (null before the
 export function startFriends(me) {
   meId = me
   reload()
-  const ch = supabase.channel('friends')
+  const ch = freshChannel('friends')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, ({ eventType, new: row }) => {
       if (eventType === 'INSERT' && row.user_b === me) {
         ensureProfiles([row.user_a]).then(() => {

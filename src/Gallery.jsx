@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from './lib/supabase'
+import { freshChannel, supabase } from './lib/supabase'
 import { ensureProfiles, prefs, setPref, toast } from './lib/store'
 import { SORTS, comments, hasNewComments, justify, mergePosts, postIdOf, postPath, targetHeight } from './lib/gallery'
 import { postBlock } from './lib/moderation'
@@ -78,7 +78,7 @@ export default function Gallery({ channel, ctx, onMenu }) {
   useEffect(() => {
     const filter = `channel_id=eq.${channel.id}`
     const patch = p => x => x?.id === p.id ? { ...x, ...p } : x
-    const ch = supabase.channel(`gallery:${channel.id}`)
+    const ch = freshChannel(`gallery:${channel.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'gallery_posts', filter }, ({ new: p }) => {
         ensureProfiles([p.author_id])
         setPosts(l => l && mergePosts(l, [p], sortRef.current))

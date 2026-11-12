@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from './lib/supabase'
+import { freshChannel, supabase } from './lib/supabase'
 import { createStore, toast } from './lib/store'
 import { ask } from './Dialog'
 import { PERMS, canKick, canModerate, canSetRole, hasPerm, sortRoles, topColor, userRoles } from './lib/roles'
@@ -29,7 +29,7 @@ function watch(sid) {
     const load = () => reloadRoles(sid)
     load()
     // DELETE events can't be filtered server-side, so check them here.
-    w.ch = supabase.channel('roles:' + sid)
+    w.ch = freshChannel('roles:' + sid)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'roles', filter: `server_id=eq.${sid}` }, load)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'member_roles', filter: `server_id=eq.${sid}` }, load)
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'roles' },

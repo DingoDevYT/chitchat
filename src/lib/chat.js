@@ -25,6 +25,15 @@ export function mergeIncoming(list, row, { live = true } = {}) {
   return [...list, { ...row, reactions: row.reactions || [], key: row.id, _live: live }]
 }
 
+// Our own insert came back: swap in the real row for its optimistic one (by id, so it also lands after a send that already
+// timed out to "Couldn't send"). Realtime got there first: just drop the optimistic row. Optimistic row deleted: it did send.
+export function settleSent(list, tmpId, row) {
+  if (!list) return list
+  if (list.some(m => m.id === row.id)) return list.filter(m => m.id !== tmpId)
+  if (!list.some(m => m.id === tmpId)) return [...list, { ...row, reactions: row.reactions || [], key: row.id }]
+  return list.map(m => m.id === tmpId ? { ...row, reactions: m.reactions, key: m.key } : m)
+}
+
 export function applyReaction(list, { message_id, user_id, emoji }, on) {
   if (!list) return list
   return list.map(m => {

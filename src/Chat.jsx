@@ -7,7 +7,7 @@ import { uiSound } from './lib/animalese'
 import { youGot } from './YouGot'
 import TypingRow from './Typing'
 import './styles/composer-fit.css'
-import { applyReaction, mergeIncoming, overLimit, startsGroup, MAX_LEN } from './lib/chat'
+import { applyReaction, mergeIncoming, overLimit, settleSent, startsGroup, MAX_LEN } from './lib/chat'
 import { uploadFile } from './lib/upload'
 import Message, { flashTo } from './Message'
 import { PinsPanel, SearchPanel } from './PinsSearch'
@@ -33,6 +33,7 @@ import { slowUntil } from './lib/rooms'
 import ThemeBackdrop, { useRoomTheme } from './themes/ThemeBackdrop'
 
 const PAGE = 50
+const SEND_TIMEOUT = 15000 // a send still hanging after this shows as failed (Retry / Delete); a late success still lands
 const msgCache = new Map() // channelId -> recent messages, so switching back is instant
 let pendingJump = null // { cid, id }: a search result in another channel, jumped to once that Chat loads
 
@@ -163,11 +164,16 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
       const uploaded = await Promise.all(m._files.map((f, i) => uploadFile(f, userId, { signal: ctl.signal, onProgress: onProgress(i) }).then(a => ({ ...a, ...f.meta }))))
       const attachments = [...m._ready, ...uploaded]
       // no .single(): an empty result must not roll back, so Automod's strike and reason are kept
-      const { data: rows, error } = await supabase.from('messages')
-        .insert({ channel_id: channel.id, author_id: userId, content: m.content, reply_to: m.reply_to, attachments, ...(m.tts && { tts: true }) }).select()
+      const slow = setTimeout(() => mark({ pending: false, failed: true }), SEND_TIMEOUT)
+      let res
+      try {
+        res = await supabase.from('messages')
+          .insert({ channel_id: channel.id, author_id: userId, content: m.content, reply_to: m.reply_to, attachments, ...(m.tts && { tts: true }) }).select()
+      } finally { clearTimeout(slow) }
+      const { data: rows, error } = res
       if (error) throw error
       if (!rows.length) throw Object.assign(new Error('held back'), { code: 'HELD_BACK' })
-      setMsgs(l => mergeIncoming(l, rows[0]))
+      setMsgs(l => settleSent(l, m.id, rows[0]))
     } catch (e) {
       if (e.name === 'AbortError') return setMsgs(l => l && l.filter(x => x.id !== m.id)) // cancelled from the upload bar
       if (e.code === 'HELD_BACK') { // the insert came back empty: Automod held it back (public.plugins_before_message)

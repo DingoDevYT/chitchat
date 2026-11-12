@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from './lib/supabase'
+import { freshChannel, supabase } from './lib/supabase'
 import { ensureProfiles, prefs, startProfileSync, toast, toasts, useProfile } from './lib/store'
 import { startPresence, trackVoice } from './lib/presence'
 import { byPosition, moveId, step } from './lib/reorder'
 import { useDrag } from './lib/useDrag'
 import FriendsHome, { friendships, startFriends, useIncomingCount } from './Friends'
-import { Splash } from './App'
+import { Boundary, Splash } from './App'
 import Avatar, { CropImg } from './Avatar'
 import Sidebar from './Sidebar'
 import Chat from './Chat'
@@ -168,7 +168,7 @@ export default function Shell({ userId }) {
       setChannels(cs => cs.some(c => c.id === data.id) ? cs : [...cs, data])
       ensureProfiles(data.channel_members.map(m => m.user_id))
     }
-    const ch = supabase.channel('shell')
+    const ch = freshChannel('shell')
       // post discussions (kind 'post') live inside their gallery, never in the sidebar or unread counts
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'channels', filter: 'kind=neq.post' }, add)
       // an UPDATE for a channel we don't have yet means we were just given access to a private one
@@ -338,6 +338,7 @@ export default function Shell({ userId }) {
         voice={voice} vstate={vstate} setVstate={setVstate} onLeaveVoice={() => joinVoice(null)} />
 
       <main className="main">
+        <Boundary key={channel?.id}>{/* one pane's crash leaves the rest of the app up; switching rooms resets it */}
         {channel?.kind === 'voice'
           ? <StadiumChat key={channel.id} channel={channel} ctx={ctx}>
             <VoiceStage channel={channel} meId={userId} joined={voice?.id === channel.id} onJoin={() => joinVoice(channel)}
@@ -351,10 +352,11 @@ export default function Shell({ userId }) {
             : !server && (servers.length > 0 || hasFriends || location.hash.startsWith('#/dm')) // #/dm = picked Friends, even with none yet
               ? <FriendsHome ctx={ctx} onMenu={() => setNavOpen(true)} />
               : <Welcome ctx={ctx} onMenu={() => setNavOpen(true)} hasServers={servers.length > 0} />}
+        </Boundary>
       </main>
 
       {/* stadiums are full-width: the crowd is the member list */}
-      {server && showMembers && channel?.kind !== 'voice' && <Members members={members} ctx={ctx} />}
+      {server && showMembers && channel?.kind !== 'voice' && <Boundary key={server.id}><Members members={members} ctx={ctx} /></Boundary>}
 
       {voice && <VoiceConnection key={voice.id} channel={voice} me={me} vstate={vstate} setVstate={setVstate}
         onError={msg => { toast(msg); joinVoice(null) }} onCall={onCallSignal} />}

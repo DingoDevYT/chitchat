@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { supabase } from './supabase'
+import { freshChannel, supabase } from './supabase'
 import { createStore } from './store'
 
 // serverId -> [{ id, server_id, name, position }]
@@ -19,7 +19,7 @@ export function useCategories(sid) {
     const upsert = ({ new: row }) =>
       setCategories(sid, l => l.some(c => c.id === row.id) ? l.map(c => c.id === row.id ? { ...c, ...row } : c) : [...l, row])
     supabase.from('categories').select('*').eq('server_id', sid).then(({ data }) => { if (data && !gone) setCategories(sid, () => data) })
-    const ch = supabase.channel('categories:' + sid)
+    const ch = freshChannel('categories:' + sid)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'categories', filter: `server_id=eq.${sid}` }, upsert)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'categories', filter: `server_id=eq.${sid}` }, upsert)
       // DELETE events can't be filtered and only carry the id
