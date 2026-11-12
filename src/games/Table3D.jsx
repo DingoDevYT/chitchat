@@ -440,7 +440,6 @@ const boardTex = () => canvasTex('board40', 2048, 2048, (g, W) => {
   for (const [x, y, label, col] of [[-1, -1, 'Fortune Cookie', '#e8b86b'], [1, 1, 'Tea Party', '#8fc7e8']]) {
     g.save(); g.translate(W / 2 + x * 2.6 * P, W / 2 + y * 2.6 * P); g.rotate(-Math.PI / 4)
     g.setLineDash([18, 12]); g.strokeStyle = col; g.lineWidth = 8; rrect(g, -1.15 * P, -0.8 * P, 2.3 * P, 1.6 * P, 24); g.stroke(); g.setLineDash([])
-    g.fillStyle = '#6b5a4c'; g.font = `800 40px ${FONT}`; g.fillText(label, 0, 1.15 * P)
     g.restore()
   }
   BOARD.forEach((b, i) => {
@@ -534,8 +533,21 @@ function Deck({ pos, color, label }) {
   const top = useMemo(() => mat('deck' + label, () => new THREE.MeshStandardMaterial({ roughness: 0.7, map: canvasTex('deck' + label, 256, 180, (g, w, h) => {
     g.fillStyle = color; rrect(g, 0, 0, w, h, 18); g.fill()
     g.strokeStyle = '#fbf3e4'; g.lineWidth = 6; rrect(g, 10, 10, w - 20, h - 20, 12); g.stroke()
-    g.fillStyle = '#2b2230'; g.font = `900 30px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'
-    label.split(' ').forEach((wd, k, a) => g.fillText(wd, w / 2, h / 2 + (k - (a.length - 1) / 2) * 34))
+    // card backs: just the deck's icon, no words
+    g.translate(w / 2, h / 2); g.lineWidth = 7; g.lineJoin = 'round'; g.lineCap = 'round'; g.strokeStyle = '#5a3a24'
+    if (label === 'Fortune Cookie') { // a folded fortune cookie with its paper slip peeking out
+      g.fillStyle = '#f7d79a'
+      g.beginPath(); g.moveTo(-62, 18); g.bezierCurveTo(-58, -52, 34, -58, 60, -6); g.bezierCurveTo(30, -18, 8, 6, 2, 34); g.bezierCurveTo(-18, 18, -40, 14, -62, 18); g.fill(); g.stroke()
+      g.beginPath(); g.moveTo(2, 34); g.bezierCurveTo(10, 6, 34, -6, 60, -6); g.bezierCurveTo(58, 26, 30, 44, 2, 34); g.fillStyle = '#e9b866'; g.fill(); g.stroke()
+      g.fillStyle = '#fbf3e4'; g.beginPath(); g.moveTo(-6, 30); g.lineTo(-30, 52); g.lineTo(-18, 58); g.lineTo(4, 36); g.fill(); g.lineWidth = 4; g.stroke()
+    } else { // a teacup on its saucer, steaming
+      g.fillStyle = '#fbf3e4'
+      g.beginPath(); g.ellipse(0, 46, 70, 14, 0, 0, Math.PI * 2); g.fill(); g.stroke()
+      g.beginPath(); g.moveTo(-50, -14); g.lineTo(50, -14); g.bezierCurveTo(48, 30, 26, 42, 0, 42); g.bezierCurveTo(-26, 42, -48, 30, -50, -14); g.fill(); g.stroke()
+      g.beginPath(); g.arc(58, 6, 15, -1.3, 1.5); g.stroke()
+      g.fillStyle = color; g.beginPath(); g.arc(0, 12, 11, 0, Math.PI * 2); g.fill()
+      g.strokeStyle = '#fbf3e4'; g.lineWidth = 6; g.beginPath(); g.moveTo(-16, -30); g.quadraticCurveTo(-26, -46, -12, -62); g.moveTo(14, -30); g.quadraticCurveTo(4, -46, 18, -62); g.stroke()
+    }
   }) })), [color, label])
   const side = mat('deckside', () => new THREE.MeshStandardMaterial({ color: '#efe4cf' }))
   return (
