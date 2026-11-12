@@ -485,7 +485,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
       <PostGate ctx={ctx}>{/* timeout banner / rules card instead of the composer while you can't post */}
       <Composer key={channel.id} draftKey={channel.id} placeholder={channel.kind === 'post' ? 'Add a comment' : `Message ${title}`} slow={slow} exempt={exempt} slowUntil={exempt ? null : slowUntil(msgs, userId, slow)}
         onSend={(...a) => { stopMeTyping(); return send(...a) }} onTyping={onTyping} onEditLast={editLast}
-        replyTo={replyTo} onCancelReply={() => setReplyTo(null)} profileMap={profileMap} serverId={server?.id} canTTS={!!stadium} onPoll={createPoll} />
+        replyTo={replyTo} onCancelReply={() => setReplyTo(null)} profileMap={profileMap} serverId={server?.id} canTTS={!!stadium} onPoll={createPoll} onCommand={stadium?.onCommand} />
       </PostGate>
     </div>
   )
@@ -493,7 +493,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
 
 const DRAFTS = new Map() // channel drafts survive switching channels
 
-function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, replyTo, onCancelReply, profileMap, serverId, canTTS, slow, exempt, slowUntil: until, onPoll }) {
+function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, replyTo, onCancelReply, profileMap, serverId, canTTS, slow, exempt, slowUntil: until, onPoll, onCommand }) {
   const slowLeft = useSlowLeft(until) // slowmode countdown; the database enforces it too
   const ref = useRef(null)
   const [tts, setTTS] = useState(false)
@@ -548,6 +548,7 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
   }
 
   function submit() {
+    if (text.trim() && !files.length && onCommand?.(text.trim())) return setText('') // stadium chat: /play, /skip, /queue
     const ran = text.trim() && !files.length && sc.submit(text) // a slash command runs instead of sending
     if (ran) return ran === true && setText('')
     if ((!text.trim() && !files.length) || slowLeft > 0 || mac.guard(text)) return

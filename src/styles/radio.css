@@ -1,0 +1,124 @@
+/* Chit Radio (Radio.jsx): the now-playing card over the stage's top-left corner, and the queue drawer.
+   `body` prefix: the main styles.css loads after component CSS. */
+body .radio-card {
+  position: absolute; top: 28px; left: 28px; z-index: 70; width: min(340px, calc(100% - 56px));
+  display: grid; gap: 8px; padding: 10px 10px 10px; border-radius: 20px;
+  background: color-mix(in srgb, var(--bubble) 88%, transparent); backdrop-filter: blur(8px);
+  box-shadow: var(--shadow), inset 0 0 0 2px var(--line); color: var(--text);
+  animation: rise .35s var(--ease);
+}
+body .radio-card.below { top: 74px; } /* under a stream's LIVE caption */
+body .radio-card.min { width: auto; padding: 0; background: none; box-shadow: none; backdrop-filter: none; display: flex; align-items: center; gap: 8px; }
+
+body .radio-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+body .radio-art {
+  position: relative; width: 64px; height: 64px; border-radius: 14px; overflow: hidden; flex: none; display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 50%, #0e1c25 0 18%, transparent 19%), repeating-radial-gradient(circle at 50% 50%, #241b2e 0 2px, #2e2439 2px 4px);
+  box-shadow: inset 0 0 0 2px var(--line);
+}
+body .radio-art img { width: 100%; height: 100%; object-fit: cover; }
+body .radio-art .radio-vinyl { color: var(--accent); display: grid; place-items: center; }
+body .radio-art.sm { width: 40px; height: 40px; border-radius: 10px; }
+body .radio-host { position: absolute; inset: 0; pointer-events: none; }
+body .radio-host:empty { display: none; }
+body .radio-host iframe, body .radio-host > div { width: 100%; height: 100%; border: 0; display: block; }
+body .radio-art.live { background: #000; }
+/* Bigger player: the YouTube / SoundCloud frame takes the card's width */
+body .radio-card.video .radio-top { grid-template-columns: minmax(0, 1fr) auto; }
+body .radio-card.video .radio-art { grid-column: 1 / -1; grid-row: 1; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+body .radio-card.video .radio-host { pointer-events: auto; }
+
+body .radio-meta { display: grid; gap: 2px; min-width: 0; }
+body .radio-eyebrow { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+body .radio-title { font-weight: 800; font-size: 15px; line-height: 1.25; color: var(--text); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-decoration: none; }
+body a.radio-title:hover { text-decoration: underline; }
+body .radio-title.idle { color: var(--muted); font-weight: 700; }
+body .radio-by { display: flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--muted); min-width: 0; }
+body .radio-by .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .radio-hide { width: 30px; height: 30px; align-self: start; }
+
+/* three little bouncing bars */
+body .radio-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; }
+body .radio-eq i { width: 3px; height: 4px; border-radius: 2px; background: currentColor; }
+body .radio-eq.on i { animation: radio-eq .9s ease-in-out infinite alternate; }
+body .radio-eq.on i:nth-child(2) { animation-delay: -.3s; }
+body .radio-eq.on i:nth-child(3) { animation-delay: -.6s; }
+@keyframes radio-eq { from { height: 3px; } to { height: 11px; } }
+
+body .radio-progress { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+body .radio-bar { height: 6px; border-radius: 99px; background: var(--bg-4); overflow: hidden; }
+body .radio-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--coral)); transition: width .5s linear; }
+body .radio-bar i.unknown { width: 30% !important; animation: radio-unknown 2.4s ease-in-out infinite alternate; }
+@keyframes radio-unknown { from { transform: translateX(-100%); } to { transform: translateX(330%); } }
+
+body .radio-ctl { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+body .radio-ctl .icon-btn { width: 34px; height: 34px; border-radius: 50%; }
+body .radio-ctl .btn.small { padding: 6px 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+body .radio-skip { background: var(--bg-3); color: var(--text); }
+body .radio-skip.on { color: var(--accent); }
+body .radio-skip:disabled { opacity: .85; cursor: default; }
+body .radio-q { margin-left: auto; }
+body .radio-note { margin: 0; font-size: 12.5px; color: var(--muted); font-weight: 700; }
+
+/* Autoplay blocked: the whole card is the button */
+body .radio-tap-cover {
+  position: absolute; inset: 0; z-index: 2; border-radius: inherit; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--bubble) 70%, transparent); backdrop-filter: blur(2px); cursor: pointer;
+}
+body .radio-tap-cover .btn { pointer-events: none; display: inline-flex; align-items: center; gap: 6px; }
+
+/* Tucked away: a little spinning record */
+body .radio-disc { width: 52px; height: 52px; border-radius: 50%; padding: 0; box-shadow: var(--shadow), 0 0 0 3px var(--bg-3); overflow: hidden; }
+body .radio-disc .radio-art { width: 100%; height: 100%; border-radius: 50%; }
+body .radio-card.spinning .radio-disc .radio-art > img, body .radio-card.spinning .radio-disc .radio-vinyl { animation: radio-spin 6s linear infinite; }
+@keyframes radio-spin { to { rotate: 360deg; } }
+body .radio-tap { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ── queue drawer ── */
+body .stage { position: relative; }
+body .radio-drawer {
+  position: absolute; top: 12px; right: 12px; bottom: 12px; z-index: 90; width: min(360px, calc(100% - 24px));
+  display: flex; flex-direction: column; border-radius: 22px; overflow: hidden;
+  background: var(--paper, none), var(--bg-2); box-shadow: var(--shadow), inset 0 0 0 2px var(--line);
+}
+body .radio-drawer > header { display: flex; align-items: center; justify-content: space-between; padding: 12px 12px 10px 16px; border-bottom: 2px dashed var(--stitch); }
+body .radio-drawer h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 900; }
+body .radio-drawer h3 .icon { color: var(--accent); }
+body .radio-add { display: flex; gap: 8px; padding: 12px 12px 6px; }
+body .radio-add input { flex: 1; min-width: 0; }
+body .radio-upload { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 12px 10px; }
+body .radio-upload .btn { display: inline-flex; align-items: center; gap: 6px; }
+body .radio-list { flex: 1; overflow-y: auto; padding: 0 12px 8px; }
+body .radio-list h4 { margin: 12px 4px 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; gap: 6px; }
+body .radio-list ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+body .radio-list > p { margin: 4px; }
+body .radio-row { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 14px; }
+body .radio-row:hover { background: var(--bg-3); }
+body .radio-row.now { background: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+body .radio-n { width: 18px; text-align: center; font-weight: 900; color: var(--muted); font-size: 12px; flex: none; }
+body .radio-row-meta { flex: 1; min-width: 0; display: grid; }
+body .radio-row-meta a { font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+body .radio-row-meta a:hover { text-decoration: underline; }
+body .radio-row-meta .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .radio-drawer footer { display: grid; gap: 8px; padding: 10px 14px 14px; border-top: 2px dashed var(--stitch); }
+body .radio-vol { display: flex; align-items: center; gap: 8px; }
+body .radio-vol input[type=range] { flex: 1; accent-color: var(--accent); }
+body .radio-vol .small { width: 48px; text-align: right; font-weight: 800; }
+body .radio-drawer .radio-duck { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; text-align: left; gap: 8px; margin: 0; font-weight: 700; font-size: 14px; cursor: pointer; }
+body .radio-drawer .radio-duck input { width: auto; margin: 0; flex: none; }
+body .radio-drawer footer p { margin: 0; }
+body .radio-drawer footer .btn { justify-self: start; display: inline-flex; align-items: center; gap: 6px; }
+
+/* Phones: card spans the screen's top, the drawer becomes a bottom sheet */
+@container (max-width: 560px) {
+  body .radio-card { top: 14px; left: 14px; width: calc(100% - 28px); padding: 8px; gap: 6px; border-radius: 16px; }
+  body .radio-card.below { top: 52px; }
+  body .radio-card.min { width: auto; }
+  body .radio-art { width: 52px; height: 52px; border-radius: 12px; }
+  body .radio-title { font-size: 14px; -webkit-line-clamp: 1; }
+  body .radio-drawer { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 82%; border-radius: 22px 22px 0 0; }
+  body .radio-ctl .btn.small { padding: 6px 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body .radio-eq.on i, body .radio-card.spinning .radio-disc .radio-art > img, body .radio-card.spinning .radio-disc .radio-vinyl, body .radio-bar i.unknown { animation: none; }
+}
