@@ -174,7 +174,7 @@
 .cc-pcard-name small { font-weight: 800; color: #a0303a; font-size: 11px; text-transform: uppercase; }
 .cc-pcard .red, .cc-meet .red { color: #d22b2b; }
 .cc-bot { font-size: 9px; background: #7cc4b0; color: #1b1420; border-radius: 5px; padding: 0 4px; }
-.cc-voted { position: absolute; right: 8px; top: 50%; transform: translateY(-50%) rotate(-12deg); border: 3px solid #d22b2b; color: #d22b2b; font-weight: 900; font-size: 13px; padding: 1px 6px; border-radius: 6px; background: #fff8; animation: cc-stampin .25s; }
+.cc-voted { position: absolute; right: 46px; top: 50%; transform: translateY(-50%) rotate(-12deg); border: 3px solid #d22b2b; color: #d22b2b; font-weight: 900; font-size: 13px; padding: 1px 6px; border-radius: 6px; background: #fff8; animation: cc-stampin .25s; }
 @keyframes cc-stampin { from { transform: translateY(-50%) rotate(-12deg) scale(2.2); opacity: 0; } }
 .cc-points { position: absolute; left: 44px; bottom: 2px; font-size: 11px; font-weight: 900; background: #a9d3f2; border-radius: 6px; padding: 0 4px; }
 .cc-pcard-emote { position: absolute; right: 6px; top: -10px; background: #f6d37a; color: #6b4a1f; padding: 1px 8px; border-radius: 8px; font-size: 12px; font-weight: 900; transform: rotate(4deg); }

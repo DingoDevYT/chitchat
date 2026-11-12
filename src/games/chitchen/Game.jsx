@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Avatar, { useFace } from '../../Avatar'
 import { botChar, botUrl } from '../bots.js'
-import { THREE, tvHead, bakery, ring, choreMarker, stools, tramStop, TRAM, LOOKS, FOG, fogify, visMask } from './world.js'
+import { THREE, bakery, ring, choreMarker, stools, tramStop, TRAM, LOOKS, FOG, fogify, visMask } from './world.js'
 import { drawScreen } from './screen.js'
 import { SPOTS, FIX, ROOMS, TABLE, VENTS, spot, dist, seatPos, vent, ventLinks, room as roomOf } from './map.js'
 import { step, drift, canSeeAt, hear, visionOf, sightPolygon, ghostly } from './space.js'
@@ -16,6 +16,8 @@ import { WHY } from './ui.jsx'
 import { createNet } from './net.js'
 import { setProximity } from '../../lib/proximity'
 import { Chore } from './chores.jsx'
+import { createBaker } from './kit/baker3d.js'
+import { play as sfx, startLoop } from './kit/sfx.js'
 import './chitchen.css'
 
 const isBot = pid => pid.startsWith('bot:')
@@ -39,7 +41,6 @@ export function lineText(l, nm) {
 }
 const fmt = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
 const secs = ms => `${Math.max(0, Math.ceil(ms / 1000))}s`
-const lerpAngle = (a, b, k) => { let d = b - a; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return a + d * k }
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 const remains = n => `${plural(n, 'Nibbler', 'Nibblers')} ${n === 1 ? 'remains' : 'remain'}.`
 const HOWTO_KEY = 'cc-howto-v2'
@@ -104,8 +105,19 @@ export default function Chitchen({ v, me, nm: nmRaw, act, people, tools, gameId 
     if (v.phase !== 'play') { setChore(null); setSabOpen(false); setVentOpen(false); setMapOpen(false); live.current.busy = false }
     if (v.phase === 'play' && !seenHowto() && inGame) setHowto(true)
   }, [v.phase, v.seats, me, inGame])
+  // Sound cues for the big moments, and the alarm loop while a sabotage runs.
   useEffect(() => {
-    if (lastStatus.current === 'awake' && v.status[me] === 'nap' && v.phase === 'play') { setSmashedAt(performance.now()); setChore(null); live.current.busy = false }
+    if (v.phase === 'talk') sfx(v.meeting?.why === 'nap' ? 'report' : 'meeting')
+    if (v.phase === 'apron') sfx('sting')
+    if (v.phase === 'end' && inGame) sfx(v.winners?.includes(me) ? 'win' : 'lose')
+    if (v.phase !== 'reveal') return
+    const id = setTimeout(() => { sfx('eject'); sfx('sting', { delay: 1.2 }) }, 3200)
+    return () => clearTimeout(id)
+  }, [v.phase]) // eslint-disable-line react-hooks/exhaustive-deps
+  const sabKind = v.phase === 'play' ? v.mischief?.kind : null
+  useEffect(() => (sabKind ? startLoop('sabotage') : undefined), [sabKind])
+  useEffect(() => {
+    if (lastStatus.current === 'awake' && v.status[me] === 'nap' && v.phase === 'play') { setSmashedAt(performance.now()); setChore(null); live.current.busy = false; sfx('kill') }
     lastStatus.current = v.status[me]
   }, [v.status, v.phase, me])
   // Overlays with timers (splashes, typewriter text, countdowns) redraw a few times a second.
@@ -171,19 +183,24 @@ export default function Chitchen({ v, me, nm: nmRaw, act, people, tools, gameId 
     const myRing = ring('#ffcf8a', 0.6, 0.6); scene.add(myRing)
     const mask = visMask()
 
-    // People: one TV-head each (look from seat order), plus a smashed body where anyone fell.
+    // People: one kit baker each (colour from seat order), with its own screen canvas (drawScreen) as the TV
+    // texture, plus a smashed baker lying where anyone fell.
     const vp = vRef.current
     const avatars = new Map(), bodies = new Map()
-    vp.players.forEach((pid, i) => {
-      const a = tvHead(i); a.seat = i; a.key = ''; a.phase = 0; a.prev = null; a.spd = 0; a.yaw = 0; a.want = 0
-      a.talkRing = ring('#7fe0bf', 0.75); a.group.add(a.talkRing); a.talkRing.visible = false
-      scene.add(a.group); avatars.set(pid, a)
-    })
-    const bodyOf = pid => {
-      if (!bodies.has(pid)) { const b = tvHead(vp.players.indexOf(pid)); b.pose('dead'); b.broken(true); b.key = ''; b.group.rotation.y = (vp.players.indexOf(pid) * 1.7) % 6.28; scene.add(b.group); bodies.set(pid, b) }
+    const makeOne = i => {
+      const b = createBaker(), canvas = document.createElement('canvas'); canvas.width = 192; canvas.height = 144
+      const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace
+      scene.add(b.group)
+      return { b, group: b.group, canvas, tex, seat: i, key: '', prev: null, spd: 0, want: 0, yaw: 0, color: LOOKS[i % LOOKS.length].body }
+    }
+    vp.players.forEach((pid, i) => avatars.set(pid, makeOne(i)))
+    const bodyOf = (pid, fresh) => {
+      if (!bodies.has(pid)) { const b = makeOne(vp.players.indexOf(pid)); b.instant = !fresh; b.want = (vp.players.indexOf(pid) * 1.7) % 6.28; bodies.set(pid, b) }
       return bodies.get(pid)
     }
-    scene.traverse(o => { if (o.material) fogify(o.material) })
+    const fogAll = () => scene.traverse(o => { if (o.material) [].concat(o.material).forEach(fogify) })
+    fogAll()
+    let fogN = 0
     const seatOf = pid => people.find(p => p.pid === pid)?.seat ?? vp.players.indexOf(pid)
     const levelOf = pid => people.find(p => p.pid === pid)?.bot || 'normal'
     const faceOf = (pid, t) => {
@@ -261,9 +278,11 @@ export default function Chitchen({ v, me, nm: nmRaw, act, people, tools, gameId 
       seatsG.children.forEach((s, i) => { const pid = atTable[i]; s.visible = sitting && !!teaSeat[pid]; if (teaSeat[pid]) s.position.set(teaSeat[pid][0], 0.22, teaSeat[pid][1]) })
 
       // Draw each person: only the ones inside my vision; ghosts only for ghosts (and people watching).
+      if (++fogN % 30 === 0) fogAll() // the kit makes ghost and sparkle materials on the fly: darken those too
       for (const [pid, a] of avatars) {
         const st = V.status[pid], seat = a.seat, ghost = ghostly(st)
         const f = faceOf(pid, t)
+        ;(live.current.talking ||= {})[pid] = f.talk
         let show = true, mode = 'stand', at = pos[pid], yaw = null
         if (play) {
           if (ghost) show = ghostMe || out
@@ -285,31 +304,29 @@ export default function Chitchen({ v, me, nm: nmRaw, act, people, tools, gameId 
         if (moved > 2) { a.prev = null; a.spd = 0 } // a teleport (vent, meeting): no stride
         const inst = a.prev ? moved / Math.max(dt, 1e-3) : 0
         a.spd += (inst - a.spd) * Math.min(1, dt * 8)
+        let state = 'idle', speed = 0
         if (play) {
           if (moved > 0.01 && moved < 2) a.want = Math.atan2(at[0] - a.prev[0], at[1] - a.prev[1])
-          a.yaw = lerpAngle(a.yaw, a.want, 1 - Math.pow(0.0004, dt))
-          const walking = a.spd > 0.5
-          a.phase += Math.min(a.spd, 4.5) * dt * 3.6
-          if (ghost) a.pose('stand', 0, 0, secsNow + seat)
-          else a.pose(walking ? 'walk' : 'stand', a.phase, Math.min(1, a.spd / 3), secsNow + seat)
-        } else if (mode === 'walk') { a.phase += dt * 9; a.pose('walk', a.phase, 1); a.yaw = yaw } else { a.pose(mode, 0, 0, secsNow + seat); a.yaw = yaw ?? a.yaw }
+          speed = a.spd > 0.5 ? Math.min(a.spd, 4.5) : 0
+          state = ghost ? 'ghost' : speed ? 'walk' : live.current.busy && pid === me ? 'task' : 'idle'
+        } else if (mode === 'walk') { state = 'walk'; speed = 2.6; a.want = yaw } else {
+          a.want = yaw ?? a.want
+          if (phase === 'end') state = V.winners?.includes(pid) ? 'win' : 'lose'
+        }
         a.prev = [...at]
-        const bob = play && ghost ? 0.35 + Math.sin(secsNow * 2 + seat) * 0.08 : 0
-        a.group.position.set(at[0], (sitting ? 0.3 : phase === 'reveal' ? 0.35 : 0) + bob, at[1])
-        a.group.rotation.y = a.yaw
-        a.ghost(play && ghost)
-        a.broken(false)
-        a.frame.visible = f.talk && !ghost
-        a.talkRing.visible = f.talk && play && !ghost
+        a.group.position.set(at[0], sitting ? 0.42 : phase === 'reveal' ? 0.35 : 0, at[1])
         paint(a, f, phase === 'reveal' && V.reveal?.role === 'nibbler' && tNow - revealStart > 5000 ? 'mask' : 'live', seat)
+        a.b.update(dt, { texture: a.tex, color: a.color, state, facing: a.want, speed, talking: f.talk && !ghost })
       }
 
       // Smashed TVs where people fell (until a meeting clears them): only if I can see the spot.
       for (const [pid, n] of Object.entries(V.naps || {})) {
-        const b = bodyOf(pid)
-        b.group.visible = play && !n.found && seesNow([n.x, n.y])
+        const vis = play && !n.found && seesNow([n.x, n.y])
+        if (!vis && !bodies.has(pid)) continue
+        const b = bodyOf(pid, t - n.t < 2500) // seen falling: the full smash; found later: already lying there
+        b.group.visible = vis
         b.group.position.set(n.x, 0, n.y)
-        if (b.group.visible) { b.pose('dead', 0, 0, secsNow); paint(b, faceOf(pid, t), 'broken', vp.players.indexOf(pid)) }
+        if (vis) { paint(b, faceOf(pid, t), 'live', b.seat); b.b.update(dt, { texture: b.tex, color: b.color, state: 'dead', instant: b.instant, facing: b.want, speed: 0 }) }
       }
       for (const [pid, b] of bodies) if (!V.naps?.[pid]) b.group.visible = false
 
@@ -336,11 +353,11 @@ export default function Chitchen({ v, me, nm: nmRaw, act, people, tools, gameId 
 
       // Camera: a close, nearly top-down follow cam on the night shift; the table for meetings; the tram.
       const follow = play && me2 && !out
-      if (follow) { lookTo.set(me2[0], 0, me2[1]); camTo.copy(lookTo).add(portrait ? new THREE.Vector3(0, 16, 6.5) : new THREE.Vector3(0, 13, 5.6)) }
+      if (follow) { lookTo.set(me2[0], 0, me2[1]); camTo.copy(lookTo).add(portrait ? new THREE.Vector3(0, 28, 17) : new THREE.Vector3(0, 24, 15)) }
       else if (play) { lookTo.set(18, 0, 12); camTo.set(18, portrait ? 44 : 30, portrait ? 26 : 24) }
       else if (phase === 'reveal') { lookTo.set(TRAM.x + 0.6, 1.4, TRAM.z); camTo.set(TRAM.x + 1.2, portrait ? 4.5 : 3.4, TRAM.z + (portrait ? 17 : 13)) }
       else { lookTo.set(TABLE.x, 1.05, TABLE.y - 0.4); camTo.set(TABLE.x, portrait ? 6.4 : 4.6, TABLE.y + (portrait ? 8.6 : 7.4)) }
-      cam.fov = portrait ? 52 : 42; cam.updateProjectionMatrix()
+      cam.fov = follow ? (portrait ? 32 : 22) : portrait ? 52 : 42; cam.updateProjectionMatrix() // narrow when following: less lean at the edges
       const jump = cam.position.distanceTo(camTo) > 25
       cam.position.lerp(camTo, jump ? 1 : 1 - Math.pow(0.002, dt)); look.lerp(lookTo, jump ? 1 : 1 - Math.pow(0.002, dt)); cam.lookAt(look)
       renderer.render(scene, cam)
@@ -353,7 +370,7 @@ export default function Chitchen({ v, me, nm: nmRaw, act, people, tools, gameId 
       live.current.sees = seesNow
     }
     raf = requestAnimationFrame(frame)
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); mask.dispose(); renderer.dispose(); renderer.domElement.remove() }
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); mask.dispose(); for (const a of [...avatars.values(), ...bodies.values()]) { a.b.dispose(); a.tex.dispose() } renderer.dispose(); renderer.domElement.remove() }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- context: buttons, name tags, chatter wisps (a few times a second, not every frame) ------------------
@@ -426,13 +443,14 @@ export default function Chitchen({ v, me, nm: nmRaw, act, people, tools, gameId 
     const s = chore
     const wait = Math.max(0, MIN_CHORE + 400 - (performance.now() - choreStart.current))
     setTimeout(() => send({ type: 'chore', id: s.id, pos: pos() }), wait)
-    setChore(null); live.current.busy = false
+    setChore(null); live.current.busy = false; sfx('taskDone')
   }
   live.current.report = () => ctx.report && send({ type: 'report', target: ctx.report, pos: pos() })
   live.current.bell = () => ctx.bell === 'ok' && send({ type: 'bell', pos: pos() })
   live.current.kill = () => {
     if (!ctx.kill || ctx.killWait > 0) return
     const t = live.current.pos?.[ctx.kill]
+    sfx('kill')
     send({ type: 'tuck', target: ctx.kill, pos: pos(), ...(isBot(ctx.kill) ? {} : { tpos: t.map(x => +x.toFixed(2)) }) })
   }
   live.current.vent = () => { if (ctx.vent && !ctx.ventWait) setVentOpen(o => !o) }
@@ -440,7 +458,7 @@ export default function Chitchen({ v, me, nm: nmRaw, act, people, tools, gameId 
   const hop = to => {
     const from = ctx.vent
     if (!from) return
-    send({ type: 'vent', from, to, pos: pos() })
+    send({ type: 'vent', from, to, pos: pos() }); sfx('vent')
     const d = vent(to); myPos.current = [d.x, d.y]; setVentOpen(false)
   }
   const sabotage = kind => { send({ type: 'mischief', kind }); setSabOpen(false) }
@@ -597,7 +615,7 @@ function Meeting({ v, me, nm, who, send, t, left, since, emotes, net }) {
   const canVote = voting && myUp && !iVoted
   const bots = v.players.some(isBot)
   useEffect(() => { if (!canVote) setPick(null) }, [canVote])
-  const vote = target => { send({ type: 'vote', target }); setPick(null) }
+  const vote = target => { send({ type: 'vote', target }); setPick(null); sfx('vote') }
   const order = [...v.players.filter(x => v.status[x] === 'awake'), ...v.players.filter(x => v.status[x] !== 'awake')]
   // Chitbots' lines, one every couple of seconds, like a chat log.
   const lines = v.players.filter(x => v.lines?.[x]).slice(0, Math.max(0, Math.floor((since - 1800) / 2200) + 1))

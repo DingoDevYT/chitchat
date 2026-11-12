@@ -68,7 +68,7 @@ test('clock: apron, then the night shift; referee `now` stamps drive game time',
   assert.throws(() => mv(s, s.pub.players.find(x => x !== R.turn(s)), { type: 'tick' }, 13000), /turn/)
 })
 
-test('chores: on your list, near the spot, started first and long enough; the bar only moves at Tea Breaks', () => {
+test('chores: on your list, near the spot, started first and long enough; the shared task bar moves at once', () => {
   let s = tickTo(stamped(P(5), 3), 'play')
   const baker = roleOf(s, 'baker')[0], id = s.priv[baker].chores[0], t0 = s.pub.clock
   const not = SPOTS.find(x => !s.priv[baker].chores.includes(x.id)).id
@@ -91,7 +91,7 @@ test('chores: on your list, near the spot, started first and long enough; the ba
   assert.equal(s.pub.phase, 'talk')
 })
 
-test('tuck-ins: Nibblers only, cooldown, range from reported positions, then a nap; parity wins', () => {
+test('kills (smash): Nibblers only, cooldown, range from reported positions; ghosts still do tasks; parity wins', () => {
   let s = tickTo(stamped(P(4), 5), 'play')
   const [nib] = roleOf(s, 'nibbler'), [b1, b2, b3] = roleOf(s, 'baker'), t0 = s.pub.clock
   const sp = s.pub.seats
@@ -121,7 +121,7 @@ test('tuck-ins: Nibblers only, cooldown, range from reported positions, then a n
   assert.deepEqual(R.over(s), [nib])
 })
 
-test('report a napper, Tea Break, teaspoons, the night tram, then back to work', () => {
+test('report a body, discuss, secret votes with I-voted, ejection, then back to work', () => {
   let s = tickTo(stamped(P(6), 2), 'play')
   const nibs = roleOf(s, 'nibbler'), bakers = roleOf(s, 'baker'), t0 = s.pub.clock
   const [n1] = nibs, [v, w] = bakers
@@ -230,11 +230,11 @@ test('bots: whole games at 4–8 players and every level end, with both sides wi
     meetings += s.pub.rounds
   }
   assert.ok(wins.bakers > 0 && wins.nibblers > 0, JSON.stringify({ wins, why }))
-  assert.ok(meetings > 0, 'bots call Tea Breaks')
+  assert.ok(meetings > 0, 'bots call meetings')
   console.log('    bot games:', JSON.stringify({ wins, why, meetings }))
 })
 
-test('bots honour Points: a pointed-at player gets the spoons', () => {
+test('bots honour Points: a pointed-at player gets the votes', () => {
   let s = tickTo(stamped(['a', 'b', 'bot:2', 'bot:3', 'bot:4', 'bot:5'], 8), 'play')
   s = mv(s, 'a', { type: 'bell', pos: s.pub.seats.a }, s.pub.clock + R.MS.calm)
   const nibs = roleOf(s, 'nibbler')
