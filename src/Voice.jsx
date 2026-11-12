@@ -7,6 +7,7 @@ import { PeerState } from './VoiceCues'
 import { trackVoice } from './lib/presence'
 import { callKey } from './lib/calls'
 import { TALK, missingDevice, level, normGain } from './lib/voice'
+import { attach as attachProximity } from './lib/proximity'
 import { bubbles, speakTTS, stopTTS } from './lib/stadium'
 import { emojify } from './Markdown'
 import gateUrl from './lib/voice.js?url'
@@ -212,6 +213,8 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError, onCal
     const send = (to, data) => ch?.send({ type: 'broadcast', event: 'signal', payload: { from: me.id, to, ...data } })
     // Per-person call volume (profile popover) and unplugged devices, live.
     stops.push(prefs.subscribe(() => { for (const [id, p] of peers) peerGains(id, p) }))
+    // Proximity voice while a Midnight Chitchen game runs (off otherwise: lib/proximity.js).
+    stops.push(attachProximity(audioCtx, peers, out.master, id => { const P = prefs.get(); return P.callMuted[id] ? 0 : P.peerVol[id] ?? 1 }))
     const onDevices = () => navigator.mediaDevices.enumerateDevices().then(checkDevices, () => {})
     navigator.mediaDevices.addEventListener?.('devicechange', onDevices)
     stops.push(() => navigator.mediaDevices.removeEventListener?.('devicechange', onDevices))
@@ -219,7 +222,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError, onCal
     function close(id) {
       const p = peers.get(id)
       if (!p) return
-      p.pc.close(); p.stop?.(); p.norm.stop(); p.vol.disconnect(); p.svol.disconnect()
+      p.pc.close(); p.stop?.(); p.norm.stop(); p.vol.disconnect(); p.svol.disconnect(); p.lp?.disconnect()
       for (const a of p.media.values()) { a.remove(); dropStream(id, a.srcObject); dropStream(id, a.srcObject, cams) }
       peers.delete(id)
       if (peerState.get()[id] !== 'failed') setPeerState(id, null) // "couldn't connect" stays until they leave or we retry
