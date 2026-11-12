@@ -26,28 +26,43 @@ const streak = (f, seed, a, b) => [
   <feComposite key="sc" in="d" in2="m" operator="in" />,
 ]
 
+// The five filters: [suffix, region x y w h, rough [frequency, push, octaves, seed+], streak [frequency, seed+, a, b] | null, blur].
+// brush, fine, haze, glow, sky. Shared with paintFilterSvg so canvas-rasterised art (the Teacup Town board) uses the same brush.
+const FILTERS = [
+  ['b', ['-3%', '-8%', '106%', '116%'], ['.013 .032', 15, 3, 0], ['.0035 .07', 7, 1.25, .32], .7],
+  ['f', ['-20%', '-20%', '140%', '140%'], ['.05', 5, 2, 1], null, .5],
+  ['h', ['-8%', '-30%', '116%', '160%'], ['.009 .024', 26, 2, 2], null, 2.8],
+  ['g', ['-70%', '-70%', '240%', '240%'], ['.022', 18, 2, 3], null, 9],
+  ['s', ['-4%', '-25%', '108%', '150%'], ['.003 .014', 50, 2, 4], ['.0018 .045', 9, 1.1, .3], 4],
+]
+
 function Defs({ p }) {
-  const s = p.seed, cs = 'sRGB'
+  const s = p.seed
   return (
     <defs>
-      <filter id={p.id + 'b'} x="-3%" y="-8%" width="106%" height="116%" colorInterpolationFilters={cs}>
-        {rough('.013 .032', 15, 3, s)}{streak('.0035 .07', s + 7, 1.25, .32)}<feGaussianBlur stdDeviation=".7" />
-      </filter>
-      <filter id={p.id + 'f'} x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters={cs}>
-        {rough('.05', 5, 2, s + 1)}<feGaussianBlur stdDeviation=".5" />
-      </filter>
-      <filter id={p.id + 'h'} x="-8%" y="-30%" width="116%" height="160%" colorInterpolationFilters={cs}>
-        {rough('.009 .024', 26, 2, s + 2)}<feGaussianBlur stdDeviation="2.8" />
-      </filter>
-      <filter id={p.id + 'g'} x="-70%" y="-70%" width="240%" height="240%" colorInterpolationFilters={cs}>
-        {rough('.022', 18, 2, s + 3)}<feGaussianBlur stdDeviation="9" />
-      </filter>
-      <filter id={p.id + 's'} x="-4%" y="-25%" width="108%" height="150%" colorInterpolationFilters={cs}>
-        {rough('.003 .014', 50, 2, s + 4)}{streak('.0018 .045', s + 9, 1.1, .3)}<feGaussianBlur stdDeviation="4" />
-      </filter>
+      {FILTERS.map(([k, [x, y, w, h], [rf, rk, ro, rs], st, bl]) => (
+        <filter key={k} id={p.id + k} x={x} y={y} width={w} height={h} colorInterpolationFilters="sRGB">
+          {rough(rf, rk, ro, s + rs)}{st && streak(st[0], s + st[1], st[2], st[3])}<feGaussianBlur stdDeviation={bl} />
+        </filter>
+      ))}
     </defs>
   )
 }
+
+// The same filters as an SVG string (for art built as markup and rasterised into a canvas), ids `${id}b`, `${id}f`…
+// k scales the brush (push and blur up, frequencies down) for art drawn larger than a screen backdrop.
+export function paintFilterSvg(id, seed = 3, k = 1) {
+  const fq = f => f.split(' ').map(v => +(v / k).toFixed(5)).join(' ')
+  return FILTERS.map(([s, [x, y, w, h], [rf, rk, ro, rs], st, bl]) =>
+    `<filter id="${id}${s}" x="${x}" y="${y}" width="${w}" height="${h}" color-interpolation-filters="sRGB">` +
+    `<feTurbulence type="fractalNoise" baseFrequency="${fq(rf)}" numOctaves="${ro}" seed="${seed + rs}" result="n"/>` +
+    `<feDisplacementMap in="SourceGraphic" in2="n" scale="${rk * k}" xChannelSelector="R" yChannelSelector="G" result="d"/>` +
+    (st ? `<feTurbulence type="fractalNoise" baseFrequency="${fq(st[0])}" numOctaves="2" seed="${seed + st[1]}" result="s"/>` +
+      `<feColorMatrix in="s" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ${st[2]} 0 0 0 ${st[3]}" result="m"/><feComposite in="d" in2="m" operator="in"/>` : '') +
+    `<feGaussianBlur stdDeviation="${bl * k}"/></filter>`).join('')
+}
+// The offset washes a <Wash> lays down, for string-built art.
+export const WASH_LAYERS = [[0, 0, .86], [-.5, .45, .5], [.6, -.3, .42]]
 
 // A static painting filling the backdrop; the first canvas of a scene carries the filter defs (pass p).
 export const Canvas = ({ p, className = '', children }) => (
@@ -70,7 +85,7 @@ export const Pin = ({ x, y, className = '', style, children }) => (
 // A shape laid as three offset washes (fill: one colour or [base, tint, tint]). rim: [colour, dx, dy] paints a lit edge:
 // the rim colour goes down first and the washes are shifted by (dx, dy), so it peeks out on the side facing the light.
 // px: d is px-space art (offsets scaled up to match).
-const LAYERS = [[0, 0, .86], [-.5, .45, .5], [.6, -.3, .42]]
+const LAYERS = WASH_LAYERS
 export function Wash({ d, fill, f, o, rim, px }) {
   const c = [].concat(fill), k = px ? 5 : 1
   const [rc, rx = 0, ry = 0] = rim || []

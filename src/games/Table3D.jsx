@@ -9,9 +9,10 @@ import Avatar, { useFace } from '../Avatar'
 import { botChar, botUrl } from './bots.js'
 import { card as playCard } from './highcard/rules.js'
 import { CARDS, FLAVOURS } from './snack/rules.js'
-import { BOARD, GROUPS, N } from './property/rules.js'
+import { N } from './property/rules.js'
+import { boardCanvas, DECK_SPOTS } from './property/boardArt.js'
 import { snackFace } from './Card'
-import { CORNER, SIDE, along, cell, span } from './property/ui.jsx'
+import { CORNER, SIDE, along, cell } from './property/geom.js'
 
 const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 const CW = 0.56, CH = 0.8 // card size in world units
@@ -416,61 +417,18 @@ const BOARD_SIZE = 5.6, U = BOARD_SIZE / SIDE
 const tilePos = i => { const [c, r] = cell(i); return [(along(c) - SIDE / 2) * U, (along(r) - SIDE / 2) * U] }
 // Which way a tile's colour band faces (toward the middle): straight in from its side of the board, never diagonal.
 const inwardOf = i => { const [c, r] = cell(i); return r === 10 ? [0, -1] : r === 0 ? [0, 1] : c === 0 ? [1, 0] : [-1, 0] }
-function doodle(g, k, i) {
-  g.lineWidth = 5; g.strokeStyle = '#2b2230'
-  if (k === 'cookie') { g.fillStyle = '#e8b86b'; g.beginPath(); g.moveTo(-34, 18); g.quadraticCurveTo(0, -40, 34, 18); g.quadraticCurveTo(0, 0, -34, 18); g.fill(); g.stroke() }
-  if (k === 'party') { g.fillStyle = '#fbf3e4'; g.beginPath(); g.moveTo(-26, -14); g.lineTo(26, -14); g.quadraticCurveTo(24, 26, 0, 26); g.quadraticCurveTo(-24, 26, -26, -14); g.fill(); g.stroke(); g.beginPath(); g.arc(30, 2, 10, -1.3, 1.3); g.stroke() }
-  if (k === 'rail') { g.fillStyle = '#c86f5a'; rrect(g, -34, -22, 68, 40, 10); g.fill(); g.stroke(); g.fillStyle = '#fbf3e4'; g.fillRect(-26, -14, 22, 14); g.fillRect(4, -14, 22, 14); g.beginPath(); g.arc(-18, 22, 6, 0, 7); g.arc(18, 22, 6, 0, 7); g.fillStyle = '#2b2230'; g.fill() }
-  if (k === 'util' && i === 12) { g.fillStyle = '#f2d15c'; rrect(g, -16, -22, 32, 40, 8); g.fill(); g.stroke(); g.beginPath(); g.moveTo(-10, -30); g.lineTo(10, -30); g.stroke() }
-  if (k === 'util' && i !== 12) { g.fillStyle = '#8fc7e8'; g.beginPath(); g.moveTo(0, -30); g.quadraticCurveTo(24, 4, 0, 22); g.quadraticCurveTo(-24, 4, 0, -30); g.fill(); g.stroke() }
-  if (k === 'tax') { g.fillStyle = '#e8b86b'; g.beginPath(); g.arc(0, 0, 24, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#2b2230'; g.font = `900 26px ${FONT}`; g.fillText('¢', 0, 2) }
+// The painted "Storybook Town Map" board (property/boardArt.js), one cached texture. Its canvas shows a plain
+// placeholder until the painting is done (a moment, once per session), then the texture refreshes.
+let boardTexture = null
+const boardTex = () => {
+  if (boardTexture) return boardTexture
+  const { canvas, ready } = boardCanvas()
+  const t = new THREE.CanvasTexture(canvas)
+  t.colorSpace = THREE.SRGBColorSpace
+  t.anisotropy = 8
+  ready.then(() => { t.needsUpdate = true })
+  return (boardTexture = t)
 }
-const boardTex = () => canvasTex('board40', 2048, 2048, (g, W) => {
-  const P = W / SIDE // pixels per edge tile
-  g.fillStyle = '#cfe0c3'; g.fillRect(0, 0, W, W)
-  g.fillStyle = '#e9f0dc'; g.fillRect(CORNER * P, CORNER * P, 9 * P, 9 * P)
-  g.strokeStyle = '#2b2230'; g.lineWidth = 4; g.strokeRect(CORNER * P, CORNER * P, 9 * P, 9 * P)
-  // centre: the name across the diagonal, a teacup, and the two deck spots
-  g.textAlign = 'center'; g.textBaseline = 'middle'
-  g.save(); g.translate(W / 2, W / 2); g.rotate(-Math.PI / 4)
-  g.fillStyle = '#c86f5a'; g.font = `900 170px ${FONT}`; g.fillText('Teacup Town', 0, -10)
-  g.strokeStyle = '#7a4a2b'; g.lineWidth = 12; g.fillStyle = '#fbf3e4'
-  g.beginPath(); g.moveTo(-90, 110); g.quadraticCurveTo(-80, 220, 0, 220); g.quadraticCurveTo(80, 220, 90, 110); g.closePath(); g.fill(); g.stroke()
-  g.beginPath(); g.arc(112, 150, 30, -1.2, 1.4); g.stroke()
-  g.restore()
-  for (const [x, y, label, col] of [[-1, -1, 'Fortune Cookie', '#e8b86b'], [1, 1, 'Tea Party', '#8fc7e8']]) {
-    g.save(); g.translate(W / 2 + x * 2.6 * P, W / 2 + y * 2.6 * P); g.rotate(-Math.PI / 4)
-    g.setLineDash([18, 12]); g.strokeStyle = col; g.lineWidth = 8; rrect(g, -1.15 * P, -0.8 * P, 2.3 * P, 1.6 * P, 24); g.stroke(); g.setLineDash([])
-    g.restore()
-  }
-  BOARD.forEach((b, i) => {
-    const [c, r] = cell(i)
-    const side = Math.floor(i / 10), corner = i % 10 === 0
-    const w = span(c) * P, h = span(r) * P
-    g.save(); g.translate(along(c) * P, along(r) * P)
-    g.fillStyle = corner ? '#f2e3c2' : '#fbf3e4'; g.fillRect(-w / 2, -h / 2, w, h)
-    g.strokeStyle = '#2b2230'; g.lineWidth = 3; g.strokeRect(-w / 2, -h / 2, w, h)
-    g.rotate([0, Math.PI / 2, Math.PI, -Math.PI / 2][side] - (corner ? Math.PI / 4 : 0))
-    const tw = P, th = CORNER * P // the tile in its own frame: outer edge at +y
-    g.fillStyle = '#2b2230'; g.textAlign = 'center'; g.textBaseline = 'middle'
-    if (corner) {
-      g.font = `900 46px ${FONT}`; g.fillText(b.name, 0, -24)
-      g.font = `700 26px ${FONT}`; g.fillStyle = '#6b5a4c'; g.fillText(b.sub, 0, 22)
-      if (i === 0) { g.fillStyle = '#c86f5a'; g.beginPath(); g.moveTo(60, 62); g.lineTo(-40, 62); g.lineTo(-40, 46); g.lineTo(-70, 72); g.lineTo(-40, 98); g.lineTo(-40, 82); g.lineTo(60, 82); g.fill() }
-      g.restore(); return
-    }
-    if (b.g != null) { g.fillStyle = GROUPS[b.g].color; g.fillRect(-tw / 2, -th / 2, tw, th * 0.22); g.strokeRect(-tw / 2, -th / 2, tw, th * 0.22) }
-    g.fillStyle = '#2b2230'; g.font = `800 23px ${FONT}`
-    const words = b.name.split(' ')
-    const top = b.g != null ? -th * 0.2 : -th * 0.36
-    words.forEach((wd, k) => g.fillText(wd.toUpperCase(), 0, top + k * 26))
-    g.save(); g.translate(0, b.g != null ? th * 0.08 : th * 0.04); doodle(g, b.k, i); g.restore()
-    g.font = `800 22px ${FONT}`; g.fillStyle = '#6b5a4c'
-    const sub = b.price ? `${b.price}` : b.amt ? `Pay ${b.amt}` : ''
-    g.fillText(sub, 0, th * 0.38)
-    g.restore()
-  })
-})
 function DieMesh({ value, pos, roll, idx }) {
   const mats = useMemo(() => [3, 4, 1, 6, 2, 5].map(n => mat('die' + n, () => new THREE.MeshStandardMaterial({ roughness: 0.45, map: canvasTex('die' + n, 128, 128, (g, w) => {
     g.fillStyle = '#fbf3e4'; rrect(g, 0, 0, w, w, 22); g.fill(); g.fillStyle = '#2b2230'
@@ -520,17 +478,49 @@ function Token({ color, space, slot, hop }) {
     </group>
   )
 }
-function Cottage({ color, pos, inn }) {
-  const s = inn ? [0.24, 0.15, 0.13] : [0.1, 0.09, 0.1]
+// Cottages and inns: plaster walls on a stone footing, a pitched roof in the owner's colour, a chimney, a door and warm
+// lit windows. Every part is one shared unit box or roof prism scaled into place, with shared materials (roof per colour).
+const HOUSE = {
+  box: new THREE.BoxGeometry(1, 1, 1),
+  roof: new THREE.CylinderGeometry(1, 1, 1, 3).rotateZ(Math.PI / 2).rotateX(-Math.PI / 2).translate(0, 0.5, 0), // ridge along x, eaves at y 0
+}
+const houseMat = k => mat('house-' + k, () => ({
+  wall: () => new THREE.MeshStandardMaterial({ color: '#f6ead2', roughness: 0.85 }),
+  stone: () => new THREE.MeshStandardMaterial({ color: '#b9ad9c', roughness: 0.9 }),
+  wood: () => new THREE.MeshStandardMaterial({ color: '#7a4e2d', roughness: 0.7 }),
+  brick: () => new THREE.MeshStandardMaterial({ color: '#b5654a', roughness: 0.8 }),
+  glow: () => new THREE.MeshBasicMaterial({ color: '#ffd27a', toneMapped: false }),
+})[k]())
+const roofMat = color => mat('roof' + color, () => new THREE.MeshStandardMaterial({ color, roughness: 0.6 }))
+// [x, y, z, w, h, d, material]: parts of a house, front (door side) facing +z
+const COTTAGE = [
+  [0, 0.006, 0, 0.088, 0.012, 0.074, 'stone'], [0, 0.04, 0, 0.08, 0.058, 0.066, 'wall'],
+  [0.022, 0.104, -0.012, 0.014, 0.034, 0.014, 'brick'],
+  [-0.016, 0.03, 0.0335, 0.02, 0.036, 0.004, 'wood'], [0.019, 0.044, 0.0335, 0.018, 0.016, 0.004, 'glow'],
+  [-0.0405, 0.044, 0, 0.004, 0.016, 0.018, 'glow'], [0.0405, 0.044, 0, 0.004, 0.016, 0.018, 'glow'],
+]
+const INN = [
+  [0, 0.007, 0, 0.27, 0.014, 0.124, 'stone'], [0, 0.07, 0, 0.26, 0.112, 0.114, 'wall'], [0, 0.07, 0.058, 0.262, 0.008, 0.004, 'wood'],
+  [-0.08, 0.19, -0.02, 0.02, 0.05, 0.02, 'brick'], [0.09, 0.185, 0.015, 0.018, 0.04, 0.018, 'brick'],
+  [0, 0.035, 0.058, 0.032, 0.05, 0.005, 'wood'],
+  ...[-0.095, -0.05, 0.05, 0.095].map(x => [x, 0.042, 0.058, 0.022, 0.022, 0.005, 'glow']),
+  ...[-0.095, -0.032, 0.032, 0.095].map(x => [x, 0.1, 0.058, 0.022, 0.022, 0.005, 'glow']),
+  [0, 0.1, 0.06, 0.05, 0.02, 0.006, 'wood'], // the inn's sign board over the door
+]
+function Cottage({ color, pos, rot, inn }) {
+  const parts = inn ? INN : COTTAGE
+  const roof = inn ? [0.29, 0.07, 0.078, 0.126] : [0.098, 0.046, 0.046, 0.069] // length, height, half-depth, eave y
   return (
-    <group position={pos}>
-      <mesh position={[0, s[1] / 2, 0]} castShadow><boxGeometry args={s} /><meshStandardMaterial color={inn ? '#c86f5a' : '#6fb06a'} roughness={0.6} /></mesh>
-      <mesh position={[0, s[1] + 0.03, 0]} rotation-y={Math.PI / 4} scale={[s[0] / s[2], 1, 1]} castShadow><coneGeometry args={[s[2] * 0.78, 0.07, 4]} /><meshStandardMaterial color={color} /></mesh>
+    <group position={pos} rotation-y={rot} scale={1.2}>
+      {parts.map(([x, y, z, w, h, d, m], i) => (
+        <mesh key={i} geometry={HOUSE.box} material={houseMat(m)} position={[x, y, z]} scale={[w, h, d]} castShadow={m === 'wall' || m === 'brick'} />
+      ))}
+      <mesh geometry={HOUSE.roof} material={roofMat(color)} position={[0, roof[3] - 0.005, 0]} scale={[roof[0], roof[1] / 1.5, roof[2] / 0.866]} castShadow />
     </group>
   )
 }
 // A face-down deck pile on its spot in the middle of the board.
-function Deck({ pos, color, label }) {
+function Deck({ pos, rot, color, label }) {
   const top = useMemo(() => mat('deck' + label, () => new THREE.MeshStandardMaterial({ roughness: 0.7, map: canvasTex('deck' + label, 256, 180, (g, w, h) => {
     g.fillStyle = color; rrect(g, 0, 0, w, h, 18); g.fill()
     g.strokeStyle = '#fbf3e4'; g.lineWidth = 6; rrect(g, 10, 10, w - 20, h - 20, 12); g.stroke()
@@ -552,7 +542,7 @@ function Deck({ pos, color, label }) {
   }) })), [color, label])
   const side = mat('deckside', () => new THREE.MeshStandardMaterial({ color: '#efe4cf' }))
   return (
-    <mesh position={pos} rotation-y={Math.PI / 4} material={[side, side, top, side, side, side]} castShadow>
+    <mesh position={pos} rotation-y={rot} material={[side, side, top, side, side, side]} castShadow>
       <boxGeometry args={[2.3 * U * 0.9, 0.08, 1.6 * U * 0.9]} />
     </mesh>
   )
@@ -560,18 +550,17 @@ function Deck({ pos, color, label }) {
 function PropertyScene({ v, seats }) {
   const board = useMemo(boardTex, [])
   const slots = {}
-  const d = 2.6 * U
   return (
     <group>
       <mesh position={[0, 0.01, 0]} rotation-x={-Math.PI / 2} receiveShadow><planeGeometry args={[BOARD_SIZE, BOARD_SIZE]} /><meshStandardMaterial map={board} roughness={0.8} /></mesh>
-      <Deck pos={[-d, 0.05, -d]} color="#e8b86b" label="Fortune Cookie" />
-      <Deck pos={[d, 0.05, d]} color="#8fc7e8" label="Tea Party" />
+      {/* the two deck piles, on their cobbled pads in the painted green */}
+      {DECK_SPOTS.map((p, k) => <Deck key={k} pos={[p.x * U, 0.05, p.z * U]} rot={p.rot} color={k ? '#8fc7e8' : '#e8b86b'} label={k ? 'Tea Party' : 'Fortune Cookie'} />)}
       {Object.entries(v.owner).map(([sp, o]) => {
         const [x, z] = tilePos(+sp), s = seats.find(p => p.pid === o)
         const n = v.cottages[sp] || 0
         const [ix, iz] = inwardOf(+sp)
         const band = CORNER * U * 0.39 // centre of the colour band, toward the middle of the board
-        const bx = x + ix * band, bz = z + iz * band
+        const bx = x + ix * band, bz = z + iz * band, face = Math.atan2(-ix, -iz) // houses face out, toward that side's players
         return (
           <group key={sp}>
             {/* who owns it: a bar in their colour just above the tile's colour band (pale while mortgaged) */}
@@ -579,8 +568,8 @@ function PropertyScene({ v, seats }) {
               <planeGeometry args={Math.abs(z) > Math.abs(x) ? [U * 0.92, 0.07] : [0.07, U * 0.92]} />
               <meshBasicMaterial color={v.mortgaged[sp] ? '#bdb3a4' : s?.color || '#999'} toneMapped={false} />
             </mesh>
-            {n === 5 ? <Cottage inn color={s?.color || '#c86f5a'} pos={[bx, 0.01, bz]} />
-              : Array.from({ length: n }, (_, k) => <Cottage key={k} color={s?.color || '#c86f5a'} pos={[bx + (iz ? (k - 1.5) * 0.11 : 0), 0.01, bz + (ix ? (k - 1.5) * 0.11 : 0)]} />)}
+            {n === 5 ? <Cottage inn color={s?.color || '#c86f5a'} pos={[bx, 0.01, bz]} rot={face} />
+              : Array.from({ length: n }, (_, k) => <Cottage key={k} color={s?.color || '#c86f5a'} pos={[bx + (iz ? (k - (n - 1) / 2) * 0.115 : 0), 0.01, bz + (ix ? (k - (n - 1) / 2) * 0.115 : 0)]} rot={face} />)}
           </group>
         )
       })}
@@ -589,8 +578,8 @@ function PropertyScene({ v, seats }) {
         slots[sp] = (slots[sp] || 0) + 1
         return <Token key={s.pid} color={s.color} space={sp} slot={slots[sp] - 1} hop={!(v.last?.napped || v.napping[s.pid] === 1 || v.card?.back)} />
       })}
-      <DieMesh value={v.dice[0]} pos={[-0.3, 0, 0.6]} roll={v.rolls} idx={0} />
-      <DieMesh value={v.dice[1]} pos={[0.3, 0, 0.7]} roll={v.rolls} idx={1} />
+      <DieMesh value={v.dice[0]} pos={[-0.3, 0, 0.85]} roll={v.rolls} idx={0} />
+      <DieMesh value={v.dice[1]} pos={[0.3, 0, 0.95]} roll={v.rolls} idx={1} />
     </group>
   )
 }
