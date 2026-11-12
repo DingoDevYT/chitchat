@@ -1,4 +1,7 @@
+import { useEffect, useRef } from 'react'
 import { BAIL, BOARD, DECKS, GROUPS, ownable, turn, worth } from './rules.js'
+import { boardCanvas } from './boardArt.js'
+import { cell } from './geom.js'
 
 const fmt = n => n.toLocaleString()
 const nameOf = sp => BOARD[sp].name
@@ -47,33 +50,38 @@ export const banner = (v, nm, me) => {
 export { Hud } from './hud.jsx'
 export const keys = { r: { type: 'roll' }, e: { type: 'end' } }
 
-// The board is an 11×11 ring: space i → [col, row]. Start is the bottom-right corner; play runs clockwise (left along the bottom).
-export function cell(i) {
-  if (i <= 10) return [10 - i, 10]
-  if (i <= 20) return [0, 20 - i]
-  if (i <= 30) return [i - 20, 0]
-  return [10, i - 30]
+export { CORNER, SIDE, along, cell, span } from './geom.js'
+
+// The same painted board as the 3D table, as a flat picture under the grid.
+function PaintedBoard() {
+  const ref = useRef(null)
+  useEffect(() => {
+    let live = true
+    boardCanvas().ready.then(c => {
+      const el = ref.current
+      if (live && el) el.getContext('2d').drawImage(c, 0, 0, el.width, el.height)
+    })
+    return () => { live = false }
+  }, [])
+  return <canvas ref={ref} width={1024} height={1024} className="gf-board-art" aria-hidden="true" />
 }
-// Corners are 1.6 tiles wide, like a real board: 2 corners + 9 tiles a side.
-export const CORNER = 1.6, SIDE = 2 * CORNER + 9
-export const along = c => (c === 0 ? CORNER / 2 : c === 10 ? SIDE - CORNER / 2 : CORNER + c - 0.5)
-export const span = c => (c === 0 || c === 10 ? CORNER : 1)
 
 export function Flat({ v, people }) {
   return (
     <div className="gf-board-grid" role="img" aria-label="Teacup Town board">
+      <PaintedBoard />
       {BOARD.map((b, i) => {
         const [c, r] = cell(i)
         const o = v.owner[i]
         return (
           <div key={i} className={`gf-tile k-${b.k}${v.mortgaged[i] ? ' mort' : ''}`} style={{ gridColumn: c + 1, gridRow: r + 1, '--g': b.g != null ? GROUPS[b.g].color : 'transparent', '--o': o ? people.find(p => p.pid === o)?.color : 'transparent' }}>
-            <span>{b.name}</span>
+            <span className="gf-name">{b.name}</span>
             {v.cottages[i] > 0 && <i className="gf-cot">{v.cottages[i] === 5 ? 'Inn' : v.cottages[i]}</i>}
             <span className="gf-tokens">{people.filter(p => v.pos[p.pid] === i && !v.broke[p.pid]).map(p => <i key={p.pid} style={{ background: p.color }} />)}</span>
           </div>
         )
       })}
-      <div className="gf-mid"><b>Teacup Town</b><span>{v.dice.join(' + ')}</span>{v.card && <em>{v.card.text}</em>}</div>
+      <div className="gf-mid"><span>{v.dice.join(' + ')}</span>{v.card && <em>{v.card.text}</em>}</div>
     </div>
   )
 }
