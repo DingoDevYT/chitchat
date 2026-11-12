@@ -5,7 +5,6 @@ import Auth from './Auth'
 import Shell from './Shell'
 import { Critter } from './Avatar'
 import DialogHost, { askText, tell } from './Dialog'
-import { FullscreenLayer } from './lib/fullscreen'
 
 // Plugin docs at #/docs (readable signed out too); its own chunk, loaded only when opened.
 const Docs = lazy(() => import('./Docs'))
@@ -63,6 +62,6 @@ export default function App() {
 
   return <>
     {docs ? <Suspense fallback={<Splash />}><Docs /></Suspense> : session === undefined ? <Splash /> : !session ? <Auth /> : <Shell key={session.user.id} userId={session.user.id} />}
-    <FullscreenLayer><DialogHost /></FullscreenLayer>
+    <DialogHost />
   </>
 }
