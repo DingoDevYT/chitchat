@@ -21,8 +21,8 @@ startLook()
 addEventListener('change', e => e.target.type === 'checkbox' && uiSound('toggle'))
 addEventListener('click', e => e.target.closest?.('.tabs button:not(.on)') && uiSound('toggle'), true) // capture: before React marks it .on
 
-// Dev-only review sheets: icons at #/icons, theme redos at #/themes (dropped from production builds).
-const devPages = import.meta.env.DEV ? { '#/icons': () => import('./icons/IconGallery'), '#/themes': () => import('./themes/ThemeLab'), '#/table': () => import('./games/GameLab') } : {}
+// Dev-only review sheets: icons at #/icons, theme redos at #/themes, join/leave animations at #/entrances (dropped from production builds).
+const devPages = import.meta.env.DEV ? { '#/icons': () => import('./icons/IconGallery'), '#/themes': () => import('./themes/ThemeLab'), '#/table': () => import('./games/GameLab'), '#/entrances': () => import('./EntranceLab') } : {}
 const devKey = () => devPages[location.hash.split('?')[0]] ? location.hash.split('?')[0] : null
 const dev = devKey()
 const DevPage = dev && lazy(devPages[dev])

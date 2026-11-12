@@ -12,6 +12,7 @@ import VoiceSettings from './VoiceSettings'
 import Privacy from './Privacy'
 import { NotificationsTab } from './Notify'
 import Icon from './icons/Icon'
+import { EntrancePicker } from './Entrances'
 
 const WAVES = [['square', 'Chirpy'], ['triangle', 'Soft'], ['sawtooth', 'Buzzy'], ['sine', 'Gentle']]
 const COLORS = ['#ff9f6b', '#f4a261', '#e76f51', '#ff6b8b', '#c77dff', '#7b9cff', '#4cc9f0', '#7ed6b1', '#b5e48c', '#ffd166']
@@ -204,6 +205,8 @@ export default function Settings({ me, onClose, tab: firstTab }) {
               </div>
             ))}
           </details>
+
+          <EntrancePicker me={me} />
 
           <div>Voice
             <div className="tabs small">{WAVES.map(([w, l]) =>
