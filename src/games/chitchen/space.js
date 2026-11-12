@@ -1,11 +1,44 @@
 // Walking and hearing in the Chitchen: pure functions shared by the client (collisions, proximity voice, who you
 // can see) and its tests. Map units; see map.js.
-import { SPEED, W, H, walls, wallsBetween, dist } from './map.js'
+import { SPEED, W, H, walls, wallsBetween, dist, sightOf } from './map.js'
 
 export const BODY = 0.35 // walker radius
-export const SEE = 7.5, SEE_DARK = 3.2 // how far your lamplight shows people (no walls between)
 export const HEAR = { full: 3.5, far: 9 } // full volume inside `full`, fading to nothing at `far`
 export const HEAR_FLOUR = { full: 1.8, far: 4.5 } // flour storm: half the range, muffled
+export const ghostly = s => s === 'nap' || s === 'home' // smashed or ejected: a ghost
+
+// How far I can see right now (Infinity for ghosts and people watching: they see the whole bakery).
+export function visionOf(v, me) {
+  const s = v.status?.[me]
+  if (!s || ghostly(s)) return Infinity
+  return sightOf(v.me?.role, v.mischief?.kind === 'candles')
+}
+
+// The visibility polygon for the fog of war: `n` rays from p out to radius r, each stopping at the first wall
+// (pushed `push` units past it, so the near face of the wall is lit). Returns [[x, y], …] round the circle.
+export function sightPolygon(p, r, jam = false, n = 120, push = 0.2) {
+  const ws = walls(jam), out = []
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2, dx = Math.cos(a), dy = Math.sin(a)
+    let best = r
+    for (const [x1, y1, x2, y2] of ws) {
+      const ex = x2 - x1, ey = y2 - y1, d = dx * ey - dy * ex
+      if (Math.abs(d) < 1e-9) continue
+      const t = ((x1 - p[0]) * ey - (y1 - p[1]) * ex) / d, u = ((x1 - p[0]) * dy - (y1 - p[1]) * dx) / d
+      if (t > 0 && u >= 0 && u <= 1 && t < best) best = Math.min(r, t + push)
+    }
+    out.push([p[0] + dx * best, p[1] + dy * best])
+  }
+  return out
+}
+
+// Walking as a ghost: no walls, just the edges of the bakery.
+export function drift([x, y], ix, iy, dt) {
+  const len = Math.hypot(ix, iy)
+  if (len > 1) { ix /= len; iy /= len }
+  const s = SPEED * 1.25 * dt
+  return [Math.min(W - BODY, Math.max(BODY, x + ix * s)), Math.min(H - BODY, Math.max(BODY, y + iy * s))]
+}
 
 function segDist(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1, dy = y2 - y1, l = dx * dx + dy * dy
@@ -32,22 +65,22 @@ export function step([x, y], ix, iy, dt, jam = false) {
   return [x, y]
 }
 
-export const canSeeAt = (a, b, dark, jam) => dist(a, b) <= (dark ? SEE_DARK : SEE) && wallsBetween(a, b, jam) === 0
+// Can someone at a see b, with vision radius r (walls block sight)?
+export const canSeeAt = (a, b, r, jam) => r === Infinity || (dist(a, b) <= r && wallsBetween(a, b, jam) === 0)
 
 // Proximity voice: how loud (0..1) and how muffled (low-pass Hz) `them` sounds to `me`.
-// v: the game view. pos: pid → [x, y]. Outside the night shift (apron, Tea Breaks, the end) everyone hears the table,
-// except that nobody hears nappers (they watch from the upstairs window). During the shift nappers hear only nappers,
-// people who've gone home hear everything and are heard by nobody but each other, and someone in voice who isn't
-// playing is hushed for the players (no hints from the crowd).
+// v: the game view. pos: pid → [x, y]. Ghosts (smashed or ejected) can never be heard by the living, at any time
+// until the game ends, but hear everyone themselves. At the role reveal and in meetings the living hear the whole
+// table; during the night shift voices carry by distance and walls. Someone in voice who isn't playing is hushed for
+// the players (no hints from the crowd), and hears everything.
 export function hear(v, me, them, pos) {
   const st = id => v.status?.[id] ?? 'out'
   const a = st(me), b = st(them)
-  if (a === 'out') return { gain: 1, lp: 20000 } // I'm watching, not playing
+  if (a === 'out' || v.phase === 'end') return { gain: 1, lp: 20000 } // I'm watching, or it's over: everyone talks
   if (b === 'out') return { gain: v.phase === 'play' ? 0 : 1, lp: 20000 }
-  if (b === 'home') return { gain: a === 'home' ? 1 : 0, lp: 20000 }
-  if (a === 'home') return { gain: 1, lp: 20000 }
-  if (v.phase !== 'play') return { gain: b === 'nap' && v.phase !== 'end' ? 0 : 1, lp: 20000 }
-  if ((a === 'nap') !== (b === 'nap')) return { gain: 0, lp: 20000 }
+  if (ghostly(b)) return { gain: ghostly(a) ? 1 : 0, lp: 20000 }
+  if (v.phase !== 'play') return { gain: 1, lp: 20000 }
+  if (ghostly(a)) return { gain: 1, lp: 20000 } // ghosts hear the living, wherever they float
   const p = pos[me], q = pos[them]
   if (!p || !q) return { gain: 0, lp: 20000 }
   const flour = v.mischief?.kind === 'flour', jam = v.mischief?.kind === 'jam'

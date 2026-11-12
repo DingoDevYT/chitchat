@@ -3,14 +3,73 @@
 // and a fixed set of lights whose intensities change (so shaders never recompile mid-game).
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
-import { ROOMS, SPOTS, FIX, TABLE, walls } from './map.js'
+import { ROOMS, SPOTS, FIX, TABLE, VENTS, walls } from './map.js'
 
 const G = new Map(), M = new Map()
 const geo = (key, make) => G.get(key) || (G.set(key, make()), G.get(key))
 export const mat = (color, o = {}) => {
   const key = color + JSON.stringify(o)
-  if (!M.has(key)) { const { basic, ...rest } = o; M.set(key, basic ? new THREE.MeshBasicMaterial({ color, ...rest }) : new THREE.MeshLambertMaterial({ color, ...rest })) }
+  if (!M.has(key)) { const { basic, ...rest } = o; M.set(key, fogify(basic ? new THREE.MeshBasicMaterial({ color, ...rest }) : new THREE.MeshLambertMaterial({ color, ...rest }))) }
   return M.get(key)
+}
+
+// ---- fog of war -------------------------------------------------------------------------------------------------
+// Every material in the bakery darkens what you can't see: a top-down visibility mask (uVis, the sight polygon
+// rendered over the 36 × 24 map) times a soft edge at your vision radius. Per pixel, by world position, so walls,
+// furniture and floor all fall into shadow exactly where your line of sight ends. uOn = 0 turns it off
+// (ghosts, meetings, people watching).
+export const FOG = {
+  uVis: { value: null }, uMe: { value: new THREE.Vector2(18, 12) }, uR: { value: 1e4 }, uOn: { value: 0 }, uDim: { value: 0.16 },
+}
+export function fogify(m) {
+  if (!m || m.userData.fog) return m
+  m.userData.fog = true
+  m.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, FOG)
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vFogXZ;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvFogXZ = (modelMatrix * vec4(transformed, 1.0)).xz;')
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vFogXZ;\nuniform sampler2D uVis;\nuniform vec2 uMe;\nuniform float uR;\nuniform float uOn;\nuniform float uDim;')
+      .replace('#include <tonemapping_fragment>', `float ccFog = 1.0;
+if (uOn > 0.5) {
+  float ccM = texture2D(uVis, vFogXZ / vec2(36.0, 24.0)).r;
+  ccFog = ccM * (1.0 - smoothstep(uR * 0.7, uR, distance(vFogXZ, uMe)));
+}
+gl_FragColor.rgb *= mix(vec3(uDim * 0.8, uDim * 0.85, uDim * 1.25), vec3(1.0), ccFog);
+#include <tonemapping_fragment>`)
+  }
+  m.customProgramCacheKey = () => 'ccfog'
+  return m
+}
+// The mask: the sight polygon as a triangle fan, drawn straight into clip space (map x → u, map y → v).
+export function visMask(n = 120) {
+  const pos = new Float32Array((n + 1) * 3), idx = []
+  for (let i = 0; i < n; i++) idx.push(0, i + 1, ((i + 1) % n) + 1)
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(idx)
+  const m = new THREE.Mesh(g, new THREE.ShaderMaterial({
+    vertexShader: 'void main() { gl_Position = vec4(position.x / 18.0 - 1.0, position.y / 12.0 - 1.0, 0.0, 1.0); }',
+    fragmentShader: 'void main() { gl_FragColor = vec4(1.0); }', depthTest: false, depthWrite: false, side: THREE.DoubleSide,
+  }))
+  m.frustumCulled = false
+  const scene = new THREE.Scene(); scene.add(m)
+  const target = new THREE.WebGLRenderTarget(576, 384)
+  FOG.uVis.value = target.texture
+  const cam = new THREE.Camera()
+  return {
+    target,
+    // poly: [[x, y], …] round the viewer at p
+    draw(renderer, p, poly) {
+      pos[0] = p[0]; pos[1] = p[1]
+      for (let i = 0; i < n; i++) { const q = poly[i % poly.length]; pos[(i + 1) * 3] = q[0]; pos[(i + 1) * 3 + 1] = q[1] }
+      g.attributes.position.needsUpdate = true
+      const old = renderer.getRenderTarget(), oc = renderer.getClearColor(new THREE.Color()), oa = renderer.getClearAlpha()
+      renderer.setRenderTarget(target); renderer.setClearColor(0x000000, 1); renderer.clear(); renderer.render(scene, cam)
+      renderer.setRenderTarget(old); renderer.setClearColor(oc, oa)
+    },
+    dispose() { target.dispose(); g.dispose(); m.material.dispose() },
+  }
 }
 const glow = (color, k = 1) => mat(color, { emissive: color, emissiveIntensity: k })
 const mesh = (g, m, x = 0, y = 0, z = 0) => { const o = new THREE.Mesh(g, m); o.position.set(x, y, z); return o }
@@ -32,18 +91,22 @@ export const LOOKS = [
 ]
 export const SCREEN_W = 0.52, SCREEN_H = 0.39
 
-// Returns { group, tv, screen (canvas + texture), pose(walk, phase, mode), broken(on), frame (talk ring) }.
+// Returns { group, tv, canvas, tex, frame, pose(mode, phase, amount, t), broken(on), ghost(on) }.
+// Everything hangs off `rig` so the whole body can tip over (a smashed TV lies on its back, screen up).
 export function tvHead(look) {
-  const L = LOOKS[look % LOOKS.length], g = new THREE.Group()
+  const L = LOOKS[look % LOOKS.length], g = new THREE.Group(), rig = new THREE.Group(); g.add(rig)
   const bodyM = mat(L.body), legM = mat(new THREE.Color(L.body).multiplyScalar(0.8).getStyle()), dark = mat('#3b3140'), cream = mat('#fff8ee'), shoe = mat('#6b4a3a')
+  const shadow = mesh(geo('shadow', () => new THREE.CircleGeometry(0.42, 20)), mat('#000000', { basic: true, transparent: true, opacity: 0.22, depthWrite: false }), 0, 0.02, 0)
+  shadow.rotation.x = -Math.PI / 2; g.add(shadow)
+  const hips = new THREE.Group(); rig.add(hips)
   const legs = []
   for (const side of [-1, 1]) {
     const leg = new THREE.Group(); leg.position.set(side * 0.13, 0.36, 0)
     leg.add(mesh(cyl(0.075, 0.085, 0.3, 8), legM, 0, -0.15, 0))
     const boot = mesh(sph(0.11), shoe, 0, -0.32, 0.04); boot.scale.set(1, 0.7, 1.35); leg.add(boot)
-    g.add(leg); legs.push(leg)
+    hips.add(leg); legs.push(leg)
   }
-  const torso = new THREE.Group(); torso.position.y = 0.3; g.add(torso)
+  const torso = new THREE.Group(); torso.position.y = 0.3; rig.add(torso)
   torso.add(mesh(cyl(0.24, 0.34, 0.5, 14), bodyM, 0, 0.27, 0))
   const sh = mesh(geo('shoulder', () => new THREE.SphereGeometry(0.24, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2)), bodyM, 0, 0.52, 0); sh.scale.y = 0.45; torso.add(sh)
   torso.add(mesh(geo('apron', () => new THREE.CylinderGeometry(0.255, 0.35, 0.42, 14, 1, true, -0.9, 1.8)), mat('#fff8ee', { side: THREE.DoubleSide }), 0, 0.24, 0.006))
@@ -61,44 +124,86 @@ export function tvHead(look) {
   tv.add(mesh(rbox(0.6, 0.46, 0.04, 0.05), dark, -0.07, 0.01, 0.27))
   const cv = document.createElement('canvas'); cv.width = 192; cv.height = 144
   const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace
-  const screen = mesh(geo('screen', () => new THREE.PlaneGeometry(SCREEN_W, SCREEN_H)), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }), -0.07, 0.01, 0.292); tv.add(screen)
+  const screen = mesh(geo('screen', () => new THREE.PlaneGeometry(SCREEN_W, SCREEN_H)), fogify(new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })), -0.07, 0.01, 0.292); tv.add(screen)
   const frame = mesh(rbox(0.68, 0.56, 0.01, 0.07), mat('#8ff0cf', { basic: true, toneMapped: false }), -0.07, 0.01, 0.284); frame.visible = false; tv.add(frame)
   for (const y of [0.12, -0.02]) { const k = mesh(cyl(0.035, 0.035, 0.03, 10), mat(L.trim), 0.3, y, 0.285); k.rotation.x = Math.PI / 2; tv.add(k) }
   for (let i = 0; i < 3; i++) tv.add(mesh(box(0.08, 0.012, 0.01), dark, 0.3, -0.12 - i * 0.035, 0.282))
   const ants = []
   for (const side of [-1, 1]) {
     const ant = new THREE.Group(); ant.position.set(0, 0.31, 0); ant.rotation.z = -side * 0.42
-    const rod = mesh(cyl(0.012, 0.012, 0.36, 5), dark, 0, 0.18, 0); ant.add(rod)
-    const tip = mesh(sph(0.04, 8, 6), glow(L.tip, 0.25), 0, 0.37, 0); ant.add(tip)
-    tv.add(ant); ants.push({ ant, rod, tip })
+    ant.add(mesh(cyl(0.012, 0.012, 0.36, 5), dark, 0, 0.18, 0))
+    ant.add(mesh(sph(0.04, 8, 6), glow(L.tip, 0.25), 0, 0.37, 0))
+    tv.add(ant); ants.push(ant)
   }
   tv.add(mesh(cyl(0.06, 0.07, 0.03, 10), mat(L.trim), 0, 0.315, 0))
-  // the smashed bits, hidden until tucked in: a droopy antenna, a plaster, cartoon stars
+  // the smashed bits, hidden until smashed: a bent antenna, sparks, and glass on the floor around the body
   const hurt = new THREE.Group(); hurt.visible = false; tv.add(hurt)
-  const pl = mesh(box(0.2, 0.06, 0.01), mat('#f3c7a5'), 0.28, 0.24, 0.282); pl.rotation.z = 0.6; hurt.add(pl)
-  for (const [x, y, z] of [[-0.45, 0.42, 0.1], [0.42, 0.5, -0.05], [-0.2, 0.55, 0.2]]) hurt.add(mesh(geo('star', () => new THREE.OctahedronGeometry(0.045)), glow('#ffd76a', 0.9), x, y, z))
+  for (const [x, y, z] of [[-0.42, 0.3, 0.3], [0.38, 0.38, 0.32], [-0.1, 0.45, 0.34]]) hurt.add(mesh(geo('star', () => new THREE.OctahedronGeometry(0.05)), glow('#ffd76a', 1.2), x, y, z))
   const droop = new THREE.Group(); droop.position.set(0, 0.31, 0); droop.rotation.z = 0.42; droop.visible = false
   droop.add(mesh(cyl(0.012, 0.012, 0.18, 5), dark, 0, 0.09, 0))
-  const up = new THREE.Group(); up.position.y = 0.18; up.rotation.z = -1.6
-  up.add(mesh(cyl(0.012, 0.012, 0.2, 5), dark, 0, 0.1, 0)); up.add(mesh(sph(0.04, 8, 6), glow(L.tip, 0.1), 0, 0.21, 0)); droop.add(up); tv.add(droop)
+  const bent = new THREE.Group(); bent.position.y = 0.18; bent.rotation.z = -1.6
+  bent.add(mesh(cyl(0.012, 0.012, 0.2, 5), dark, 0, 0.1, 0)); bent.add(mesh(sph(0.04, 8, 6), glow(L.tip, 0.1), 0, 0.21, 0)); droop.add(bent); tv.add(droop)
+  const glass = new THREE.Group(); glass.visible = false; g.add(glass)
+  const shardM = mat('#d8f2ff', { emissive: '#9fd8ff', emissiveIntensity: 0.6, side: THREE.DoubleSide })
+  for (let i = 0; i < 9; i++) {
+    const a = i * 2.39, r = 0.55 + (i % 3) * 0.22
+    const s = mesh(geo('shard', () => new THREE.CircleGeometry(0.07, 3)), shardM, Math.cos(a) * r, 0.03, -1.05 + Math.sin(a) * r * 0.8)
+    s.rotation.set(-Math.PI / 2, 0, a); s.scale.set(1, 0.6 + (i % 2) * 0.6, 1); glass.add(s)
+  }
 
-  let mode = null
+  let mode = null, ghostOn = false
+  const ghostMats = new Map()
+  const ease = (o, k, to, f) => { o[k] += (to - o[k]) * f }
   return {
     group: g, tv, canvas: cv, tex, frame,
-    // mode: 'stand' | 'walk' | 'sit' | 'slump'; phase: walk cycle (radians)
-    pose(m, phase = 0, amount = 1) {
-      const s = Math.sin(phase) * 0.55 * amount
-      if (m === 'walk' || m === 'stand') {
-        legs.forEach((l, i) => { l.rotation.set(i ? -s : s, 0, 0); l.position.y = 0.36 })
-        arms.forEach((a, i) => { a.rotation.set(i ? s * 0.9 : -s * 0.9, 0, (i ? 1 : -1) * 0.35) })
-        torso.position.y = 0.3 + Math.abs(Math.cos(phase)) * 0.03 * amount; tv.rotation.set(0, 0, 0)
+    // mode: 'stand' | 'walk' | 'sit' | 'dead'; phase: walk cycle (radians); amount: stride 0..1; t: seconds (idle)
+    pose(m, phase = 0, amount = 1, t = 0) {
+      if (m !== mode) {
+        mode = m
+        rig.rotation.set(0, 0, 0); rig.position.set(0, 0, 0); hips.position.y = 0; tv.rotation.set(0, 0, 0)
+        glass.visible = m === 'dead'; shadow.visible = m !== 'dead'
+        if (m === 'sit') { legs.forEach(l => { l.rotation.set(-1.35, 0, 0); l.position.y = 0.4 }); arms.forEach((a, i) => a.rotation.set(-0.9, 0, (i ? 1 : -1) * 0.15)); torso.position.y = 0.08 }
+        if (m === 'dead') { // flat on its back, smashed screen up to the sky, limbs splayed
+          rig.rotation.x = -Math.PI / 2 + 0.08; rig.position.set(0, 0.3, 0.2)
+          legs.forEach((l, i) => { l.rotation.set(0.2, 0, (i ? 1 : -1) * 0.35); l.position.y = 0.36 })
+          arms.forEach((a, i) => a.rotation.set(0.3, 0, (i ? 1 : -1) * 1.25)); torso.position.y = 0.3; tv.rotation.set(0, 0, 0.35)
+        }
       }
-      if (m === mode) return
-      mode = m
-      if (m === 'sit') { legs.forEach(l => { l.rotation.set(-1.35, 0, 0); l.position.y = 0.4 }); arms.forEach((a, i) => a.rotation.set(-0.9, 0, (i ? 1 : -1) * 0.15)); torso.position.y = 0.08; tv.rotation.set(0, 0, 0) }
-      if (m === 'slump') { legs.forEach((l, i) => { l.rotation.set(-1.45, 0, (i ? 1 : -1) * 0.25); l.position.y = 0.16 }); torso.position.y = 0.12; tv.rotation.set(0.18, 0, 0.22) }
+      if (m === 'walk') { // a bouncy waddle: legs and arms swing, the body bobs twice a stride and sways side to side
+        const s = Math.sin(phase), k = Math.min(1, amount)
+        legs.forEach((l, i) => { l.rotation.set((i ? -s : s) * 0.75 * k, 0, 0); l.position.y = 0.36 })
+        arms.forEach((a, i) => a.rotation.set((i ? s : -s) * 0.7 * k, 0, (i ? 1 : -1) * 0.3))
+        torso.position.y = 0.3 + Math.abs(Math.cos(phase)) * 0.07 * k
+        hips.position.y = Math.abs(Math.cos(phase)) * 0.035 * k
+        torso.rotation.set(0.08 * k, 0, Math.sin(phase) * 0.06 * k)
+        tv.rotation.set(0, 0, -Math.sin(phase) * 0.05 * k)
+        ants.forEach((a, i) => { a.rotation.x = Math.cos(phase * 2) * 0.12 * k; a.rotation.z = (i ? -1 : 1) * 0.42 + Math.sin(phase) * 0.1 })
+      } else if (m === 'stand') { // idle: breathing, a slow look about, antennae swaying
+        legs.forEach(l => ease(l.rotation, 'x', 0, 0.25))
+        arms.forEach((a, i) => { ease(a.rotation, 'x', Math.sin(t * 1.6 + i) * 0.05, 0.25); a.rotation.z = (i ? 1 : -1) * (0.33 + Math.sin(t * 2) * 0.02) })
+        torso.position.y = 0.3 + Math.sin(t * 2.2) * 0.012; hips.position.y = 0
+        torso.rotation.set(0, 0, 0)
+        tv.rotation.set(Math.sin(t * 0.9) * 0.03, Math.sin(t * 0.5) * 0.12, Math.sin(t * 0.7) * 0.03)
+        ants.forEach((a, i) => { a.rotation.x = Math.sin(t * 1.3 + i) * 0.08; a.rotation.z = (i ? -1 : 1) * 0.42 + Math.sin(t * 1.7 + i * 2) * 0.06 })
+      } else if (m === 'dead') {
+        hurt.children.forEach((s, i) => { s.position.y = 0.3 + 0.08 * Math.sin(t * 3 + i * 2); s.rotation.y = t * 2 + i })
+      }
     },
-    broken(on) { hurt.visible = droop.visible = on; ants[1].ant.visible = !on },
+    broken(on) { hurt.visible = droop.visible = on; ants[1].visible = !on },
+    // A see-through ghost (only other ghosts ever see one).
+    ghost(on) {
+      if (on === ghostOn) return
+      ghostOn = on
+      rig.traverse(o => {
+        if (!o.isMesh) return
+        if (on) {
+          o.userData.mat0 = o.material
+          if (!ghostMats.has(o.material)) { const c = o.material.clone(); c.userData = {}; fogify(c); c.transparent = true; c.opacity = 0.42; c.depthWrite = false; ghostMats.set(o.material, c) }
+          o.material = ghostMats.get(o.material)
+        } else if (o.userData.mat0) o.material = o.userData.mat0
+      })
+      shadow.visible = !on && mode !== 'dead'
+    },
   }
 }
 
@@ -203,6 +308,12 @@ export function bakery() {
   for (let i = 0; i < 5; i++) { const st = cy(0.4, 0.45, 0.06, mat('#b9b2a8'), 25.8 + i * 1.6, 0.03, 17.6 + (i % 2) * 0.4, 10); st.scale.z = 0.8 }
   for (let i = 0; i < 8; i++) lanterns.push(ball(0.14, glow(['#ffcf6a', '#ff9fb4', '#9fe0ff'][i % 3], 1.6), 25 + i * 1.4, 2.0 - Math.sin((i / 7) * Math.PI) * 0.35, 12.4 + Math.sin(i) * 0.2))
   candle(34.5, 14)
+  // Crumb chutes (vents): a grate in the floor
+  for (const v of VENTS) {
+    const gr = add(new THREE.Group(), v.x, 0.02, v.y)
+    gr.add(mesh(box(1, 0.05, 0.78), mat('#3b3140')))
+    for (let i = 0; i < 5; i++) gr.add(mesh(box(0.9, 0.06, 0.07), mat('#8e8a93'), 0, 0.02, -0.3 + i * 0.15))
+  }
   return { group: B, flames, lanterns, ovenMouth, jamDoors }
 }
 
