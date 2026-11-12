@@ -25,6 +25,7 @@ import GamePicker from './games/GamePicker'
 import { awayOf } from './games/away.js'
 import { Entrance, seatFx, useArrivals } from './Entrances'
 import { RadioCard, RadioDrawer, RadioPlayer } from './Radio'
+import { micHeld, onMicHold } from './lib/micHold'
 
 const GameScreen = lazy(() => import('./games/GameScreen')) // games (and three.js) load only when a table opens
 
@@ -205,6 +206,10 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError, onCal
   const peersRef = useRef(new Map())
   const vstateRef = useRef(vstate)
   vstateRef.current = vstate
+  // Is your mic going out? Not while muted or deafened, nor while a game holds it back (lib/micHold: a secret battle cry).
+  const sending = () => !vstateRef.current.muted && !vstateRef.current.deafened && !micHeld()
+  const applySend = () => streamRef.current?.getAudioTracks().forEach(t => { t.enabled = sending() })
+  useEffect(() => onMicHold(applySend), []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Squash & stretch: write each person's smoothed loudness onto their avatars as --vol (CSS scales from the base).
   useEffect(() => {
@@ -326,7 +331,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError, onCal
       try {
         // Your own avatar follows the raw mic level, but only while it's actually going out (unmuted, gate open).
         mic = await makeMic(audioCtx, ({ lvl, open }) => {
-          const out = open && !vstateRef.current.muted && !vstateRef.current.deafened
+          const out = open && sending()
           setVoiceTalking(me.id, out && lvl > TALK)
           voiceLevels.set(me.id, out ? Math.max(0, Math.min(1, (lvl - TALK) / 18)) : 0)
         })
@@ -346,7 +351,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError, onCal
       const dest = audioCtx.createMediaStreamDestination()
       mic.node.connect(dest)
       streamRef.current = dest.stream
-      streamRef.current.getAudioTracks().forEach(t => { t.enabled = !vstateRef.current.muted && !vstateRef.current.deafened })
+      applySend()
       // Presence and media travel separately; re-sort video whenever someone's cam/live ids change.
       stops.push(online.subscribe(() => { for (const [id, p] of peers) for (const a of p.media.values()) route(id, a.srcObject) }))
 
@@ -393,7 +398,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError, onCal
   }, [channel.id, me.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    streamRef.current?.getAudioTracks().forEach(t => { t.enabled = !vstate.muted && !vstate.deafened })
+    applySend()
     outRef.current?.apply()
   }, [vstate])
 

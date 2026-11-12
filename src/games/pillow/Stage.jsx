@@ -1,10 +1,10 @@
 // Pillow Chit Fight takes over the whole game screen: lobby, drawing pad, voice booth, the battles, the round recap and
 // the podium. GameScreen hands us the lobby buttons, so seats, Chitbots, house rules and "Again?" work as in every
 // other stadium game.
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { toast } from '../../lib/store'
 import { callGame } from '../useGame'
-import { champOf, standings } from './rules.js'
+import { boutOf, champOf, sidesOf, standings } from './rules.js'
 import { audio, audioLocked, upload } from './audio.js'
 import { Doodle } from './Doodle.jsx'
 import DrawPad from './DrawPad.jsx'
@@ -76,7 +76,7 @@ export function Stage({ v, game, people, me, nm, act, refresh, buttons, tools, t
   const total = Math.round((v.until - v.from) / 1000)
   const myChamp = isPlayer ? v.champs[champOf(v, me)] : null
   const maker = isPlayer && v.makers.includes(me)
-  const myBout = maker ? v.bouts.find(b => b.a === champOf(v, me) || b.b === champOf(v, me)) : null
+  const myBout = maker ? boutOf(v, me) : null
   const done = game.status === 'done' || v.phase === 'end'
 
   const drawSubmit = async (art, name) => {
@@ -128,16 +128,17 @@ function Lobby({ people, me, nm, buttons, title, again }) {
         {people.map(p => <span key={p.pid} className={`pcf-seat${p.pid === me ? ' me' : ''}`}><Face p={p} size={52} /><small>{nm(p.pid)}{p.bot ? ' · bot' : ''}</small></span>)}
       </div>
       <div className="pcf-dock">{buttons(again)}</div>
-      {people.length === 2 && !people.some(p => p.bot) && <p className="pcf-hint" role="status">Only two of you? Add a bot or two for chaos.</p>}
-      <p className="pcf-small">2 to 8 players. Chitbots can fill the seats (they draw, vote and shout nonsense). Your battle cry stays with this table and is deleted when it closes.</p>
+      {people.length === 2 && !people.some(p => p.bot) && <p className="pcf-hint" role="status">Just the two of you? You battle head to head every round.</p>}
+      <p className="pcf-small">2 to 8 players, any number. Odd one out? One bout becomes a three-way brawl, and later an old champion comes back to fight. Chitbots only join if the host adds them. Your battle cry stays with this table and is deleted when it closes.</p>
     </div>
   )
 }
 
 function Waiting({ v, me, nm, roster, mine, isPlayer }) {
   const inMakers = v.makers.includes(me)
-  const holder = isPlayer && !inMakers ? v.bouts.find(b => v.champs[b.a].owner === me) : null
-  const champ = holder ? v.champs[holder.a] : inMakers ? v.champs[champOf(v, me)] : null
+  const holdKey = b => sidesOf(b).map(s => b[s]).find(k => b[b.back] !== k && v.champs[k].owner === me && v.champs[k].streak > 0)
+  const holder = isPlayer && !inMakers ? v.bouts.find(holdKey) : null
+  const champ = holder ? v.champs[holdKey(holder)] : inMakers ? v.champs[champOf(v, me)] : null
   const art = champ?.art || (mine?.round === v.round ? mine.art : null)
   const ready = m => (v.phase === 'draw' ? !!v.drawn[m] : !!v.champs[champOf(v, m)]?.cry)
   const head = holder ? 'Your champion is resting' : inMakers ? (v.phase === 'draw' ? 'In the locker room!' : 'Battle cry is in!') : v.phase === 'draw' ? 'The artists are drawing' : 'Battle cries are being recorded'
@@ -153,8 +154,13 @@ function Waiting({ v, me, nm, roster, mine, isPlayer }) {
       <div className="pcf-upnext">
         <h3>The bouts this round</h3>
         <ul>{v.bouts.map((b, i) => {
-          const A = v.champs[b.a], B = v.champs[b.b]
-          return <li key={i}><span>{A.streak > 0 ? <><Icon name="crown" size={12} /> {champName(A, nm)}</> : A.house ? 'House' : nm(A.owner)}</span><i>vs</i><span>{B.house ? <><HouseIcon /> House</> : nm(B.owner)}</span><small>{b.prompt}</small></li>
+          const who = s => {
+            const c = v.champs[b[s]]
+            if (b.back === s) return <><Icon name="crown" size={12} /> {champName(c, nm)} <em>is back</em></>
+            if (c.streak > 0) return <><Icon name="crown" size={12} /> {champName(c, nm)}</>
+            return c.house ? <><HouseIcon /> House</> : nm(c.owner)
+          }
+          return <li key={i} className={b.c ? 'three' : ''}>{sidesOf(b).map((s, j) => <Fragment key={s}><span>{who(s)}</span>{j < sidesOf(b).length - 1 && <i>vs</i>}</Fragment>)}<small>{b.c ? 'Three-way brawl: ' : ''}{b.prompt}</small></li>
         })}</ul>
       </div>
     </div>
@@ -191,7 +197,7 @@ function Podium({ v, me, nm, roster, buttons }) {
   const champs = Object.entries(v.champs)
   const bestOf = pid => champs.filter(([, c]) => c.owner === pid && c.art).sort((x, y) => y[1].best - x[1].best || y[1].wins - x[1].wins)[0]?.[1]
   const streak = champs.reduce((b, [, c]) => (c.best > (b?.best || 0) ? c : b), null)
-  const fav = v.log.reduce((b, l) => { const n = Math.max(l.va, l.vb); return n > (b?.n || 0) ? { n, champ: v.champs[l[l.va >= l.vb ? 'a' : 'b']] } : b }, null)
+  const fav = v.log.reduce((b, l) => { const n = Math.max(l.va, l.vb, l.vc || 0); return n > (b?.n || 0) ? { n, champ: v.champs[l[l.w]] } : b }, null)
   const winners = order.filter(p => (v.scores[p] || 0) === (v.scores[order[0]] || 0))
   return (
     <div className="pcf-podium">
