@@ -166,7 +166,8 @@ export default function Avatar({ id, size = 40, status = false, children, full =
   const isFull = full && !children && !!expr
   const vb = vbadge && (deafened ? { k: 'deaf', e: 'headphones-off', label: 'Deafened' } : muted ? { k: 'muted', e: 'mic-off', label: 'Muted' } : null)
   return (
-    <span className={`avatar${talk ? ' talking' : ''}${children ? ' cam' : ''}${expr ? ' expr-' + expr.key : ''}${isFull ? ' full' : ''}${vb ? ' vdim' : ''}`} style={{ width: size, height: size, '--ring': p?.color }}>
+    <span className={`avatar${talk ? ' talking' : ''}${children ? ' cam' : ''}${expr ? ' expr-' + expr.key : ''}${isFull ? ' full' : ''}${vb ? ' vdim' : ''}`} style={{ width: size, height: size, '--ring': p?.color }}
+      data-vol={(stage || mode === 'voice') && talkProp == null ? id : undefined}>
       {children || (expr
         ? <CropImg src={expr.src} crop={isFull ? null : expr.crop} />
         : <Critter size={size} color={p?.color} talk={talk} blink={stage} />)}

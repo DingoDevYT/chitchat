@@ -519,7 +519,7 @@ button.reply-ref::before { left: 34px; }
 .stage-seat:nth-child(even) { margin-bottom: 20px; }
 .stage-seat:nth-child(3n) { margin-bottom: 12px; }
 .stage-seat .avatar { filter: drop-shadow(0 8px 10px #0006); }
-.stage-seat:has(.talking) { transform: translateY(-10px) scale(1.08); z-index: 1; }
+.stage-seat:has(.talking) { z-index: 1; } /* no hop: the avatar squashes and stretches in place with its voice (--vol) */
 .stage-seat .live-badge { position: absolute; top: -4px; z-index: 1; }
 .stage-seat .name { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; padding: 1px 10px; border-radius: 999px; background: var(--bg-2); }
 .stage-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 8px 16px 20px; flex: none; }
@@ -741,3 +741,9 @@ body .stage-bubble { background: var(--bubble); box-shadow: var(--shadow), inset
 
 /* Day mode: coloured names (roles, profile colours) get a soft dark outline so pale colours stay readable. */
 [data-theme="day"] body .name[style*="color"] { text-shadow: 0 0 1px rgb(30 20 40 / .7), 0 0 2px rgb(30 20 40 / .35); }
+
+/* Live avatars (stadium, voice roster, game seats): squash & stretch from the base with voice loudness, no bob, no offset.
+   --vol (0..1) is written by Voice.jsx; avatars outside a call never get it, so they stay still. */
+.avatar[data-vol] img, .avatar[data-vol] .cimg, .avatar[data-vol] .critter-body { animation: none !important; transform-origin: 50% 100%; transform: scale(calc(1 - var(--vol, 0) * .08), calc(1 + var(--vol, 0) * .16)); transition: transform .07s linear; }
+.avatar.cam[data-vol] { animation: none; }
+@media (prefers-reduced-motion: reduce) { .avatar[data-vol] img, .avatar[data-vol] .cimg, .avatar[data-vol] .critter-body { transform: none; } }

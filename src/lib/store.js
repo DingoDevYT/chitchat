@@ -61,6 +61,9 @@ export const talking = createStore({})
 export function setTalking(id, on) {
   talking.set(s => ({ ...s, [id]: Math.max(0, (s[id] || 0) + (on ? 1 : -1)) }))
 }
+// Live voice loudness per person, 0..1. Not a store on purpose: Voice.jsx writes it straight onto avatars as --vol
+// (a few times a second for everyone in the call), so React never re-renders for it.
+export const voiceLevels = new Map()
 export function setVoiceTalking(id, on) {
   if (!!talking.get()['v:' + id] !== on) talking.set(s => ({ ...s, ['v:' + id]: on }))
 }

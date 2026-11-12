@@ -15,7 +15,7 @@ body .g3d, body .g3d canvas { position: absolute !important; inset: 0; }
 body .gp { position: absolute; left: 0; top: 0; width: 150px; height: 150px; transform-origin: 50% 100%; pointer-events: none; will-change: transform; }
 body .gp-body { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; transition: transform .2s var(--spring); }
 body .gp-body .avatar { filter: drop-shadow(0 10px 12px #0007); }
-body .gp-body:has(.talking) { transform: translateY(-7%) scale(1.05); }
+
 body .gp .stage-bubble { zoom: clamp(.5, calc(.7 / var(--k, 1)), 2.4); font-size: 13px; max-width: 260px; padding: 10px 18px; border-radius: 22px; bottom: calc(100% + 4px); }
 body .gp.gone .gp-body { opacity: .45; filter: grayscale(.6); }
 body .gp-plate {

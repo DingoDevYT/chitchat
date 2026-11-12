@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { Boundary } from './App'
 import { supabase } from './lib/supabase'
-import { online, setVoiceTalking, streams, cams, dropStream, toast, prefs, setPref, micLevel, pttDown, peerState, setPeerState, isDND } from './lib/store'
+import { online, setVoiceTalking, voiceLevels, streams, cams, dropStream, toast, prefs, setPref, micLevel, pttDown, peerState, setPeerState, isDND } from './lib/store'
 import { peerStatus, diffMembers, playChime } from './lib/voicecues'
 import { PeerState } from './VoiceCues'
 import { trackVoice } from './lib/presence'
@@ -66,9 +66,11 @@ function watchLevel(audioCtx, stream, id) {
     an.getByteTimeDomainData(buf)
     let sum = 0
     for (const v of buf) sum += (v - 128) ** 2
-    setVoiceTalking(id, Math.sqrt(sum / buf.length) > 6)
+    const rms = Math.sqrt(sum / buf.length)
+    setVoiceTalking(id, rms > 6)
+    voiceLevels.set(id, Math.max(0, Math.min(1, (rms - 6) / 28)))
   }, 80)
-  return () => { clearInterval(t); src.disconnect(); setVoiceTalking(id, false) }
+  return () => { clearInterval(t); src.disconnect(); setVoiceTalking(id, false); voiceLevels.delete(id) }
 }
 
 // "Normalise voices" for one remote mic: input → compressor → slow make-up gain (normGain) → dest.
@@ -200,6 +202,21 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError, onCal
   const vstateRef = useRef(vstate)
   vstateRef.current = vstate
 
+  // Squash & stretch: write each person's smoothed loudness onto their avatars as --vol (CSS scales from the base).
+  useEffect(() => {
+    const t = setInterval(() => {
+      for (const el of document.querySelectorAll('[data-vol]')) {
+        const cur = el._vol || 0, tgt = voiceLevels.get(el.dataset.vol) || 0
+        if (!cur && !tgt) continue
+        let v = cur + (tgt - cur) * 0.55
+        if (v < 0.005) v = 0
+        el._vol = v
+        el.style.setProperty('--vol', v.toFixed(3))
+      }
+    }, 50)
+    return () => clearInterval(t)
+  }, [])
+
   useEffect(() => {
     let closed = false
     let ch = null
@@ -302,8 +319,11 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError, onCal
       let mic
       try {
         // Your own avatar follows the raw mic level, but only while it's actually going out (unmuted, gate open).
-        mic = await makeMic(audioCtx, ({ lvl, open }) =>
-          setVoiceTalking(me.id, open && lvl > TALK && !vstateRef.current.muted && !vstateRef.current.deafened))
+        mic = await makeMic(audioCtx, ({ lvl, open }) => {
+          const out = open && !vstateRef.current.muted && !vstateRef.current.deafened
+          setVoiceTalking(me.id, out && lvl > TALK)
+          voiceLevels.set(me.id, out ? Math.max(0, Math.min(1, (lvl - TALK) / 18)) : 0)
+        })
       } catch {
         return onError("This browser can't do voice here.")
       }

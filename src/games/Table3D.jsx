@@ -7,6 +7,7 @@ import * as THREE from 'three'
 import { Person } from './People'
 import Avatar, { useFace } from '../Avatar'
 import { botChar, botUrl } from './bots.js'
+import { voiceLevels } from '../lib/store'
 import { card as playCard } from './highcard/rules.js'
 import { CARDS, FLAVOURS } from './snack/rules.js'
 import { N } from './property/rules.js'
@@ -268,8 +269,13 @@ function Cutout({ p, x, z, turn, won }) {
     const yaw = toTable + Math.atan2(Math.sin(toCam - toTable), Math.cos(toCam - toTable)) * 0.5
     g.current.rotation.set(-Math.atan2(camera.position.y - SEAT_Y - FIG_H / 2, Math.hypot(dx, dz)) * 0.55, yaw, 0, 'YXZ')
     const t = clock.elapsedTime
-    const y = reduced ? 0 : won ? Math.abs(Math.sin(t * 6)) * 0.25 : talk ? 0.06 + Math.abs(Math.sin(t * 14)) * 0.03 : 0
+    // Winners still hop; talking squashes and stretches from the feet with voice loudness (bots: a gentle chatter).
+    const y = reduced ? 0 : won ? Math.abs(Math.sin(t * 6)) * 0.25 : 0
     inner.current.position.y += (y - inner.current.position.y) * 0.3
+    const vol = reduced ? 0 : p.user_id ? (voiceLevels.get(p.user_id) || 0) : talk ? 0.35 + 0.35 * Math.abs(Math.sin(t * 9)) : 0
+    const sy = 1 + vol * 0.16, sx = 1 - vol * 0.08
+    inner.current.scale.x += (sx - inner.current.scale.x) * 0.4
+    inner.current.scale.y += (sy - inner.current.scale.y) * 0.4
   })
   return (
     <group ref={g} position={[x, SEAT_Y, z]}>
