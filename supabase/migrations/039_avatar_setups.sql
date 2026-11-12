@@ -1,5 +1,4 @@
 -- Avatar setups: several named PNGtuber setups per person, one (or none) active.
--- NOT APPLIED YET: apply before shipping the "My avatars" client.
 --
 -- The active setup's look is copied into the existing profile avatar columns (avatar_idle, avatar_crop, avatar_talk,
 -- avatar_talk_crop, avatar_states), so every renderer and the profiles realtime feed keep working unchanged.
