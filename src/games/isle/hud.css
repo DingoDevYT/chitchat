@@ -16,9 +16,9 @@ body .ci-badge { display: inline-grid; place-items: center; width: 20px; height:
 body .ci-bottom { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
 body .ci-bottom > * { pointer-events: auto; }
 body .ci .ci-dock { position: static; transform: none; }
-body .ci-basket { display: flex; gap: 6px; background: rgba(255, 244, 220, .96); border-radius: 99px; padding: 5px 10px; box-shadow: 0 3px 0 #c9a77f, 0 6px 14px rgba(0, 0, 0, .25); }
-body .ci-res { display: inline-flex; align-items: center; gap: 3px; font: 700 16px Fredoka, Nunito, sans-serif; min-width: 40px; }
-body .ci-res .tt-i { font-size: 22px; }
+body .ci-basket { display: flex; gap: 8px; background: rgba(255, 244, 220, .96); border-radius: 99px; padding: 7px 14px; box-shadow: 0 3px 0 #c9a77f, 0 6px 14px rgba(0, 0, 0, .25); }
+body .ci-res { display: inline-flex; align-items: center; gap: 5px; font: 700 21px Fredoka, Nunito, sans-serif; min-width: 54px; padding: 2px 8px; border-radius: 99px; background: rgba(201, 167, 127, .18); } /* each resource in its own soft pill so they read apart */
+body .ci-res .tt-i { font-size: 28px; }
 body .ci-hint { display: flex; align-items: center; gap: 8px; background: #4a3020ee; color: #fff8ec; font: 700 14px Nunito, sans-serif; padding: 7px 8px 7px 14px; border-radius: 99px; box-shadow: 0 3px 0 rgba(0, 0, 0, .25); animation: tt-pop .4s cubic-bezier(.3, 1.8, .5, 1) both; }
 body .ci-hint .tt-i { color: var(--honey); font-size: 18px; }
 body .ci .ci-hint button { background: var(--cream); color: var(--ink); border-radius: 99px; padding: 4px 12px; font: 700 13px Fredoka, Nunito, sans-serif; }
@@ -85,9 +85,9 @@ body .ci-cards .tt-atop, body .ci-tradep .tt-atop { margin-bottom: 4px; }
   body .g-isle .g-me { bottom: 150px; }
   body .ci-bottom { left: 6px; right: 6px; bottom: 6px; transform: none; gap: 6px; }
   body .ci .ci-dock { position: static; width: 100%; }
-  body .ci-basket { gap: 2px; padding: 4px 8px; }
-  body .ci-res { min-width: 0; font-size: 14px; margin: 0 3px; }
-  body .ci-res .tt-i { font-size: 19px; }
+  body .ci-basket { gap: 5px; padding: 5px 8px; }
+  body .ci-res { min-width: 0; font-size: 17px; margin: 0; padding: 2px 6px; gap: 3px; }
+  body .ci-res .tt-i { font-size: 23px; }
   body .ci-hint { font-size: 12.5px; }
   body .ci .ci-log { bottom: 150px; max-width: calc(100% - 96px); }
   body .ci .tt-offer, body .ci .tt-trade { bottom: 146px; max-height: calc(100% - 290px); }
