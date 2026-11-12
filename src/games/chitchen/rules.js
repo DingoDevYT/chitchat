@@ -17,7 +17,7 @@ import { rng, shuffle } from '../rng.js'
 import { FIX, SPOTS, along, arrival, canSee, dist, roomAt, route, seatPos, spot } from './map.js'
 
 export const meta = {
-  id: 'chitchen', name: 'Midnight Chitchen', min: 4, max: 8, turnMs: 30000, realtime: true, devOnly: true,
+  id: 'chitchen', name: 'Midnight Chitchen', min: 4, max: 8, turnMs: 30000, realtime: true,
   blurb: 'Bake through the night before the Lantern Fair, but a Nibbler or two is tucking bakers in for naps. Talk it out over tea.',
 }
 
