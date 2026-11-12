@@ -150,20 +150,6 @@ body .gf-tokens i { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0
 body .gf-mid { grid-area: 2 / 2 / 11 / 11; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #2b2230; }
 body .gf-mid b { font-size: 22px; color: #c86f5a; } body .gf-mid em { font-size: 12px; max-width: 80%; text-align: center; }
 
-/* Teacup Town: streets panel, trade builder, offers */
-body .gp-controls { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 100%; }
-body .gp-panel { flex-direction: column; flex-wrap: nowrap; align-items: stretch; max-height: min(42vh, 340px); overflow-y: auto; width: min(560px, 100%); }
-body .gp-street { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 6px; padding: 2px 0; margin: 0; font-size: 13px; text-align: left; }
-body .gp-street input { width: auto; margin: 0; flex: none; }
-body .gp-cols .gp-street { font-size: 12.5px; }
-body .gp-street .btn.small { padding: 4px 9px; font-size: 12px; }
-body .gp-chip { flex: none; width: 12px; height: 12px; border-radius: 3px; background: var(--g); box-shadow: 0 0 0 1px #0004; display: inline-block; }
-body .gp-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-body .gp-cols > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-body .gp-cash { display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 6px; font-size: 13px; }
-body .gp-cash input { width: 90px; }
-body .gp-offer { flex-direction: column; font-size: 13.5px; }
-
 /* phones: tighter HUD, smaller cards that scroll sideways */
 @container (max-width: 560px) {
   body .gs-title { display: none; }
