@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { overlayRoot } from './lib/fullscreen'
 import { cleanWave, nextSpeed } from './lib/voicenote'
 import { PlayIcon, PauseIcon, EyeOffIcon } from './icons'
 import { FavStar } from './GifPicker'
@@ -175,7 +176,7 @@ export function Lightbox({ items, i, setI, onClose }) {
         <button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="close" /></button>
       </div>
     </div>,
-    document.body,
+    overlayRoot(),
   )
 }
 

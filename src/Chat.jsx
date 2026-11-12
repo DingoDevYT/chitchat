@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { overlayRoot } from './lib/fullscreen'
 import { supabase } from './lib/supabase'
 import { ensureProfiles, prefs, profiles, setPref, setTypingIn, toast } from './lib/store'
 import { ask } from './Dialog'
@@ -608,8 +609,8 @@ function Composer({ draftKey: key, placeholder, onSend, onTyping, onEditLast, re
           )}
         </div>
       )}
-      {tool === 'poll' && createPortal(<PollCreator onCreate={onPoll} onClose={() => { setTool(null); focus() }} />, document.body)}
-      {tool === 'time' && createPortal(<TimePicker onInsert={insertAt} onClose={() => { setTool(null); focus() }} />, document.body)}
+      {tool === 'poll' && createPortal(<PollCreator onCreate={onPoll} onClose={() => { setTool(null); focus() }} />, overlayRoot())}
+      {tool === 'time' && createPortal(<TimePicker onInsert={insertAt} onClose={() => { setTool(null); focus() }} />, overlayRoot())}
       {sc.popup}{ac.popup}{mac.popup}{mac.notice}
       {slow > 0 && <SlowBadge sec={slow} left={slowLeft} exempt={exempt} />}
       {rec !== null ? <VoiceRecorder holdStart={rec} onDone={f => { setRec(null); if (f) onSend('', [f]); requestAnimationFrame(focus) }} /> :

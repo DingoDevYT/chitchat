@@ -141,7 +141,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
   const close = async () => { if (await ask({ text: `Close the ${title} table for everyone?`, confirm: 'Close table', danger: true })) run('leave') }
   const tools = (
     <span className="gs-tools">
-      <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Back to the stadium screen' : 'Full view'} aria-label={full ? 'Back to the stadium screen' : 'Full view'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
+      <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Exit fullscreen (Esc)' : 'Fullscreen'} aria-label={full ? 'Exit fullscreen' : 'Fullscreen'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
       {host && <button className="icon-btn gs-btn" onClick={close} title="Close table" aria-label="Close table"><Icon name="close" size={18} /></button>}
     </span>
   )

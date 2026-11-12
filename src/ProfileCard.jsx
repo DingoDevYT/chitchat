@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { overlayRoot } from './lib/fullscreen'
 import { supabase } from './lib/supabase'
 import { createStore, prefs, profiles, refreshProfile, setPref, toast, useProfile } from './lib/store'
 import { ask } from './Dialog'
@@ -60,7 +61,7 @@ export default function ProfileCardHost({ ctx, members }) {
       style={{ position: 'fixed', left: pos?.left ?? -9999, top: pos?.top ?? 0 }}>
       <Card id={state.id} role={role} ctx={ctx} onClose={close} />
     </div>,
-    document.body,
+    overlayRoot(),
   )
 }
 

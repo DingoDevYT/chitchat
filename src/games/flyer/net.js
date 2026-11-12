@@ -10,16 +10,18 @@ const DELAY = 100
 export function ghostLink(channelId, me) {
   const buf = new Map() // pid -> [older, newer] samples with local receive time
   if (!channelId) return { send() {}, sample: () => null, close() {} }
+  // Only send once joined: before that supabase-js falls back to REST broadcasts, which fail on a cold start.
+  // Earlier updates are dropped, not queued (a newer position follows in 80 ms anyway).
+  let ok = true, live = false
   const ch = supabase.channel(`fly:${channelId}`, { config: { private: true, broadcast: { self: false } } })
   ch.on('broadcast', { event: 'p' }, ({ payload: m }) => {
     if (!m || typeof m.id !== 'string' || m.id === me) return
     const s = { t: performance.now(), y: +m.y || 0, d: +m.d || 0, v: m.v || null, f: m.f === -1 ? -1 : 1, a: !!m.a }
     const b = buf.get(m.id) || []
     buf.set(m.id, [b[1] || s, s])
-  }).subscribe()
-  let ok = true
+  }).subscribe(status => { live = status === 'SUBSCRIBED' && ok })
   return {
-    send(st) { if (ok) ch.send({ type: 'broadcast', event: 'p', payload: { id: me, y: Math.round(st.y), d: Math.round(st.d), v: st.veh, f: st.flip, a: st.alive } }) },
+    send(st) { if (ok && live) ch.send({ type: 'broadcast', event: 'p', payload: { id: me, y: Math.round(st.y), d: Math.round(st.d), v: st.veh, f: st.flip, a: st.alive } }) },
     // Interpolated sample for pid at now - DELAY (extrapolates distance a little if packets are late).
     sample(pid, now = performance.now()) {
       const b = buf.get(pid)
@@ -29,6 +31,6 @@ export function ghostLink(channelId, me) {
       const f = span > 0 ? Math.max(0, Math.min(1.5, (t - p.t) / span)) : 1
       return { y: p.y + (q.y - p.y) * Math.min(1, f), d: p.d + (q.d - p.d) * f, veh: q.v, flip: q.f, alive: q.a }
     },
-    close() { ok = false; supabase.removeChannel(ch) },
+    close() { ok = live = false; supabase.removeChannel(ch) },
   }
 }

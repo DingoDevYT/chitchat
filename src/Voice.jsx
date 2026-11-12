@@ -23,6 +23,7 @@ import './styles/stadium-crowd.css'
 import { GAMES_ON, useTable, create as createGame } from './games/useGame'
 import GamePicker from './games/GamePicker'
 import { Entrance, seatFx, useArrivals } from './Entrances'
+import { canFullscreen, enterFullscreen, exitFullscreen, useFullscreenEl } from './lib/fullscreen'
 
 const GameScreen = lazy(() => import('./games/GameScreen')) // games (and three.js) load only when a table opens
 
@@ -627,7 +628,21 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   const crowd = view !== 'list' && box.w ? fitCrowd(others.length, box.w, box.h * 0.5, list.includes(meId) && !atTable.has(meId)) : null
   const seat = id => ({ id, fx: fx[id], live: lives.includes(id), face: joined && faces[id], pin: joined && faces[id] && camItem(id) })
   const theme = useRoomTheme(channel, app.ctx?.server)
-  const gameFull = prefs.use(s => !!g && s.gameView?.[g.game] === 'full') // screen or full view, per person per game
+  // Full view is the browser's real fullscreen on the stadium (stage, call controls and chat), so Esc or the browser's
+  // own exit lands back here. Where that isn't possible (iPhone Safari) the old in-page view stands in, per game.
+  const stageRef = useRef(null)
+  const fsEl = useFullscreenEl()
+  const nativeFull = !!g && !!fsEl && !!stageRef.current && fsEl.contains(stageRef.current)
+  const pageFull = prefs.use(s => !!g && s.gameView?.[g.game] === 'full')
+  const gameFull = nativeFull || pageFull
+  const setPageFull = on => setPref('gameView', { ...prefs.get().gameView, [g.game]: on ? 'full' : 'screen' })
+  const toggleFull = () => {
+    if (gameFull) { if (nativeFull) exitFullscreen(); if (pageFull) setPageFull(false); return }
+    const el = stageRef.current?.closest('.stadium-split') || stageRef.current
+    if (!canFullscreen) return setPageFull(true)
+    enterFullscreen(el, { landscape: g.game === 'flyer' }).then(ok => { if (!ok) setPageFull(true) })
+  }
+  useEffect(() => { if (!g && fsEl && stageRef.current && fsEl.contains(stageRef.current)) exitFullscreen() }, [g, fsEl]) // table closed: back to the window
   // Spotlights hold still and only sweep for a few seconds when someone arrives or leaves.
   const [sweep, setSweep] = useState(true)
   useEffect(() => { setSweep(true); const t = setTimeout(() => setSweep(false), 5000); return () => clearTimeout(t) }, [ids])
@@ -635,7 +650,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   const pickGame = id => { setPicking(false); createGame(channel.id, id).then(r => r && table.refresh()) }
 
   return (
-    <div className={`stage view-${view === 'list' ? 'list' : 'crowd'}${gameFull ? ' game-full' : ''}`} onContextMenu={e => openMenu(e, viewItems)}>
+    <div ref={stageRef} className={`stage view-${view === 'list' ? 'list' : 'crowd'}${gameFull ? ' game-full' : ''}${pageFull && !nativeFull ? ' page-full' : ''}`} onContextMenu={e => openMenu(e, viewItems)}>
       <ThemeBackdrop theme={theme} variant="stadium" />
       <header className="chat-head room-head" style={roomVars(channel, app.ctx?.server)}>
         <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu"><Icon name="menu" /></button>
@@ -645,8 +660,8 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
         <div className={`stage-screen${main || g ? ' on' : ''}${g ? ' game' : ''}${sweep ? ' sweep' : ''}`} onContextMenu={main && !tiles && !g ? streamMenu(main) : undefined}>
           {g ? (
             <>
-              <Boundary key={g.id}><Suspense fallback={null}>
-                <GameScreen table={table} meId={meId} joined={joined} full={gameFull} onFull={() => setPref('gameView', { ...prefs.get().gameView, [g.game]: gameFull ? 'screen' : 'full' })} />
+              <Boundary key={g.id}><Suspense fallback={<div className="gs-loading gs-setup" role="status"><span className="dots"><i /><i /><i /></span>Setting up the table…</div>}>
+                <GameScreen table={table} meId={meId} joined={joined} full={gameFull} onFull={toggleFull} />
               </Suspense></Boundary>
               {shown.length > 0 && !gameFull && <div className="stage-thumbs game-thumbs">{shown.map(id => <div key={id} className="stage-thumb" onContextMenu={streamMenu(id)} title="Live"><Screen stream={all[id]} /></div>)}</div>}
             </>

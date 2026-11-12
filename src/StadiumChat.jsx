@@ -17,6 +17,8 @@ export default function StadiumChat({ channel, ctx, children }) {
       {children}
       {!open && <button className="btn primary small stadium-chat-btn pop" onClick={() => setOpen(true)}><Icon name="chat" size={16} /> Chat</button>}
       <aside className="stadium-chat" aria-label={`${channel.name} chat`} hidden={!open}>
+        {/* phones: a grab-tab on the sheet's top edge (the header's close is small and easy to miss there) */}
+        <button type="button" className="stadium-chat-close" onClick={() => setOpen(false)} aria-label="Close chat"><Icon name="chevron-down" size={18} /> Close</button>
         <Chat key={channel.id} channel={channel} ctx={ctx}
           stadium={{ onType: showTyping, onArrive: showBubble, onClose: () => setOpen(false) }} />
       </aside>
