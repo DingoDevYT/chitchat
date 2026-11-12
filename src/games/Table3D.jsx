@@ -4,7 +4,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { BASE, Person } from './People'
+import { Person } from './People'
+import { useFace } from '../Avatar'
 import { card as playCard } from './highcard/rules.js'
 import { CARDS, FLAVOURS } from './snack/rules.js'
 import { BOARD, GROUPS, N } from './property/rules.js'
@@ -211,17 +212,67 @@ function seatAt(i, n, meIdx, r) {
   return [r * Math.cos(a), r * Math.sin(a), a]
 }
 
-// A soft glowing ring on the table in front of whoever's turn it is.
-function TurnGlow({ x, z, color }) {
-  const ref = useRef()
-  useFrame(({ clock }) => { if (ref.current && !reduced) ref.current.material.opacity = 0.55 + Math.sin(clock.elapsedTime * 4) * 0.25 })
+// ── people: their PNGtuber face on a cut-out sitting behind the table (the table hides their lower third) ──
+const SEAT_Y = -0.6, FIG_H = 1.75
+const loader = new THREE.TextureLoader()
+loader.setCrossOrigin('anonymous')
+const imgTex = new Map()
+function useImgTex(src) {
+  const [t, setT] = useState(() => imgTex.get(src)?.tex || null)
+  useEffect(() => {
+    if (!src) return
+    let on = true, e = imgTex.get(src)
+    if (!e) {
+      e = { p: new Promise(res => loader.load(src, tx => { tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 4; res(tx) }, undefined, () => res(null))) }
+      imgTex.set(src, e)
+    }
+    e.p.then(tx => { e.tex = tx; if (on && tx) setT(tx) })
+    return () => { on = false }
+  }, [src])
+  return src ? t : null
+}
+// The default critter (and Chitbots, in their orange coat with a BOT tag), drawn like the SVG one.
+const critterTex = (color, talk, bot) => canvasTex(`critter${color}${talk ? 1 : 0}${bot || ''}`, 256, 256, (g, w) => {
+  const k = w / 64
+  g.scale(k, k)
+  const dot = (x, y, r, c) => { g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill() }
+  dot(16, 16, 9, color); dot(48, 16, 9, color); dot(16, 16, 4, '#00000022'); dot(48, 16, 4, '#00000022'); dot(32, 36, 24, color)
+  g.fillStyle = '#ff6b8b55'; g.beginPath(); g.ellipse(18, 42, 4, 2.5, 0, 0, 7); g.ellipse(46, 42, 4, 2.5, 0, 0, 7); g.fill()
+  g.fillStyle = '#231d2b'; g.beginPath(); g.ellipse(24, 33, 3, 4, 0, 0, 7); g.ellipse(40, 33, 3, 4, 0, 0, 7); g.fill()
+  if (talk) { g.beginPath(); g.ellipse(32, 45, 5, 4, 0, 0, 7); g.fill() }
+  else { g.strokeStyle = '#231d2b'; g.lineWidth = 2.5; g.lineCap = 'round'; g.beginPath(); g.moveTo(27, 43); g.quadraticCurveTo(32, 47, 37, 43); g.stroke() }
+  if (bot) {
+    g.fillStyle = { hard: '#c8414f', easy: '#6fb06a' }[bot] || '#2b2230'; rrect(g, 40, 3, 22, 10, 5); g.fill()
+    g.fillStyle = bot === 'easy' ? '#1b1420' : '#ffcf9e'; g.font = `900 7.5px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('BOT', 51, 8.3)
+  }
+})
+function Cutout({ p, x, z, turn, won }) {
+  const face = useFace(p.user_id, 'stage')
+  const talk = p.user_id ? face.talk : turn // Chitbots chatter while they think
+  const photo = useImgTex(p.user_id && face.expr ? face.expr.src : null)
+  const tex = photo || critterTex(p.user_id ? face.p?.color || '#f4a261' : '#ff9f6b', talk, p.bot)
+  const aspect = Math.min(1.6, Math.max(0.5, tex.image ? tex.image.width / tex.image.height : 1))
+  const h = FIG_H * (aspect > 1 ? 1 / Math.sqrt(aspect) : 1), w = h * aspect
+  const g = useRef(), inner = useRef()
+  useFrame(({ camera, clock }) => {
+    // always faces you, like a standee, leaning back a little so a high camera still sees the face
+    const dx = camera.position.x - x, dz = camera.position.z - z
+    g.current.rotation.set(-Math.atan2(camera.position.y - SEAT_Y - FIG_H / 2, Math.hypot(dx, dz)) * 0.55, Math.atan2(dx, dz), 0, 'YXZ')
+    const t = clock.elapsedTime
+    const y = reduced ? 0 : won ? Math.abs(Math.sin(t * 6)) * 0.25 : talk ? 0.06 + Math.abs(Math.sin(t * 14)) * 0.03 : 0
+    inner.current.position.y += (y - inner.current.position.y) * 0.3
+  })
   return (
-    <Tw pos={[x, 0.03, z]} lift={0} speed={8}>
-      <mesh ref={ref} rotation-x={-Math.PI / 2}><ringGeometry args={[0.5, 0.68, 40]} /><meshBasicMaterial color={color} transparent opacity={0.7} /></mesh>
-    </Tw>
+    <group ref={g} position={[x, SEAT_Y, z]}>
+      <group ref={inner}>
+        <mesh position={[0, h / 2, 0]} renderOrder={1}>
+          <planeGeometry args={[w, h]} />
+          <meshBasicMaterial map={tex} transparent alphaTest={0.04} toneMapped={false} opacity={p.gone ? 0.45 : 1} side={THREE.DoubleSide} />
+        </mesh>
+      </group>
+    </group>
   )
 }
-
 function Chair({ x, z, a }) {
   return (
     <group position={[x, -1.7, z]} rotation-y={-a + Math.PI / 2}>
@@ -234,44 +285,58 @@ function Chair({ x, z, a }) {
 
 // ── Snack Stack ──
 const hashRot = id => (((id * 2654435761) >>> 0) % 1000) / 1000 - 0.5
-function SnackScene({ v, seats, meId }) {
+// A hand of face-down cards held up in a fan at the table edge in front of someone (backs to the table).
+function HandFan({ s, n, kind, R }) {
+  if (!n) return null
+  const back = cardMats(kind, null)
+  const step = Math.min(0.2, 1.3 / n)
+  const reach = Math.min(R * 0.92, s.r - 0.55)
+  return (
+    <group position={[Math.cos(s.a) * reach, 0.1, Math.sin(s.a) * reach]} rotation-y={Math.PI / 2 - s.a}>
+      <group rotation-x={0.42} scale={0.78}>
+        {Array.from({ length: n }, (_, k) => (
+          <group key={k} rotation-z={(k - (n - 1) / 2) * -step}>
+            <mesh geometry={cardGeo} material={back} position={[0, CH * 0.5, -k * 0.004]} rotation-x={Math.PI / 2} castShadow />
+          </group>
+        ))}
+      </group>
+    </group>
+  )
+}
+
+function SnackScene({ v, seats, meId, pending }) {
+  const top = pending?.type === 'play' ? pending.card : v.top // your card lands at once; the server catches up
   const [pile, setPile] = useState([])
-  useEffect(() => { setPile(p => (p.at(-1)?.id === v.top ? p : [...p.slice(-5), { id: v.top, n: v.moves, from: v.last?.type === 'play' ? v.last.pid : null }])) }, [v.top]) // eslint-disable-line react-hooks/exhaustive-deps
-  const deckPos = [-1.0, 0.03 + Math.min(v.deck, 60) * 0.004, -0.35]
+  useEffect(() => {
+    setPile(p => (p.at(-1)?.id === top ? p : [...p.slice(-5), { id: top, n: v.moves, from: pending?.type === 'play' ? meId : v.last?.type === 'play' ? v.last.pid : null }]))
+  }, [top]) // eslint-disable-line react-hooks/exhaustive-deps
+  const deckPos = [-0.5, 0.03 + Math.min(v.deck, 60) * 0.004, 0]
   const seatOf = pid => seats.find(s => s.pid === pid)
   const ring = useRef()
   useFrame((_, dt) => { if (ring.current && !reduced) ring.current.rotation.y -= v.dir * dt * 0.6 })
   const col = FLAVOURS[v.flavour].color
+  const R = LAYOUT.snack.R
   return (
     <group>
       <mesh position={[deckPos[0], deckPos[1] / 2, deckPos[2]]} castShadow><boxGeometry args={[CW, Math.max(0.02, deckPos[1]), CH]} /><meshStandardMaterial color="#efe3cc" /></mesh>
       <CardMesh kind="snack" id={null} up={false} pos={[deckPos[0], deckPos[1] + 0.01, deckPos[2]]} />
       {pile.map((p, i) => {
         const s = p.from && seatOf(p.from)
-        return <CardMesh key={p.id + '-' + p.n} kind="snack" id={p.id} up pos={[0.2 + hashRot(p.id) * 0.2, 0.03 + i * 0.013, 0.1 + hashRot(p.id + 7) * 0.2]} rot={hashRot(p.id) * 1.2}
-          from={s ? [s.x * 0.6, 0.6, s.z * 0.6] : deckPos} speed={5} />
+        return <CardMesh key={p.id + '-' + p.n} kind="snack" id={p.id} up pos={[0.4 + hashRot(p.id) * 0.12, 0.03 + i * 0.013, hashRot(p.id + 7) * 0.12]} rot={hashRot(p.id) * 0.8}
+          from={s ? [s.x * 0.62, 0.7, s.z * 0.62] : deckPos} speed={9} />
       })}
-      <group ref={ring} position={[0.1, 0.04, 0.05]}>
-        <mesh rotation-x={-Math.PI / 2}><ringGeometry args={[1.3, 1.42, 64]} /><meshBasicMaterial color={col} transparent opacity={0.75} /></mesh>
+      <group ref={ring} position={[0, 0.04, 0]}>
+        <mesh rotation-x={-Math.PI / 2}><ringGeometry args={[1.3, 1.4, 64]} /><meshBasicMaterial color={col} transparent opacity={0.75} /></mesh>
         {[0, 1, 2].map(k => {
           const a = (k * 2 * Math.PI) / 3
-          return <mesh key={k} position={[1.36 * Math.cos(a), 0.02, 1.36 * Math.sin(a)]} rotation={[-Math.PI / 2, 0, -a + (v.dir > 0 ? Math.PI : 0)]}>
+          return <mesh key={k} position={[1.35 * Math.cos(a), 0.02, 1.35 * Math.sin(a)]} rotation={[-Math.PI / 2, 0, -a + (v.dir > 0 ? Math.PI : 0)]}>
             <coneGeometry args={[0.13, 0.32, 3]} /><meshBasicMaterial color={col} /></mesh>
         })}
       </group>
-      {seats.filter(s => s.pid !== meId).map(s => {
-        const n = Math.min(v.counts[s.pid] || 0, 14)
-        return Array.from({ length: n }, (_, k) => {
-          const spread = (k - (n - 1) / 2) * 0.17
-          const ax = -s.z / s.r, az = s.x / s.r // along the table edge
-          return <CardMesh key={`${s.pid}-${k}`} kind="snack" id={null} up={false} from={deckPos}
-            pos={[s.x * 0.72 + ax * spread, 0.35 + Math.abs(spread) * -0.12, s.z * 0.72 + az * spread]} rot={-s.a + Math.PI / 2} tilt={-1.1} />
-        })
-      })}
+      {seats.filter(s => s.pid !== meId).map(s => <HandFan key={s.pid} s={s} n={Math.min(v.counts[s.pid] || 0, 16)} kind="snack" R={R} />)}
     </group>
   )
 }
-
 // ── High card ──
 function HighScene({ v, seats, meId }) {
   const deck = [-0.4, 0.05, 0]
@@ -524,24 +589,27 @@ function Rig({ layout }) {
 
 // Moves each DOM person onto their seat: projected feet, scaled by distance, stacked by depth.
 const _v = new THREE.Vector3()
-function Projector({ seats, els, H }) {
+// Pins each nameplate (and speech bubble) just above its cut-out's head, shrinking with distance.
+function Projector({ seats, els }) {
   const { camera, size } = useThree()
   useFrame(() => {
     seats.forEach((s, i) => {
       const el = els.current[i]
       if (!el) return
-      _v.set(s.x, -0.35, s.z).project(camera)
-      const x = (_v.x + 1) / 2 * size.width, y = (1 - _v.y) / 2 * size.height
-      _v.set(s.x, -0.35 + H, s.z).project(camera)
-      const k = Math.max(0.22, Math.min(0.95, (y - (1 - _v.y) / 2 * size.height) / BASE))
-      const tf = `translate(${(x - BASE / 2).toFixed(1)}px, ${(y - BASE).toFixed(1)}px) scale(${k.toFixed(3)})`
-      if (el.style.transform !== tf) { el.style.transform = tf; el.style.zIndex = String(Math.round(100 + s.z * 10)); el.style.setProperty('--k', k.toFixed(3)) }
+      const top = SEAT_Y + FIG_H + 0.28
+      _v.set(s.x, top, s.z).project(camera)
+      const x = Math.min(size.width - 70, Math.max(70, (_v.x + 1) / 2 * size.width)), y = Math.max(96, (1 - _v.y) / 2 * size.height) // never under the top bar
+      const y0 = (1 - _v.y) / 2 * size.height
+      _v.set(s.x, top + 1, s.z).project(camera)
+      const d = Math.max(0.6, Math.min(1.05, (y0 - (1 - _v.y) / 2 * size.height) / 110))
+      const tf = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`
+      if (el.style.transform !== tf) { el.style.transform = tf; el.style.zIndex = String(Math.round(100 + s.z * 10)); el.style.setProperty('--d', d.toFixed(3)) }
     })
   })
   return null
 }
 
-export default function Table3D({ game, v, people, meIdx, me, turnPid, info, winners }) {
+export default function Table3D({ game, v, people, meIdx, me, turnPid, info, winners, pending }) {
   const layout = LAYOUT[game]
   const [hidden, setHidden] = useState(typeof document !== 'undefined' && document.hidden)
   useEffect(() => {
@@ -550,16 +618,14 @@ export default function Table3D({ game, v, people, meIdx, me, turnPid, info, win
     return () => document.removeEventListener('visibilitychange', f)
   }, [])
   const n = people.length
-  const r = layout.seatR * (innerWidth < 700 ? 0.8 : 1) // phones: pull seats in so side players stay on screen
+  const r = layout.seatR * (innerWidth < 700 ? 0.7 : 1) // phones: pull seats in so side players stay on screen
   const seats = people.map((p, i) => {
     let [x, z, a] = seatAt(i, Math.max(n, 2), meIdx, r)
-    // You stand at the front-left corner (like your corner in the crowd), leaving the middle clear for your hand.
-    if (p.pid === me) { x = -r * 0.62; z = r * 0.82; a = Math.atan2(z, x) }
     return { ...p, x, z, a, r }
   })
+  const others = seats.filter(s => s.pid !== me) // you are the camera: your hand is the dock along the bottom
   const els = useRef([])
   const Scene = SCENES[game]
-  const turnSeat = seats.find(s => s.pid === turnPid)
   return (
     <div className="g3d">
       <Canvas shadows dpr={[1, 1.5]} frameloop={hidden ? 'never' : 'always'} camera={{ fov: 42, near: 0.1, far: 60, position: layout.cam }}
@@ -571,12 +637,12 @@ export default function Table3D({ game, v, people, meIdx, me, turnPid, info, win
         <Room layout={layout} />
         <TableMesh layout={layout} />
         {seats.filter(s => s.pid !== me).map(s => <Chair key={s.pid} x={s.x * 1.08} z={s.z * 1.08} a={s.a} />)}
-        {turnSeat && <TurnGlow x={turnSeat.x * 0.78} z={turnSeat.z * 0.78} color={turnSeat.color} />}
-        {v && <Scene v={v} seats={seats} meId={me} />}
-        <Projector seats={seats} els={els} H={layout.H} />
+        {others.map(s => <Cutout key={s.pid} p={s} x={s.x} z={s.z} turn={s.pid === turnPid} won={winners?.includes(s.pid)} />)}
+        {v && <Scene v={v} seats={seats} meId={me} pending={pending} />}
+        <Projector seats={others} els={els} />
       </Canvas>
-      {seats.map((p, i) => (
-        <Person key={p.pid} p={p} elRef={el => { els.current[i] = el }} turn={p.pid === turnPid} info={info(p.pid)} me={p.pid === me} won={winners?.includes(p.pid)} />
+      {others.map((p, i) => (
+        <Person key={p.pid} head p={p} elRef={el => { els.current[i] = el }} turn={p.pid === turnPid} info={info(p.pid)} me={p.pid === me} />
       ))}
     </div>
   )

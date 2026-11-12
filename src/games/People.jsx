@@ -33,7 +33,19 @@ function BotStandee({ size, thinking, level }) {
 
 // One person at the table: their live PNGtuber avatar (talking, expressions, blinking, webcam), speech bubble and nameplate.
 // elRef lets the 3D table move it every frame; style places it in the flat table.
-export function Person({ p, turn, info, me, elRef, style, won }) {
+// head: the 3D table draws the body itself (a cut-out behind the table); this is just the speech bubble and nameplate over the head.
+export function Person({ p, turn, info, me, elRef, style, won, head }) {
+  const plate = (
+    <div className="gp-plate">
+      <span className="gp-name">{p.user_id ? <Name id={p.user_id} /> : <span className="name">Chitbot ({LEVEL_NAMES[p.bot]})</span>}</span>
+      {info != null && <span className="gp-info">{info}</span>}
+    </div>
+  )
+  if (head) return (
+    <div ref={elRef} className={`gp head${turn ? ' turn' : ''}${me ? ' me' : ''}${p.gone ? ' gone' : ''}`} style={{ '--seat': p.color, ...style }}>
+      <div className="gp-top">{p.user_id && <Bubble id={p.user_id} />}{plate}</div>
+    </div>
+  )
   return (
     <div ref={elRef} className={`gp${turn ? ' turn' : ''}${me ? ' me' : ''}${won ? ' won' : ''}${p.gone ? ' gone' : ''}`} style={{ '--seat': p.color, ...style }}>
       <div className="gp-body">

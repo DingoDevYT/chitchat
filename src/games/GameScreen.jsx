@@ -78,8 +78,11 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
   const nm = pid => nameOf(pid, seats)
   const meIdx = Math.max(0, people.findIndex(p => p.pid === meId))
   const info = pid => (v && !lobby ? UI.info(v, pid) : null)
-  const run = async (action, extra) => { setBusy(true); await act(action, extra); setBusy(false) }
-  const doAct = (action, extra) => run(action, extra)
+  const run = async (action, extra) => { setBusy(true); const r = await act(action, extra); setBusy(false); return r }
+  // Your move shows at once (pending) while the referee confirms it; a refusal or the next version clears it.
+  const [pending, setPending] = useState(null)
+  useEffect(() => setPending(null), [game.version])
+  const doAct = async (action, extra) => { if (action === 'move') setPending(extra.move); if (!(await run(action, extra))) setPending(null) }
 
   // Keyboard: game shortcuts on your turn (K / S, F, R / E…), unless you're typing somewhere.
   useEffect(() => {
@@ -112,16 +115,17 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
     <div className={`gs g-${game.game}${full ? ' full' : ''}`}>
       {canGL
         ? <Suspense fallback={<div className="gs-loading">Setting the table…</div>}>
-          <Table3D game={game.game} v={lobby ? null : v} people={people} meIdx={meIdx} me={meId} turnPid={turnPid} info={info} winners={winners} version={game.version} />
+          <Table3D game={game.game} v={lobby ? null : v} people={people} meIdx={meIdx} me={meId} turnPid={turnPid} info={info} winners={winners} version={game.version} pending={pending} />
         </Suspense>
         : <TableFlat UI={UI} v={lobby ? null : v} people={people} meIdx={meIdx} turnPid={turnPid} info={info} winners={winners} me={meId} />}
 
       <div className="gs-top">
         <span className="gs-title"><Icon name="cards" size={18} /> {R.meta.name}</span>
         {v && !lobby && <span key={turnPid === meId ? 'mine' : 'other'} className={`gs-banner${turnPid === meId ? ' mine' : ''}`}>{UI.banner(v, nm, meId)}</span>}
-        <span className="spacer" />
-        <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Back to the stadium screen' : 'Full view'} aria-label={full ? 'Back to the stadium screen' : 'Full view'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
-        {host && <button className="icon-btn gs-btn" onClick={close} title="Close table" aria-label="Close table"><Icon name="close" size={18} /></button>}
+                <span className="gs-tools">
+          <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Back to the stadium screen' : 'Full view'} aria-label={full ? 'Back to the stadium screen' : 'Full view'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
+          {host && <button className="icon-btn gs-btn" onClick={close} title="Close table" aria-label="Close table"><Icon name="close" size={18} /></button>}
+        </span>
       </div>
       {playing && game.deadline && <Timer deadline={game.deadline} version={game.version} />}
       {v && !lobby && UI.lastText(v, nm) && <div className="gs-last" key={game.version}>{UI.lastText(v, nm)}</div>}
@@ -137,7 +141,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
       {playing && inRound && (
         <div className="gs-hand" aria-label="Your controls">
-          <UI.Controls v={v} me={meId} act={doAct} nm={nm} busy={busy} />
+          <UI.Controls v={v} me={meId} act={doAct} nm={nm} busy={busy} pending={pending} />
         </div>
       )}
 

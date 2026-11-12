@@ -20,9 +20,9 @@ export const banner = (v, nm, me) => {
   return t === me ? `Your turn${pend}` : `${nm(t)}'s turn${pend}`
 }
 
-export function Controls({ v, me, act, nm }) {
+export function Controls({ v, me, act, nm, pending }) {
   const [wild, setWild] = useState(null) // card id waiting for a flavour
-  const hand = v.me?.hand || []
+  const hand = (v.me?.hand || []).filter(id => !(pending?.type === 'play' && pending.card === id)) // already flying to the pile
   const mine = turn({ pub: v }) === me
   const ok = id => mine && (v.drew == null || id === v.drew) && playable(v, id)
   const play = (id, flavour) => act('move', { move: { type: 'play', card: id, ...(flavour != null && { flavour }), ...(hand.length === 2 && { bite: true }) } })

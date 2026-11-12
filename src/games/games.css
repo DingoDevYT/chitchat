@@ -24,28 +24,40 @@ body .gp-plate {
 }
 body .gp-plate .name { font-weight: 800; color: #f6eee6 !important; max-width: 220px; overflow: hidden; text-overflow: ellipsis; display: block; }
 body .gp-info { font-size: 17px; color: #e8d9c4; font-weight: 700; }
-body .gp.turn .gp-plate { background: var(--seat); box-shadow: 0 0 0 3px #fff8, 0 0 22px var(--seat); }
-body .gp.turn .gp-plate .name, body .gp.turn .gp-info { color: #1b1420 !important; }
 body .gp.won .gp-body { animation: gp-cheer .7s var(--spring) infinite alternate; }
 @keyframes gp-cheer { to { transform: translateY(-12%) rotate(-3deg); } }
+/* 3D table: only the bubble and nameplate are DOM, anchored above the cut-out head; --d shrinks with distance */
+body .gp.head { width: 0; height: 0; transform-origin: 0 0; }
+body .gp.head .gp-top { position: absolute; left: 0; bottom: 6px; transform: translateX(-50%) scale(var(--d, 1)); transform-origin: 50% 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+body .gp.head .gp-plate { position: static; transform: none; font-size: 15px; padding: 3px 12px 4px; box-shadow: 0 0 0 2px var(--seat), 0 4px 10px #0006; }
+body .gp.head .gp-info { font-size: 13px; }
+body .gp.head .stage-bubble { position: static; zoom: 1; transform: none; order: -2; }
+body .gp.head.gone { opacity: .5; }
+/* whose turn: a bobbing pointer over their nameplate, in their seat colour */
+body .gp.head.turn .gp-top::after { content: ''; order: -1; width: 22px; height: 16px; background: var(--seat); clip-path: polygon(0 0, 100% 0, 50% 100%); filter: drop-shadow(0 2px 3px #0008); animation: gp-point .8s ease-in-out infinite alternate; }
+body .gp.head.turn .gp-plate { box-shadow: 0 0 0 3px var(--seat), 0 4px 10px #0006; }
+@keyframes gp-point { to { transform: translateY(5px); } }
+@media (prefers-reduced-motion: reduce) { body .gp.head.turn .gp-top::after { animation: none; } }
 body .gp-bot { position: relative; display: inline-flex; }
 body .gp-bot-tag { position: absolute; top: 10%; right: 6%; padding: 2px 8px; border-radius: 999px; background: #2b2230; color: #ffcf9e; font: 900 15px/1.3 system-ui; font-style: normal; letter-spacing: .5px; }
 body .gp-bot.lv-hard .gp-bot-tag { background: #c8414f; color: #fff; }
 body .gp-bot.lv-easy .gp-bot-tag { background: #6fb06a; color: #1b1420; }
 
-/* ── HUD ── */
-body .gs-top { position: absolute; top: 8px; left: 8px; right: 8px; z-index: 300; display: flex; align-items: center; gap: 8px; pointer-events: none; }
+/* ── HUD: one bar along the top (game · whose turn + timer · tools), the last move under the title, your dock along the bottom ── */
+body .gs-top { position: absolute; top: 0; left: 0; right: 0; z-index: 300; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 8px 10px 22px;
+  background: linear-gradient(#140f18d9, #140f1866 60%, transparent); pointer-events: none; }
 body .gs-top > * { pointer-events: auto; }
-body .gs-title { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; background: #1b1420cc; font-weight: 800; font-size: 14px; }
-body .gs-banner { padding: 5px 14px; border-radius: 999px; background: #1b1420cc; font-weight: 700; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-body .gs-banner.mine { background: var(--accent); color: var(--accent-ink, #1b1420); box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 60%, transparent); }
+body .gs-title { justify-self: start; display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 14px; color: #f6eee6cc; }
+body .gs-banner { grid-column: 2; padding: 6px 16px; border-radius: 999px; background: #1b1420e6; box-shadow: 0 0 0 1px #ffffff1a; font-weight: 800; font-size: 14px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .gs-banner.mine { background: var(--accent); color: var(--accent-ink, #1b1420); box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent); }
+body .gs-tools { grid-column: 3; justify-self: end; display: inline-flex; gap: 6px; }
 body .gs-btn { background: #1b1420cc; color: #f6eee6; }
-body .gs-timer { position: absolute; top: 46px; left: 50%; width: min(240px, 50%); height: 5px; transform: translateX(-50%); border-radius: 9px; background: #ffffff22; z-index: 300; overflow: hidden; }
+body .gs-timer { position: absolute; top: 42px; left: 50%; width: 140px; height: 4px; transform: translateX(-50%); border-radius: 9px; background: #ffffff1f; z-index: 301; overflow: hidden; }
 body .gs-timer i { position: absolute; inset: 0; background: #ffd36e; transform-origin: 0 50%; animation: gs-time var(--ms) linear forwards; }
 @keyframes gs-time { from { transform: scaleX(1); } to { transform: scaleX(0); background: #ff8a76; } }
-body .gs-last { position: absolute; top: 58px; left: 50%; transform: translateX(-50%); z-index: 300; max-width: min(520px, 90%); padding: 6px 14px; border-radius: 14px;
-  background: #fbf3e4; color: #2b2230; font-weight: 700; font-size: 13.5px; text-align: center; box-shadow: 0 6px 16px #0006; animation: gs-last 4.5s var(--ease) forwards; pointer-events: none; }
-@keyframes gs-last { 0% { opacity: 0; transform: translate(-50%, -6px); } 8%, 80% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+body .gs-last { position: absolute; top: 44px; left: 10px; z-index: 300; max-width: min(320px, 40%); padding: 6px 12px; border-radius: 12px;
+  background: #fbf3e4f2; color: #2b2230; font-weight: 700; font-size: 13px; line-height: 1.3; box-shadow: 0 6px 16px #0005; animation: gs-last 5s var(--ease) forwards; pointer-events: none; }
+@keyframes gs-last { 0% { opacity: 0; transform: translateY(-4px); } 6%, 82% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 
 /* ── lobby / results panels (theme colours) ── */
 body .gs-panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 400; width: min(440px, calc(100% - 24px)); max-height: calc(100% - 70px); overflow: auto;
@@ -64,7 +76,8 @@ body .gs-confetti i { position: absolute; top: -10px; left: calc(var(--i) * 4.2%
 @keyframes gs-fall { to { transform: translateY(260px) rotate(540deg); opacity: 0; } }
 
 /* ── your hand: real buttons along the bottom edge ── */
-body .gs-hand { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 350; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+body .gs-hand { position: absolute; left: 0; right: 0; bottom: 0; z-index: 350; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 30px 10px 10px; pointer-events: none;
+  background: linear-gradient(transparent, #140f18b3 45%, #140f18e6); }
 body .gs-hand > * { pointer-events: auto; }
 body .gc-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
 body .gc-row .btn { box-shadow: 0 6px 14px #0006; }

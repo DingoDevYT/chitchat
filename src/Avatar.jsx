@@ -140,7 +140,9 @@ function useBlink(on) {
 //   'voice'  sidebar stadium roster: talking + muted/deafened
 //   'typing' typing row: their typing face
 //   'still'  everywhere else: idle image, no motion (pass `talk` to animate one specific spot, e.g. a message typing out)
-export default function Avatar({ id, size = 40, status = false, children, full = false, vbadge = false, mode = full ? 'stage' : 'still', talk: talkProp }) {
+// Which face to show right now (expression image, or null for the critter), plus the live state behind it.
+// Shared by <Avatar> and the 3D game table, which draws the same face on a cut-out.
+export function useFace(id, mode = 'still', talkProp) {
   const p = useProfile(id)
   const stage = mode === 'stage', voice = mode === 'voice'
   const blink = useBlink(stage && hasBlink(p))
@@ -156,6 +158,11 @@ export default function Avatar({ id, size = 40, status = false, children, full =
       : voice ? { talk, muted, deafened }
       : mode === 'typing' ? { typing: true }
       : { talk })
+  return { p, talk, st, muted, deafened, expr, stage }
+}
+
+export default function Avatar({ id, size = 40, status = false, children, full = false, vbadge = false, mode = full ? 'stage' : 'still', talk: talkProp }) {
+  const { p, talk, st, muted, deafened, expr, stage } = useFace(id, mode, talkProp)
   const isFull = full && !children && !!expr
   const vb = vbadge && (deafened ? { k: 'deaf', e: 'headphones-off', label: 'Deafened' } : muted ? { k: 'muted', e: 'mic-off', label: 'Muted' } : null)
   return (
