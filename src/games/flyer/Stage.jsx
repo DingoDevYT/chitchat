@@ -67,7 +67,7 @@ export function Stage({ v, game, seats, people, me, nm, act, refresh, buttons, t
       const g = gRef.current
       if (g.pub?.results?.[me]) return
       if (g.id === 'lab') return act('move', { move })
-      const r = await callGame({ action: 'move', gameId: g.id, version: g.version, move }, true)
+      const r = await callGame({ action: 'move', gameId: g.id, version: g.version, move }, true, g.game)
       if (r) { refresh?.(); return }
       await refresh?.()
       await sleep(400 + Math.random() * 700)

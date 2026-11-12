@@ -21,9 +21,10 @@ export const GAME_LIST = GAME_INFO.map(g => [g.id, g.name])
 const UNLISTED = { highcard: 'Chit Flip' }
 export const gameName = (id, fallback) => GAME_INFO.find(g => g.id === id)?.name || UNLISTED[id] || fallback
 
-// Calls the `game` edge function (the referee). Resolves to its JSON, or null after toasting why it said no.
-export async function callGame(body, quiet = false) {
-  const { data, error } = await supabase.functions.invoke('game', { body })
+// Calls the referee: one edge function per game, `game-<id>` (`game`, the all-games fallback, if the id is unknown).
+// Resolves to its JSON, or null after toasting why it said no.
+export async function callGame(body, quiet = false, id = body.game) {
+  const { data, error } = await supabase.functions.invoke(id ? `game-${id}` : 'game', { body })
   if (!error) return data
   let msg = "Couldn't reach the table. Check your connection."
   try { msg = (await error.context.json()).error || msg } catch { /* network error: keep the default */ }
@@ -62,10 +63,10 @@ export function useTable(channelId, meId, on = GAMES_ON) {
 
   const { game, seats } = t
   const act = useCallback(async (action, extra = {}) => {
-    const r = await callGame({ action, gameId: game?.id, version: game?.version, ...extra }, action === 'tick')
+    const r = await callGame({ action, gameId: game?.id, version: game?.version, ...extra }, action === 'tick', game?.game)
     if (r) refresh()
     return r
-  }, [game?.id, game?.version, refresh])
+  }, [game?.id, game?.version, game?.game, refresh])
 
   // Timers without a cron job: after the deadline someone asks the referee to play the timeout (or a Chitbot's turn).
   // Seated people go first, staggered by seat, so usually only one call is made; watchers back them up later.
