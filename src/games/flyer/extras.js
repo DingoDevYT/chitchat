@@ -134,7 +134,12 @@ function bubble(g, x, y, t, left, label) {
 const REEL = ['teapot', 'spr', 'crane', 'ball', 'cup']
 function reelImg(art, i) {
   const k = REEL[i]
-  return k === 'teapot' ? art.gift.brew : k === 'spr' ? art.spr : k === 'crane' ? art.crane : k === 'ball' ? art.ball : art.gift.cup
+  return k === 'teapot' ? art.gift.brew : k === 'spr' ? art.spr : k === 'crane' ? art.crane : k === 'ball' ? art.ball : art.cup
+}
+// Reel symbols keep their shape (the crane and the teacup are wider than tall).
+function reelDraw(g, img, x, y, s) {
+  const a = img.width / img.height, w = a >= 1 ? s : s * a, h = a >= 1 ? s / a : s
+  g.drawImage(img, x - w / 2, y - h / 2, w, h)
 }
 
 // Everything new that sits on top of a frame: S is drawFrame's scene plus { me } (your sim state).
@@ -213,7 +218,7 @@ function drawSpin(g, art, s, t) {
     const sym = el >= stopAt ? pull.reels[i] : Math.floor(t * 16 + i * 2) % 5
     const bob = el >= stopAt ? 0 : ((t * 16) % 1) * 30 - 15
     g.save(); g.beginPath(); g.rect(rx - 54, ry - 54, 108, 108); g.clip()
-    g.drawImage(reelImg(art, sym), rx - 36, ry - 36 + bob, 72, 72)
+    reelDraw(g, reelImg(art, sym), rx, ry + bob, sym === 4 ? 92 : 72)
     g.restore()
   }
   if (el >= 34 + 28 + 6) {
