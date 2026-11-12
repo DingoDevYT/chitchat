@@ -279,7 +279,7 @@ export function move(s, pid, a, now = Date.now()) {
   if (mini && type === 'mini' && s.pub.mini.kind !== 'turn') { // simultaneous: anyone still to post, in any order
     if (!s.pub.players.includes(pid)) throw new Error("You're not playing this one.")
     if (s.pub.mini.posted[pid]) throw new Error('You already played this minigame.')
-  } else if (turn(s) !== pid) throw new Error("It's not your turn.")
+  } else if (turn(s) !== pid && !(mini && type === 'mini' && MINIS[s.pub.mini.id].open?.(s.pub.mini.state, pid))) throw new Error("It's not your turn.") // open: a turn game's secret picks, in any order
   const pub = clone(s.pub), secret = { ...s.secret }, r = rng(secret.rs)
   pub.last = { pid, type, ev: [] }
   if (Number.isFinite(a?.talk) && !isBot(pid)) pub.stats.talk[pid] = Math.max(pub.stats.talk[pid], Math.min(1e7, Math.floor(a.talk))) // a running speaking-time meter
@@ -379,6 +379,7 @@ export const over = s => s.pub.winners
 export function legal(v, pid) {
   if (v.winners) return []
   if (v.phase === 'mini') {
+    if (MINIS[v.mini.id].legal) return MINIS[v.mini.id].legal(v.mini.state, pid)
     if (v.mini.kind === 'turn') return turn({ pub: v }) === pid ? [1, 2, 3].map(puff => ({ type: 'mini', puff })) : []
     return v.mini.posted[pid] ? [] : [{ type: 'mini' }]
   }

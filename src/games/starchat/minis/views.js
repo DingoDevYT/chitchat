@@ -10,3 +10,9 @@ import * as liftView from './LiftView.jsx'
 import * as tapView from './TapView.jsx'
 import * as owlView from './OwlView.jsx'
 Object.assign(VIEWS, { lift: liftView, tap: tapView, owl: owlView })
+
+// Three Lanterns, Last Lantern Standing, Pond Skippers
+import * as lanternsView from './LanternsView.jsx'
+import * as standingView from './StandingView.jsx'
+import * as pondView from './PondView.jsx'
+Object.assign(VIEWS, { lanterns: lanternsView, standing: standingView, pond: pondView })

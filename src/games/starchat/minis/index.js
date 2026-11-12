@@ -11,3 +11,9 @@ import * as lift from './lift.js'
 import * as tap from './tap.js'
 import * as owl from './owl.js'
 Object.assign(MINIS, { lift, tap, owl })
+
+// Three Lanterns, Last Lantern Standing, Pond Skippers
+import * as lanterns from './lanterns.js'
+import * as standing from './standing.js'
+import * as pond from './pond.js'
+Object.assign(MINIS, { lanterns, standing, pond })

@@ -119,3 +119,10 @@ export const MINI_RESULTS_MS = 6000 // the results reveal before the board carri
 
 // The news log's cast.
 export const HOSTS = { star: 'Chit', stall: 'Marzipan', tea: 'Juniper', owl: 'Inkwell', rounds: 'Biscuit' }
+
+// More minigames (min/max: Three Lanterns needs a hider and at least two seekers to bluff).
+Object.assign(MINIGAMES, {
+  lanterns: { name: 'Three Lanterns', text: 'One player hides the star under a lantern (and may point, honestly or not). Everyone else picks one. Find it for 2 points; the hider scores 1 for every seeker fooled.', min: 3, max: 8, rounds: 4, find: 2, fool: 1, foolMax: 3, turnMs: 15000 },
+  standing: { name: 'Last Lantern Standing', text: 'Everyone secretly lights a lantern from 1 to 5. Lanterns lit twice blow out; the highest one left standing scores its number. Five rounds.', min: 2, max: 8, rounds: 5, top: 5, turnMs: 12000 },
+  pond: { name: 'Pond Skippers', text: 'Flick three stones across the pond. Skips, lily-pad bounces and distance score; reaching the far bank earns a bonus.', min: 1, max: 8 },
+})
