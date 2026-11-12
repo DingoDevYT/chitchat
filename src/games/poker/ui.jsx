@@ -59,7 +59,7 @@ export function Controls({ v, me, act, nm }) {
   const sizes = raiseSizes({ bet: v.bet, minRaise: v.minRaise, pot, put, stack })
   const [to, setTo] = useState(sizes.min)
   const [picking, setPicking] = useState(false)
-  const [open, setOpen] = useState(false) // phones: the longer explanations
+  const [open, setOpen] = useState(false) // the "?" tips bubble
   const help = useRef(null)
   useEffect(() => { setTo(sizes.min); setPicking(false) }, [sizes.min, mine, v.phase, v.hand])
   const cards = v.me?.cards
@@ -81,17 +81,23 @@ export function Controls({ v, me, act, nm }) {
     : `Waiting for ${nm(t)} to choose.`
 
   return (
-    <div className={`pk-dock${open ? ' open' : ''}`}>
+    <div className="pk-dock">
+      {/* newcomer tips live behind a "?" in the bottom-right corner instead of a paragraph under the cards */}
+      <button className={`pk-hint-btn${open ? ' on' : ''}`} onClick={() => setOpen(o => !o)} aria-expanded={open} aria-label="Tips for this moment" title="Tips">?</button>
+      {open && (
+        <div className="pk-hint" role="dialog" aria-label="Tips">
+          <p>{stageTip(v.phase, v.sb, v.bb)}</p>
+          {str && <p>{str.tip}</p>}
+          <button className="pk-link" onClick={() => { setOpen(false); help.current?.showModal() }}>How to play</button>
+        </div>
+      )}
       <div className="pk-in">
         <div className="pk-strip">
           <ol className="pk-track" aria-label="Stage of this hand">
             {STAGES.map(([k, l], i) => <li key={k} className={i < stage ? 'done' : i === stage ? 'now' : ''} aria-current={i === stage ? 'step' : undefined}>{l}</li>)}
           </ol>
           {!show && <span className="pk-pot">Pot <b>{fmt(pot)}</b></span>}
-          <button className="pk-link pk-more" onClick={() => setOpen(o => !o)} aria-expanded={open}><Icon name={open ? 'chevron-down' : 'chevron-up'} size={14} />{open ? 'Less' : 'Explain'}</button>
-          <button className="pk-link" onClick={() => help.current?.showModal()}>How to play</button>
         </div>
-        <p className="pk-explain">{stageTip(v.phase, v.sb, v.bb)}{str ? ` ${str.tip}` : ''}</p>
         {need && <p className={`pk-need${mine && owe > 0 ? ' owe' : ''}`}>{need}</p>}
 
         {show ? <Results v={v} who={who} /> : cards && !v.out[me] && (

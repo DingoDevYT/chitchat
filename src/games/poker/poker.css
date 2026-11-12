@@ -100,3 +100,10 @@ body .pk-ex { white-space: nowrap; font-weight: 800; }
   body .pk-ranks td:nth-child(2) { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { body .pk-badge.fresh { animation: none; } }
+
+/* "?" tips button, bottom-right of the dock, with a small bubble above it */
+body .pk-hint-btn { position: absolute; right: 12px; bottom: 12px; z-index: 2; width: 38px; height: 38px; border-radius: 50%; border: 0; background: #fbf3e4; color: #2b2230; font: 900 20px/1 Fredoka, Nunito, sans-serif; box-shadow: 0 3px 0 #c9a77f, 0 6px 12px #0006; cursor: pointer; pointer-events: auto; }
+body .pk-hint-btn.on, body .pk-hint-btn:hover { background: var(--accent); }
+body .pk-hint { position: absolute; right: 12px; bottom: 60px; z-index: 3; width: min(300px, calc(100% - 24px)); padding: 12px 14px; border-radius: 16px; background: #fbf3e4; color: #2b2230; font-size: 13.5px; line-height: 1.4; box-shadow: 0 8px 20px #0007; pointer-events: auto; text-align: left; }
+body .pk-hint p { margin: 0 0 6px; }
+body .pk-hint .pk-link { background: #2b2230; color: #fbf3e4; font-weight: 800; }
