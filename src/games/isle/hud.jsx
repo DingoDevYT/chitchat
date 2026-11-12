@@ -4,34 +4,15 @@
 // in the bottom-right corner, and resource chips flying from tiles to baskets. Taps on the island go through pick.js.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Icon from '../../icons/Icon'
-import { BONUS, CARDS, COST, OFFERS, RES, RES_NAME, TILES, has, left, legal, missing, rate, score, total, turn, victims } from './rules.js'
+import { BONUS, CARDS, COST, KINDS, OFFERS, RES, RES_NAME, bankLeft, basketLimit, has, left, legal, missing, raccoonSpots, rate, score, total, turn, victims } from './rules.js'
 import { bagText, flights, gained, resColor, ticks } from './moments.js'
 import { screen, setPick } from './pick.js'
+import { SYMBOLS } from './icons.js'
 import '../property/hud.css'
 import './hud.css'
 
 const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
-const SYMBOLS = {
-  twig: '<path d="M3 21 19 5" stroke="#8a5a34" stroke-width="3.2" stroke-linecap="round"/><path d="M10 14l6 1.5M7.5 16.5 6.5 10" stroke="#8a5a34" stroke-width="2.2" stroke-linecap="round"/><path d="M18 6c1-3 4-3.5 4-3.5s.5 3.5-2.5 4.5c-1.2.4-1.8-.2-1.5-1z" fill="#6fb06a"/>',
-  wool: '<g fill="#fbf6ea" stroke="#b8ad94" stroke-width="1.6"><circle cx="8" cy="13" r="5"/><circle cx="16" cy="13" r="5"/><circle cx="12" cy="9" r="5"/><circle cx="12" cy="15.5" r="4.5"/></g><path d="M9 11.5c1.5-1 4.5-1 6 0" stroke="#d8cdb4" stroke-width="1.4" fill="none" stroke-linecap="round"/>',
-  clay: '<rect x="3" y="12" width="9" height="6" rx="1.6" fill="#c8693f"/><rect x="12.5" y="12" width="9" height="6" rx="1.6" fill="#b85a33"/><rect x="7.5" y="5.5" width="9" height="6" rx="1.6" fill="#d9804f"/><path d="M5 14.5h4M14.5 14.5h4M9.5 8h4" stroke="#f3b48c" stroke-width="1.2" stroke-linecap="round"/>',
-  berry: '<circle cx="8" cy="15" r="4.2" fill="#a54a82"/><circle cx="15.5" cy="15.5" r="4.2" fill="#8f3c70"/><circle cx="12" cy="9.5" r="4.2" fill="#b65a93"/><circle cx="10.5" cy="8.3" r="1.1" fill="#fff" opacity=".7"/><path d="M12 5.5c1-2.5 4-3 5-2.5-1 2-3 2.8-5 2.5z" fill="#6fb06a"/>',
-  tea: '<path d="M4 20C4 10 10 4 20 4c0 10-6 16-16 16z" fill="#5f9a4f"/><path d="M5 19 15 9M9 15l-.5-3.5M12 12l3 .5" stroke="#cfe8b8" stroke-width="1.5" stroke-linecap="round"/>',
-  house: '<path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" fill="currentColor"/><rect x="10" y="14" width="4" height="7" rx="1" fill="#fff" opacity=".8"/>',
-  lodge: '<path d="M2 10 12 2.5 22 10v10.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" fill="currentColor"/><rect x="16" y="3.5" width="3" height="5" fill="currentColor"/><rect x="5" y="11" width="3.2" height="3.2" rx=".6" fill="#fff" opacity=".8"/><rect x="15.8" y="11" width="3.2" height="3.2" rx=".6" fill="#fff" opacity=".8"/><rect x="10.3" y="14" width="3.4" height="7.5" rx="1" fill="#fff" opacity=".8"/>',
-  path: '<rect x="2" y="9" width="20" height="6" rx="2" fill="currentColor" transform="rotate(-25 12 12)"/><path d="M7 14.5 6 9.5M12 12.2l-1-5M17 10l-1-5" stroke="#fff" stroke-width="1.3" opacity=".6" transform="rotate(-5 12 12)"/>',
-  dice: '<rect x="3" y="3" width="18" height="18" rx="5" fill="currentColor"/><g fill="#fff"><circle cx="8" cy="8" r="1.7"/><circle cx="16" cy="16" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="16" cy="8" r="1.7"/><circle cx="8" cy="16" r="1.7"/></g>',
-  swap: '<path d="M4 8h13l-3-3M20 16H7l3 3" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>',
-  cards: '<rect x="3" y="6" width="11" height="15" rx="2.5" fill="currentColor" opacity=".55" transform="rotate(-10 8 13)"/><rect x="9" y="4" width="11" height="15" rx="2.5" fill="currentColor"/><path d="M14.5 8.5c1.2-1.4 3.4 0 1.8 1.8L14.5 12l-1.8-1.7c-1.6-1.8.6-3.2 1.8-1.8z" fill="#fff" opacity=".8"/>',
-  moon: '<path d="M20 15A8 8 0 0 1 9 4a8 8 0 1 0 11 11z" fill="currentColor"/>',
-  star: '<path d="M12 2l2.6 6.6L21 9.3l-5 4.5 1.5 7L12 17.3 6.5 20.8 8 13.8 3 9.3l6.4-.7z" fill="currentColor"/>',
-  check: '<path d="M5 12.5 10 17 19 7" stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
-  leaf: '<path d="M4 20C4 10 10 4 20 4c0 10-6 16-16 16z" fill="currentColor"/>',
-  basket: '<path d="M3 10h18l-2 10a1.5 1.5 0 0 1-1.5 1.2h-11A1.5 1.5 0 0 1 5 20z" fill="currentColor"/><path d="M7 10l3-6M17 10l-3-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 13v5M12 13v5M16 13v5" stroke="#fff" stroke-width="1.4" opacity=".55"/>',
-  anchor: '<circle cx="12" cy="5" r="2.4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7.5V21M7 11h10M4 14c0 4 4 7 8 7s8-3 8-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
-  raccoon: '<path d="M4 4l4 4M20 4l-4 4" stroke="#6b6f7a" stroke-width="3" stroke-linecap="round"/><ellipse cx="12" cy="13" rx="9" ry="7.5" fill="#9aa0aa"/><path d="M3.5 12c2-2.5 5.5-2.5 8.5 0 3-2.5 6.5-2.5 8.5 0-1.5 2.5-5.5 3-8.5 1-3 2-7 1.5-8.5-1z" fill="#3a3a44"/><circle cx="8.3" cy="12.2" r="1.3" fill="#fff"/><circle cx="15.7" cy="12.2" r="1.3" fill="#fff"/><ellipse cx="12" cy="17" rx="2" ry="1.4" fill="#3a3a44"/>',
-}
 const Sprite = () => <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true" dangerouslySetInnerHTML={{ __html: Object.entries(SYMBOLS).map(([k, d]) => `<symbol id="ci-${k}" viewBox="0 0 24 24">${d}</symbol>`).join('') }} />
 export const I = ({ n, className = '' }) => <svg className={`tt-i ${className}`} aria-hidden="true" focusable="false"><use href={`#ci-${n}`} /></svg>
 
@@ -61,6 +42,7 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
   const [building, setBuilding] = useState(null) // 'path' | 'cottage' | 'lodge' while you choose a spot
   const [steal, setSteal] = useState(null) // the raccoon's new tile, when more than one neighbour lives there
   const [draft, setDraft] = useState(null) // a counter-offer waiting in the trade builder
+  const [help, setHelp] = useState(false) // the "?" how-to-play card
   const root = useRef(null), signs = useRef({}), chips = useRef({})
   const toggle = p => setPanel(panel === p ? null : p)
 
@@ -71,7 +53,7 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
   const tap = useMemo(() => {
     if (!mine) return null
     if (ph === 'place') { const kind = v.place.at == null ? 'cottage' : 'path'; return { kind, spots: legal(v, me, kind) } }
-    if (ph === 'raccoon') return steal == null ? { kind: 'raccoon', spots: TILES.map((_, i) => i).filter(i => i !== v.raccoon) } : null
+    if (ph === 'raccoon') { const spots = raccoonSpots(v, me); return steal == null ? { kind: 'raccoon', spots, who: Object.fromEntries(spots.map(t => [t, victims(v, me, t).length])) } : null }
     const k = building || (v.free > 0 && (ph === 'main' || ph === 'roll') ? 'path' : null)
     if (k && (ph === 'main' || k === 'path')) return { kind: k, spots: legal(v, me, k) }
     return null
@@ -128,6 +110,8 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
         {deadline && !v.winner && <Steep deadline={deadline} version={version} />}
       </div>
       <div className="tt-tools">{tools}</div>
+      <button type="button" className={`ci-help-btn${help ? ' on' : ''}`} onClick={() => setHelp(h => !h)} aria-expanded={help} aria-label="How to play" title="How to play">?</button>
+      {help && <Help v={v} me={me} mine={mine} close={() => setHelp(false)} />}
 
       <div className="tt-signs" style={{ '--n': people.length }}>
         {people.map(p => {
@@ -170,7 +154,7 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
           setPanel('trade')
         }} />
       )}
-      {ph === 'discard' && mine && <Discard key={v.discard[me]} n={v.discard[me]} res={v.res[me]} off={off} send={give => mv({ type: 'discard', give })} />}
+      {ph === 'discard' && mine && <Discard key={v.discard[me]} n={v.discard[me]} res={v.res[me]} limit={basketLimit(v)} off={off} send={give => mv({ type: 'discard', give })} />}
       {steal != null && mine && ph === 'raccoon' && (
         <div className="tt-offer tt-tray ci-steal" role="dialog" aria-label="Take from whom">
           <div className="tt-in">
@@ -193,7 +177,7 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
           {tap && !off && (
             <div className="ci-hint" role="status">
               <I n={tap.kind === 'raccoon' ? 'raccoon' : tap.kind === 'path' ? 'path' : tap.kind === 'lodge' ? 'lodge' : 'house'} />
-              <span>{tap.spots.length ? PLACE_HINT[tap.kind] : 'Nowhere to put that right now'}{v.free > 0 && tap.kind === 'path' ? ` · ${v.free} free` : ''}</span>
+              <span>{tap.spots.length ? PLACE_HINT[tap.kind] : 'Nowhere to put that right now'}{v.free > 0 && tap.kind === 'path' ? ` · ${v.free} free` : ''}{tap.kind === 'raccoon' && v.opts?.friendly ? ' (it leaves anyone under 3 points alone)' : ''}</span>
               {building && <button type="button" onClick={() => setBuilding(null)}>Cancel</button>}
             </div>
           )}
@@ -298,14 +282,14 @@ function Steppers({ max, val, set, label }) {
   )
 }
 
-function Discard({ n, res, off, send }) {
+function Discard({ n, res, off, send, limit }) {
   const [give, setGive] = useState({})
   const sum = total(give)
   return (
     <div className="tt-trade tt-tray ci-discard" role="dialog" aria-label="Put some back">
       <div className="tt-in">
         <h4><I n="raccoon" />The raccoon is about! Put back {n}</h4>
-        <p className="tt-hint">More than 7 in your basket: half goes back to the bank.</p>
+        <p className="tt-hint">More than {limit} in your basket: half goes back to the bank. Tap + on what to give up.</p>
         <Steppers max={res} val={give} set={setGive} label="Put back" />
         <div className="tt-yn"><button type="button" className="y" disabled={off || sum !== n} onClick={() => send(give)}><I n="check" />Put back {sum}/{n}</button></div>
       </div>
@@ -366,8 +350,8 @@ function TradeBuilder({ v, me, nm, short, init, canSend, close, send }) {
           <>
             <p className="tt-hint ci-left">Give the harbour 4 of one kind for 1 of another. A dock by your home does better.</p>
             <div className="ci-hrow"><small>Give</small>{RES.map(k => { const n = rate(v, me, k); return <button key={k} type="button" className={`ci-pickres${hg === k ? ' on' : ''}`} disabled={res[k] < n} onClick={() => setHg(k)} aria-label={`Give ${n} ${RES_NAME[k]}`}><I n={k} /><span>{n}:1</span></button> })}</div>
-            <div className="ci-hrow"><small>Get</small>{RES.map(k => <button key={k} type="button" className={`ci-pickres${hw === k ? ' on' : ''}`} disabled={k === hg} onClick={() => setHw(k)} aria-label={`Get one ${RES_NAME[k]}`}><I n={k} /></button>)}</div>
-            <div className="tt-yn"><button type="button" className="y" disabled={!canSend || !hg || !hw || hg === hw || res[hg] < rate(v, me, hg)}
+            <div className="ci-hrow"><small>Get</small>{RES.map(k => <button key={k} type="button" className={`ci-pickres${hw === k ? ' on' : ''}`} disabled={k === hg || bankLeft(v, k) <= 0} onClick={() => setHw(k)} aria-label={`Get one ${RES_NAME[k]} (bank has ${bankLeft(v, k)})`} title={`Bank has ${bankLeft(v, k)}`}><I n={k} /><span>{bankLeft(v, k)} left</span></button>)}</div>
+            <div className="tt-yn"><button type="button" className="y" disabled={!canSend || !hg || !hw || hg === hw || res[hg] < rate(v, me, hg) || bankLeft(v, hw) <= 0}
               onClick={() => send({ type: 'bank', give: hg, get: hw })}><I n="anchor" />{hg && hw && hg !== hw ? `Trade ${rate(v, me, hg)} for 1` : 'Pick both'}</button></div>
           </>
         ) : (
@@ -407,7 +391,7 @@ function CardsPanel({ v, me, nm, off, can, mv, close }) {
                 <span className="ci-cic"><I n={CARD_ICON[k]} /></span>
                 <b>{CARDS[k].name}{n > 1 ? ` ×${n}` : ''}</b>
                 <p>{CARDS[k].text}</p>
-                {k === 'picnic' && !why && <div className="ci-hrow">{RES.map(r => <button key={r} type="button" className={`ci-pickres${two.includes(r) ? ' on' : ''}`} onClick={() => setTwo(t => (t.length >= 2 ? [r] : [...t, r]))} aria-label={`Take ${RES_NAME[r]}`}><I n={r} />{two.filter(x => x === r).length > 1 ? '×2' : ''}</button>)}</div>}
+                {k === 'picnic' && !why && <div className="ci-hrow">{RES.map(r => <button key={r} type="button" className={`ci-pickres${two.includes(r) ? ' on' : ''}`} disabled={bankLeft(v, r) <= (two.length >= 2 ? 0 : two.filter(x => x === r).length)} onClick={() => setTwo(t => (t.length >= 2 ? [r] : [...t, r]))} aria-label={`Take ${RES_NAME[r]}`}><I n={r} />{two.filter(x => x === r).length > 1 ? '×2' : ''}</button>)}</div>}
                 {k === 'gossip' && !why && <div className="ci-hrow">{RES.map(r => <button key={r} type="button" className={`ci-pickres${one === r ? ' on' : ''}`} onClick={() => setOne(r)} aria-label={`Ask for ${RES_NAME[r]}`}><I n={r} /></button>)}</div>}
                 {k !== 'keep' && <button type="button" className="ci-go" disabled={off || !!why || !extra}
                   onClick={() => mv(k === 'picnic' ? { type: 'play', card: k, res: two } : k === 'gossip' ? { type: 'play', card: k, res: one } : { type: 'play', card: k })}>Play</button>}
@@ -420,6 +404,40 @@ function CardsPanel({ v, me, nm, off, can, mv, close }) {
           <span><I n="path" /><b>{BONUS.path.name}</b> {v.bonus.path ? (v.bonus.path === me ? 'You' : nm(v.bonus.path)) : 'nobody yet'} · your longest path {v.long[me] || 0}/{BONUS.path.min}</span>
           <span><I n="raccoon" /><b>{BONUS.help.name}</b> {v.bonus.help ? (v.bonus.help === me ? 'You' : nm(v.bonus.help)) : 'nobody yet'} · paws played {v.helped[me] || 0}/{BONUS.help.min}</span>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// The "?" card: what to do right now, then the whole game on one card (tiles, costs, the 7, trading, points).
+const KIND_ICON = { woods: 'twig', meadow: 'wool', clay: 'clay', berry: 'berry', tea: 'tea', pond: 'leaf' }
+function Help({ v, me, mine, close }) {
+  useEffect(() => { const k = e => e.key === 'Escape' && close(); addEventListener('keydown', k); return () => removeEventListener('keydown', k) }, [close])
+  const ph = v.phase
+  const now = !mine ? "Watch the island: when it's your turn, the moves you can make light up on the dock."
+    : ph === 'place' ? 'Pick a corner touching good numbers (6 and 8 come up most) and a mix of tiles. Then lay a path from it.'
+      : ph === 'roll' ? 'Roll the dice. You can play a Helping Paw first if the raccoon is on your tile.'
+        : ph === 'main' ? 'Build, trade or play a cozy card, then end your turn. Grey buttons say why when you hover them.'
+          : ph === 'discard' ? 'Pick which resources go back to the bank.'
+            : ph === 'raccoon' ? 'Tap a tile for the raccoon. It blocks that tile and takes one resource from a neighbour there.'
+              : ph === 'trade' ? 'Someone sent a trade: Deal, No thanks or Counter.' : ''
+  return (
+    <div className="tt-trade tt-tray ci-helpp" role="dialog" aria-label="How to play">
+      <div className="tt-in">
+        <div className="tt-atop"><h4><I n="leaf" className="tt-sage" />How to play</h4><button type="button" className="tt-x" onClick={close} aria-label="Close how to play"><Icon name="close" size={18} /></button></div>
+        {now && <p className="ci-now"><b>Right now:</b> {now}</p>}
+        <h5>Goal</h5>
+        <p>First to <b>{v.target} points</b>. Cottage 1 · Lodge 2 · {BONUS.path.name} (longest path, 5+) 2 · {BONUS.help.name} (most Helping Paws, 3+) 2 · each Keepsake card 1.</p>
+        <h5>Tiles</h5>
+        <div className="ci-key">{Object.entries(KINDS).map(([k, d]) => <span key={k}><i style={{ background: d.color }}><I n={KIND_ICON[k]} /></i>{d.name}{d.res ? <> → {RES_NAME[d.res]}</> : ' (nothing)'}</span>)}</div>
+        <p>Each roll, every tile with that number gives its resource to each home on its corners (a lodge gets two). The bank holds 19 of each: if it can't pay everyone, nobody gets that one.</p>
+        <h5>Building</h5>
+        <div className="ci-costs">{[['path', 'Path'], ['cottage', 'Cottage'], ['lodge', 'Lodge'], ['card', 'Cozy card']].map(([k, l]) => <span key={k}><b>{l}</b><Bag b={COST[k]} /></span>)}</div>
+        <p>Cottages need a free corner on both sides and go at the end of your paths. A lodge replaces one of your cottages.</p>
+        <h5>A 7</h5>
+        <p>Anyone holding more than {basketLimit(v)} puts back half. Then the roller moves the raccoon{v.opts?.friendly ? ' (not next to anyone under 3 points)' : ''} and takes one resource from someone next to it.</p>
+        <h5>Trading</h5>
+        <p>After rolling, offer any swap to a friend, or trade 4 of a kind with the harbour for 1. A dock by your home makes it 3 for 1 (3:1 signs) or 2 for 1 of its resource.</p>
       </div>
     </div>
   )

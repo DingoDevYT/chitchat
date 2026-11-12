@@ -23,7 +23,7 @@ const LAYOUT = {
   highcard: { shape: 'round', R: 2.2, felt: '#3f6b5c', seatR: 3.0, cam: [0, 5.8, 7.0], look: [0, -0.15, 0.4], H: 1.9 },
   poker: { shape: 'round', R: 2.5, felt: '#2f6b4f', seatR: 3.3, cam: [0, 5.6, 7.6], look: [0, -0.1, 0.4], H: 2.1 },
   property: { follow: true, shape: 'square', R: 3.1, felt: '#d9c7a3', seatR: 4.0, cam: [0, 8.4, 6.6], look: [0, 0.5, 0.2], H: 2.3 },
-  isle: { shape: 'round', R: 3.45, felt: '#5fa8bf', seatR: 4.4, cam: [0, 8.4, 6.9], look: [0, -0.1, 0.55], H: 2.2 }, // the felt is the sea
+  isle: { shape: 'round', R: 3.6, felt: '#5fa8bf', seatR: 4.55, cam: [0, 8.5, 6.7], look: [0, -0.15, 0.45], H: 2.2 }, // the felt is the sea
 }
 
 // ── canvas textures (cached) ──
@@ -586,13 +586,14 @@ function PropertyScene({ v, seats }) {
 }
 
 // ════════ Chitter Cove (isle): its own section, everything below until the end marker ════════
-// A hex island on a sea-blue table: low hex tiles with little props per kind, number tokens, a sandy rim, docks on the
-// coast, wooden plank paths, cozy cottages and lodges in the owner's colour, the raccoon, the dice. Tapping glowing spots
-// goes through isle/pick.js (the HUD decides what's tappable).
+// A hex island filling a sea-blue table: low hex tiles with little props and a resource badge per kind, big number
+// tokens (6 and 8 in red), a sandy rim, docks with ratio signs, plank paths and cozy cottages and lodges in the owner's
+// colour, the raccoon, the dice on the far side. Tapping glowing spots goes through isle/pick.js (the HUD decides what).
 import { EDGES as ISLE_EDGES, KINDS as ISLE_KINDS, TILES as ISLE_TILES, VERTS as ISLE_VERTS } from './isle/rules.js'
 import { usePick as useIslePick, screen as isleScreen } from './isle/pick.js'
+import { iconUrl as isleIcon } from './isle/icons.js'
 
-const IK = 0.56, ITH = 0.12 // world units per hex size; tile thickness
+const IK = 0.7, ITH = 0.12 // world units per hex size; tile thickness
 const iw = (x, y) => [x * IK, y * IK] // island (x, y) → world (x, z)
 const ISLE = {
   hex: new THREE.CylinderGeometry(IK * 0.95, IK * 0.97, ITH, 6), // a corner points along +z, like the rules' pointy-top hexes
@@ -600,74 +601,88 @@ const ISLE = {
   box: new THREE.BoxGeometry(1, 1, 1),
   ball: new THREE.SphereGeometry(1, 14, 10),
   cone: new THREE.ConeGeometry(1, 1, 8),
-  disc: new THREE.CylinderGeometry(1, 1, 1, 24),
+  disc: new THREE.CylinderGeometry(1, 1, 1, 28),
+  plane: new THREE.PlaneGeometry(1, 1),
   roof: new THREE.CylinderGeometry(1, 1, 1, 3).rotateZ(Math.PI / 2).rotateX(-Math.PI / 2).translate(0, 0.5, 0), // ridge along x
 }
 const im = (key, color, o = {}) => mat('isle-' + key, () => new THREE.MeshStandardMaterial({ color, roughness: 0.8, ...o }))
-const ISLE_RES_C = { twig: '#9a6a3e', wool: '#efe8d6', clay: '#c8693f', berry: '#a54a82', tea: '#5f9a4f' }
+const flat = (key, map) => mat('isle-flat-' + key, () => new THREE.MeshBasicMaterial({ map, toneMapped: false, transparent: true }))
+const ISLE_RES = { woods: 'twig', meadow: 'wool', clay: 'clay', berry: 'berry', tea: 'tea' }
+const ISLE_RES_C = { twig: '#8a5a34', wool: '#9c8f74', clay: '#c8693f', berry: '#a54a82', tea: '#4f8a43' }
+// A canvas texture that draws its background now and an icon (from isle/icons.js) once the SVG has loaded.
+function iconTex(key, w, h, draw, icon, box) {
+  if (texCache.has(key)) return texCache.get(key)
+  const t = canvasTex(key, w, h, draw)
+  if (icon && typeof Image !== 'undefined') {
+    const img = new Image()
+    img.onload = () => { t.image.getContext('2d').drawImage(img, ...box); t.needsUpdate = true }
+    img.src = isleIcon(icon, 128)
+  }
+  return t
+}
 // A speckled top per tile kind (grass, soil, water), so tiles read as ground and not plastic.
 const isleTopTex = k => canvasTex('isle-top-' + k, 128, 128, (g, w, h) => {
-  const c = ISLE_KINDS[k].color
-  g.fillStyle = c; g.fillRect(0, 0, w, h)
+  g.fillStyle = ISLE_KINDS[k].color; g.fillRect(0, 0, w, h)
   for (let i = 0; i < 70; i++) {
-    const x = (i * 53) % w, y = (i * 97 + i * i) % h
     g.fillStyle = i % 2 ? '#ffffff22' : '#00000018'
-    g.beginPath(); g.arc(x, y, 2 + (i % 3), 0, 7); g.fill()
+    g.beginPath(); g.arc((i * 53) % w, (i * 97 + i * i) % h, 2 + (i % 3), 0, 7); g.fill()
   }
 })
 const tileMats = k => mat('isle-tile-' + k, () => [im('side', '#a8885f'), new THREE.MeshStandardMaterial({ map: isleTopTex(k), roughness: 0.95 }), im('side', '#a8885f')])
-const numTex = n => canvasTex('isle-num-' + n, 128, 128, (g, w) => {
-  g.fillStyle = '#fff4dc'; g.beginPath(); g.arc(w / 2, w / 2, w / 2, 0, 7); g.fill()
-  g.strokeStyle = '#d9c29a'; g.lineWidth = 6; g.beginPath(); g.arc(w / 2, w / 2, w / 2 - 5, 0, 7); g.stroke()
+// Number tokens: cream with a dark rim, a big dark number (6 and 8 bigger and red), and pips for how often it comes up.
+const numTex = n => canvasTex('isle-num2-' + n, 256, 256, (g, w) => {
   const hot = n === 6 || n === 8
-  g.fillStyle = hot ? '#c8414f' : '#4a3324'; g.textAlign = 'center'; g.textBaseline = 'middle'
-  g.font = `900 ${hot ? 82 : 74}px ${FONT}`; g.fillText(String(n), w / 2, w / 2 - 8)
+  g.fillStyle = '#3a2a20'; g.beginPath(); g.arc(w / 2, w / 2, w / 2, 0, 7); g.fill()
+  g.fillStyle = hot ? '#fff1d6' : '#fff8ec'; g.beginPath(); g.arc(w / 2, w / 2, w / 2 - 12, 0, 7); g.fill()
+  g.fillStyle = hot ? '#d12f3f' : '#2b2230'; g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.font = `900 ${hot ? 150 : 132}px ${FONT}`; g.fillText(String(n), w / 2, w / 2 - 14)
   const dots = 6 - Math.abs(7 - n)
-  for (let i = 0; i < dots; i++) { g.beginPath(); g.arc(w / 2 + (i - (dots - 1) / 2) * 12, w / 2 + 34, 4, 0, 7); g.fill() }
+  for (let i = 0; i < dots; i++) { g.beginPath(); g.arc(w / 2 + (i - (dots - 1) / 2) * 24, w / 2 + 78, 9, 0, 7); g.fill() }
 })
-const dockTex = k => canvasTex('isle-dock-' + k, 128, 128, (g, w) => {
-  g.fillStyle = '#fff4dc'; rrect(g, 4, 4, w - 8, w - 8, 24); g.fill()
-  g.strokeStyle = '#8a5a34'; g.lineWidth = 8; rrect(g, 4, 4, w - 8, w - 8, 24); g.stroke()
-  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#4a3324'
-  if (k === 'any') { g.font = `900 46px ${FONT}`; g.fillText('3:1', w / 2, w / 2 + 2); return }
-  g.fillStyle = ISLE_RES_C[k]; g.strokeStyle = '#4a332455'; g.lineWidth = 4
-  g.beginPath(); g.arc(w / 2, 44, 24, 0, 7); g.fill(); g.stroke()
-  g.fillStyle = '#4a3324'; g.font = `900 36px ${FONT}`; g.fillText('2:1', w / 2, 96)
-})
-// [x, z, sx, sy, sz, geometry, material key, colour, y] prop parts, in tile space (number token sits in the middle)
+// A round badge with the tile's resource icon, so kinds read at a glance.
+const badgeTex = r => iconTex('isle-badge-' + r, 128, 128, (g, w) => {
+  g.fillStyle = ISLE_RES_C[r]; g.beginPath(); g.arc(w / 2, w / 2, w / 2, 0, 7); g.fill()
+  g.fillStyle = '#fff8ec'; g.beginPath(); g.arc(w / 2, w / 2, w / 2 - 10, 0, 7); g.fill()
+}, r, [18, 18, 92, 92])
+const dockTex = k => iconTex('isle-dock2-' + k, 192, 192, (g, w) => {
+  g.fillStyle = '#fff8ec'; rrect(g, 6, 6, w - 12, w - 12, 30); g.fill()
+  g.strokeStyle = k === 'any' ? '#8a5a34' : ISLE_RES_C[k]; g.lineWidth = 12; rrect(g, 6, 6, w - 12, w - 12, 30); g.stroke()
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#2b2230'
+  if (k === 'any') { g.font = `900 78px ${FONT}`; g.fillText('3:1', w / 2, w / 2 - 14); g.font = `800 34px ${FONT}`; g.fillText('any', w / 2, w / 2 + 50); return }
+  g.font = `900 64px ${FONT}`; g.fillText('2:1', w / 2, w / 2 + 52)
+}, k === 'any' ? null : k, [56, 18, 80, 80])
+// Props per kind, in tile space; the middle is the number token and the bottom (toward you) the resource badge.
+const SPOTS = [[-0.3, -0.1], [0.3, -0.1], [0, -0.33], [-0.3, 0.16], [0.3, 0.16]]
 function TileProps({ k }) {
   const P = (key, col) => im(key, col)
   const parts = []
-  const ring = [[-0.26, -0.14], [0.27, -0.12], [0.02, 0.29], [-0.22, 0.2], [0.22, 0.2]]
-  if (k === 'woods') ring.slice(0, 4).forEach(([x, z], i) => {
-    parts.push([x, z, 0.025, 0.06, 0.025, 'disc', P('trunk', '#7a4e2d'), 0.03])
-    parts.push([x, z, 0.08, 0.17, 0.08, 'cone', P(i % 2 ? 'pine' : 'pine2', i % 2 ? '#2f6b3a' : '#3e7d45'), 0.14])
+  if (k === 'woods') SPOTS.forEach(([x, z], i) => {
+    parts.push([x, z, 0.022, 0.05, 0.022, 'disc', P('trunk', '#7a4e2d'), 0])
+    parts.push([x, z, 0.07, 0.16, 0.07, 'cone', P(i % 2 ? 'pine' : 'pine2', i % 2 ? '#2f6b3a' : '#3e7d45'), 0.04])
   })
-  if (k === 'meadow') [[-0.24, -0.12], [0.25, 0.08], [-0.05, 0.27]].forEach(([x, z]) => {
-    parts.push([x, z, 0.07, 0.055, 0.05, 'ball', P('wool', '#fbf6ea'), 0.06])
-    parts.push([x + 0.07, z, 0.03, 0.03, 0.03, 'ball', P('sheepface', '#3a3036'), 0.075])
+  if (k === 'meadow') SPOTS.slice(0, 4).forEach(([x, z]) => {
+    parts.push([x, z, 0.06, 0.048, 0.044, 'ball', P('wool', '#fbf6ea'), 0.05])
+    parts.push([x + 0.06, z, 0.026, 0.026, 0.026, 'ball', P('sheepface', '#3a3036'), 0.065])
   })
   if (k === 'clay') {
-    parts.push([-0.22, -0.1, 0.13, 0.06, 0.11, 'ball', P('mound', '#b8603a'), 0.01])
-    ;[[0.2, 0], [0.28, 0], [0.24, 1]].forEach(([x, up]) => parts.push([x, 0.17, 0.07, 0.035, 0.04, 'box', P('brick', '#c8693f'), up * 0.036]))
-    parts.push([0.0, 0.28, 0.09, 0.04, 0.07, 'ball', P('mound2', '#d07a4b'), 0.01])
+    parts.push([-0.3, -0.06, 0.12, 0.06, 0.1, 'ball', P('mound', '#b8603a'), 0])
+    parts.push([0.3, 0.12, 0.1, 0.05, 0.08, 'ball', P('mound2', '#d07a4b'), 0])
+    ;[[0.22, -0.18, 0], [0.32, -0.18, 0], [0.27, -0.18, 1], [-0.05, -0.33, 0]].forEach(([x, z, up]) => parts.push([x, z, 0.08, 0.035, 0.045, 'box', P('brick', '#c8693f'), up * 0.036]))
   }
-  if (k === 'berry') [[-0.24, -0.1], [0.25, -0.06], [0.0, 0.27]].forEach(([x, z], i) => {
-    parts.push([x, z, 0.08, 0.065, 0.08, 'ball', P('bush', '#3f7a3f'), 0.055])
-    ;[[0.04, 0.05], [-0.04, 0.04], [0.0, -0.06]].forEach(([dx, dz]) => parts.push([x + dx, z + dz, 0.022, 0.022, 0.022, 'ball', P(i % 2 ? 'berry2' : 'berry', i % 2 ? '#8f3c70' : '#b64a7a'), 0.1]))
+  if (k === 'berry') SPOTS.slice(0, 4).forEach(([x, z], i) => {
+    parts.push([x, z, 0.075, 0.06, 0.075, 'ball', P('bush', '#3f7a3f'), 0.05])
+    ;[[0.035, 0.04], [-0.035, 0.035], [0.0, -0.05]].forEach(([dx, dz]) => parts.push([x + dx, z + dz, 0.022, 0.022, 0.022, 'ball', P(i % 2 ? 'berry2' : 'berry', i % 2 ? '#8f3c70' : '#c04a86'), 0.095]))
   })
-  if (k === 'tea') [-0.2, 0.0, 0.2].forEach((z, i) => {
-    parts.push([i === 1 ? -0.27 : 0, z + (i === 1 ? 0 : 0.05), i === 1 ? 0.14 : 0.42, 0.05, 0.07, 'box', P('teabush', '#4f8a43'), 0.03])
-    if (i === 1) parts.push([0.27, z, 0.14, 0.05, 0.07, 'box', P('teabush', '#4f8a43'), 0.03])
-  })
+  if (k === 'tea') [-0.32, -0.12].forEach(z => [-0.24, 0.24].forEach(x => parts.push([x, z + (x < 0 ? 0 : 0.04), 0.2, 0.05, 0.06, 'box', P('teabush', '#4f8a43'), 0])))
+  if (k === 'tea') [-0.32, 0.32].forEach(x => parts.push([x, 0.14, 0.12, 0.05, 0.06, 'box', P('teabush2', '#5f9a4f'), 0]))
   if (k === 'pond') {
-    parts.push([0, 0, 0.36, 0.01, 0.3, 'disc', mat('isle-water', () => new THREE.MeshStandardMaterial({ color: '#4f9fbf', roughness: 0.2, metalness: 0.1 })), 0.005])
-    parts.push([0.1, -0.06, 0.08, 0.006, 0.08, 'disc', P('lily', '#6fb06a'), 0.014])
-    parts.push([-0.12, 0.08, 0.05, 0.006, 0.05, 'disc', P('lily', '#6fb06a'), 0.014])
-    parts.push([0.12, -0.06, 0.02, 0.02, 0.02, 'ball', P('flower', '#f3a7c0'), 0.03])
+    parts.push([0, -0.02, 0.42, 0.01, 0.34, 'disc', mat('isle-water', () => new THREE.MeshStandardMaterial({ color: '#4f9fbf', roughness: 0.2, metalness: 0.1 })), 0])
+    parts.push([0.12, -0.08, 0.08, 0.006, 0.08, 'disc', P('lily', '#6fb06a'), 0.01])
+    parts.push([-0.14, 0.08, 0.05, 0.006, 0.05, 'disc', P('lily', '#6fb06a'), 0.01])
+    parts.push([0.14, -0.08, 0.02, 0.02, 0.02, 'ball', P('flower', '#f3a7c0'), 0.02])
   }
   return parts.map(([x, z, sx, sy, sz, geo, m, y], i) => (
-    <mesh key={i} geometry={ISLE[geo]} material={m} position={[x * IK * 1.6, ITH + y + (geo === 'box' || geo === 'disc' ? sy / 2 : geo === 'cone' ? sy / 2 : 0), z * IK * 1.6]} scale={[sx, sy, sz]} castShadow />
+    <mesh key={i} geometry={ISLE[geo]} material={m} position={[x * IK * 1.6, ITH + y + (geo === 'ball' ? sy * 0.6 : sy / 2), z * IK * 1.6]} scale={[sx * 1.2, sy * 1.2, sz * 1.2]} castShadow />
   ))
 }
 function IsleNumber({ n, pos, hit }) {
@@ -677,34 +692,38 @@ function IsleNumber({ n, pos, hit }) {
     if (t0.current === -2) t0.current = clock.elapsedTime
     const t = t0.current >= 0 ? clock.elapsedTime - t0.current : 9
     const b = !reduced && t < 1.2 ? Math.abs(Math.sin(t * Math.PI * 2.5)) * (1.2 - t) * 0.25 : 0
-    ref.current.position.y = ITH + 0.02 + b
+    ref.current.position.y = ITH + 0.025 + b
     ref.current.scale.setScalar(1 + b * 1.5)
   })
+  const big = n === 6 || n === 8 ? 1.1 : 1
   return (
     <group position={[pos[0], 0, pos[1]]}><group ref={ref}>
-      <mesh geometry={ISLE.disc} scale={[0.2, 0.025, 0.2]} material={[im('numside', '#e6d2ac'), mat('isle-numtop' + n, () => new THREE.MeshStandardMaterial({ map: numTex(n), roughness: 0.7 })), im('numside', '#e6d2ac')]} castShadow />
+      <mesh geometry={ISLE.disc} scale={[0.25 * big, 0.03, 0.25 * big]} material={[im('numside', '#3a2a20'), flat('num' + n, numTex(n)), im('numside', '#3a2a20')]} castShadow />
     </group></group>
   )
 }
-// A cozy home on a corner: cream walls, a roof in the owner's colour, a door and a lit window; lodges are a two-part house with a tower.
+const tint = (c, k) => '#' + new THREE.Color(c).lerp(new THREE.Color('#ffffff'), k).getHexString()
+// A cozy home on a corner, all in the owner's colour: tinted walls, a full-colour roof and a colour footing; lodges add a tower.
 function IsleHome({ color, lodge, pos }) {
-  const roof = mat('isle-roof' + color, () => new THREE.MeshStandardMaterial({ color, roughness: 0.55 }))
-  const wall = im('wall', '#f6ead2', { roughness: 0.85 }), wood = im('door', '#7a4e2d'), glow = mat('isle-glow', () => new THREE.MeshBasicMaterial({ color: '#ffd27a', toneMapped: false }))
+  const roof = mat('isle-roof' + color, () => new THREE.MeshStandardMaterial({ color, roughness: 0.5 }))
+  const wall = mat('isle-wall' + color, () => new THREE.MeshStandardMaterial({ color: tint(color, 0.55), roughness: 0.85 }))
+  const base = mat('isle-base' + color, () => new THREE.MeshStandardMaterial({ color, roughness: 0.6 }))
+  const wood = im('door', '#5a3a22'), glow = mat('isle-glow', () => new THREE.MeshBasicMaterial({ color: '#ffd27a', toneMapped: false }))
   const B = (p, s, m, k) => <mesh key={k} geometry={ISLE.box} material={m} position={p} scale={s} castShadow />
   const R = (p, s, k) => <mesh key={k} geometry={ISLE.roof} material={roof} position={p} scale={s} castShadow />
   const parts = lodge ? [
-    B([0, 0.06, 0], [0.2, 0.12, 0.13], wall, 1), R([0, 0.12, 0], [0.22, 0.06, 0.09], 2),
-    B([0.07, 0.11, -0.01], [0.08, 0.22, 0.09], wall, 3), R([0.07, 0.22, -0.01], [0.1, 0.05, 0.06], 4),
-    B([-0.04, 0.035, 0.066], [0.035, 0.07, 0.005], wood, 5), B([0.035, 0.065, 0.066], [0.03, 0.03, 0.005], glow, 6), B([0.07, 0.16, 0.036], [0.03, 0.03, 0.005], glow, 7),
-    B([-0.06, 0.18, -0.03], [0.025, 0.06, 0.025], im('chimney', '#b5654a'), 8),
-    <mesh key={9} geometry={ISLE.box} material={roof} position={[0, 0.004, 0]} scale={[0.24, 0.008, 0.17]} />,
+    B([0, 0.008, 0], [0.25, 0.016, 0.18], base, 0),
+    B([0, 0.07, 0], [0.2, 0.12, 0.13], wall, 1), R([0, 0.13, 0], [0.23, 0.065, 0.095], 2),
+    B([0.07, 0.12, -0.01], [0.08, 0.22, 0.09], wall, 3), R([0.07, 0.23, -0.01], [0.105, 0.055, 0.065], 4),
+    B([-0.04, 0.045, 0.066], [0.035, 0.07, 0.005], wood, 5), B([0.035, 0.075, 0.066], [0.03, 0.03, 0.005], glow, 6), B([0.07, 0.17, 0.036], [0.03, 0.03, 0.005], glow, 7),
+    B([-0.06, 0.19, -0.03], [0.025, 0.06, 0.025], im('chimney', '#7a4e2d'), 8),
   ] : [
-    B([0, 0.045, 0], [0.11, 0.09, 0.09], wall, 1), R([0, 0.09, 0], [0.13, 0.055, 0.065], 2),
-    B([-0.02, 0.03, 0.046], [0.03, 0.055, 0.005], wood, 3), B([0.03, 0.05, 0.046], [0.025, 0.025, 0.005], glow, 4),
-    B([0.035, 0.13, -0.015], [0.02, 0.05, 0.02], im('chimney', '#b5654a'), 5),
-    <mesh key={6} geometry={ISLE.box} material={roof} position={[0, 0.004, 0]} scale={[0.14, 0.008, 0.12]} />,
+    B([0, 0.008, 0], [0.15, 0.016, 0.13], base, 0),
+    B([0, 0.055, 0], [0.11, 0.09, 0.09], wall, 1), R([0, 0.1, 0], [0.135, 0.06, 0.068], 2),
+    B([-0.02, 0.04, 0.046], [0.03, 0.055, 0.005], wood, 3), B([0.03, 0.06, 0.046], [0.025, 0.025, 0.005], glow, 4),
+    B([0.035, 0.14, -0.015], [0.02, 0.05, 0.02], im('chimney', '#7a4e2d'), 5),
   ]
-  return <Tw pos={pos} from={[pos[0], pos[1] + 0.8, pos[2]]} speed={7} lift={0}><group scale={1.25}>{parts}</group></Tw>
+  return <Tw pos={pos} from={[pos[0], pos[1] + 0.8, pos[2]]} speed={7} lift={0}><group scale={1.55}>{parts}</group></Tw>
 }
 // The raccoon: a round grey body, striped tail, black mask; it bobs where it sits and hops to a new tile.
 function Raccoon({ pos }) {
@@ -714,7 +733,7 @@ function Raccoon({ pos }) {
   const S = (p, s, m, k) => <mesh key={k} geometry={ISLE.ball} material={m} position={p} scale={s} castShadow />
   return (
     <Tw pos={pos} speed={4} lift={0.6}>
-      <group ref={bob} scale={1.15}>
+      <group ref={bob} scale={1.45}>
         {S([0, 0.09, 0], [0.085, 0.08, 0.075], grey, 1)}
         {S([0, 0.19, 0.03], [0.07, 0.06, 0.06], grey, 2)}
         {S([0, 0.19, 0.075], [0.06, 0.022, 0.03], dark, 3)}
@@ -732,19 +751,22 @@ const hover = on => { if (typeof document !== 'undefined') document.body.style.c
 const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
 function Glow({ children, onPick }) { // a pulsing tappable spot
   const ref = useRef()
-  useFrame(({ clock }) => { if (ref.current) ref.current.scale.setScalar(reduced ? 1 : 1 + Math.sin(clock.elapsedTime * 5) * 0.12) })
+  useFrame(({ clock }) => { if (ref.current) ref.current.scale.setScalar(reduced ? 1 : 1 + Math.sin(clock.elapsedTime * 5) * 0.1) })
   return <group ref={ref} onClick={e => { e.stopPropagation(); hover(false); onPick() }} onPointerOver={e => { e.stopPropagation(); hover(true) }} onPointerOut={() => hover(false)}>{children}</group>
 }
-const glowMat = mat('isle-glowspot', () => new THREE.MeshBasicMaterial({ color: '#fff3a0', transparent: true, opacity: 0.9, toneMapped: false }))
+const glowMat = mat('isle-glowspot', () => new THREE.MeshBasicMaterial({ color: '#fff3a0', transparent: true, opacity: 0.95, toneMapped: false }))
+// The dice roll in a gap between two docks, clear of the HUD: the left side on wide screens, the far side on phones.
+const ISLE_DICE = { wide: [[-3.01, 1.34], [-3.23, 0.69]], tall: [[-1.1, -3.05], [-0.7, -3.22]] }
 
 function IsleScene({ v, seats }) {
   const pick = useIslePick()
   const { camera, size } = useThree()
+  const tall = size.width < size.height, sc = tall ? 0.9 : 1 // phones: a touch smaller so the side docks stay on screen
   useEffect(() => {
     const p = new THREE.Vector3()
-    isleScreen.tile = i => { p.set(ISLE_TILES[i].x * IK, 0.25, ISLE_TILES[i].y * IK).project(camera); return [(p.x + 1) / 2 * size.width, (1 - p.y) / 2 * size.height] }
+    isleScreen.tile = i => { p.set(ISLE_TILES[i].x * IK * sc, 0.25, ISLE_TILES[i].y * IK * sc).project(camera); return [(p.x + 1) / 2 * size.width, (1 - p.y) / 2 * size.height] }
     return () => { isleScreen.tile = null }
-  }, [camera, size])
+  }, [camera, size, sc])
   useEffect(() => () => hover(false), [])
   const col = pid => seats.find(s => s.pid === pid)?.color || '#999'
   const sum = v.rolls ? v.dice[0] + v.dice[1] : 0
@@ -752,7 +774,7 @@ function IsleScene({ v, seats }) {
   const can = id => pick.onPick && pick.spots.includes(id)
   const rt = ISLE_TILES[v.raccoon]
   return (
-    <group>
+    <group scale={sc}>
       {ISLE_TILES.map((t, i) => {
         const [x, z] = iw(t.x, t.y), k = v.tiles[i].k
         const tap = pick.kind === 'raccoon' && can(i)
@@ -763,58 +785,57 @@ function IsleScene({ v, seats }) {
               onClick={tap ? e => { e.stopPropagation(); hover(false); pick.onPick(i) } : undefined}
               onPointerOver={tap ? e => { e.stopPropagation(); hover(true) } : undefined} onPointerOut={tap ? () => hover(false) : undefined} />
             <group position={[0, 0.01, 0]}><TileProps k={k} /></group>
-            {tap && <Glow onPick={() => pick.onPick(i)}><mesh position={[0, ITH + 0.03, 0]} rotation-x={-Math.PI / 2} material={glowMat}><ringGeometry args={[IK * 0.62, IK * 0.74, 6, 1, Math.PI / 6]} /></mesh></Glow>}
+            {ISLE_RES[k] && <mesh geometry={ISLE.plane} material={flat('badge' + k, badgeTex(ISLE_RES[k]))} position={[0, ITH + 0.016, IK * 0.6]} rotation-x={-Math.PI / 2} scale={0.25} />}
+            {tap && <Glow onPick={() => pick.onPick(i)}><mesh position={[0, ITH + 0.03, 0]} rotation-x={-Math.PI / 2} material={glowMat}><ringGeometry args={[IK * 0.66, IK * 0.78, 6, 1, Math.PI / 6]} /></mesh></Glow>}
           </group>
         )
       })}
       {v.tiles.map((t, i) => t.n > 0 && <IsleNumber key={'n' + i} n={t.n} pos={iw(ISLE_TILES[i].x, ISLE_TILES[i].y)} hit={t.n === sum ? v.rolls : 0} />)}
-      {/* docks: a little pier out from the coast with a sign (3:1 any, 2:1 one resource) */}
+      {/* docks: a little pier out from the coast with a sign facing you (3:1 any, 2:1 one resource) */}
       {v.docks.map((d, i) => {
         const a = ISLE_VERTS[ISLE_EDGES[d.e].a], b = ISLE_VERTS[ISLE_EDGES[d.e].b]
         const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, len = Math.hypot(mx, my), ox = mx / len, oy = my / len
-        const [px, pz] = iw(mx + ox * 0.32, my + oy * 0.32), [sx, sz] = iw(mx + ox * 0.62, my + oy * 0.62)
+        const [px, pz] = iw(mx + ox * 0.3, my + oy * 0.3), [sx, sz] = iw(mx + ox * 0.56, my + oy * 0.56)
         return (
           <group key={'d' + i}>
-            <mesh geometry={ISLE.box} material={im('pier', '#9a6a44')} position={[px, 0.05, pz]} rotation-y={Math.atan2(ox, oy)} scale={[0.12, 0.025, 0.3]} castShadow />
-            {[-1, 1].map(s => <mesh key={s} geometry={ISLE.disc} material={im('post', '#6e4a30')} position={[px + s * oy * 0.05, 0.03, pz - s * ox * 0.05]} scale={[0.015, 0.07, 0.015]} />)}
-            <group position={[sx, 0.17, sz]}>
-              <mesh geometry={ISLE.disc} material={im('post', '#6e4a30')} position={[0, -0.08, 0]} scale={[0.012, 0.16, 0.012]} />
-              <mesh rotation-x={-0.35} material={mat('isle-docksign' + d.k, () => new THREE.MeshStandardMaterial({ map: dockTex(d.k), roughness: 0.7 }))}><planeGeometry args={[0.2, 0.2]} /></mesh>
+            <mesh geometry={ISLE.box} material={im('pier', '#9a6a44')} position={[px, 0.05, pz]} rotation-y={Math.atan2(ox, oy)} scale={[0.14, 0.025, 0.34]} castShadow />
+            {[-1, 1].map(s => <mesh key={s} geometry={ISLE.disc} material={im('post', '#6e4a30')} position={[px + s * oy * 0.06, 0.03, pz - s * ox * 0.06]} scale={[0.016, 0.08, 0.016]} />)}
+            <group position={[sx, 0.22, sz]}>
+              <mesh geometry={ISLE.disc} material={im('post', '#6e4a30')} position={[0, -0.11, 0]} scale={[0.014, 0.22, 0.014]} />
+              <mesh geometry={ISLE.plane} rotation-x={-0.55} scale={0.34} material={flat('dock' + d.k, dockTex(d.k))} />
             </group>
           </group>
         )
       })}
       {Object.entries(v.paths).map(([e, p]) => {
         const ed = ISLE_EDGES[e], [ax, az] = vpos(ed.a), [bx, bz] = vpos(ed.b)
-        const rot = -Math.atan2(bz - az, bx - ax)
         return (
-          <group key={'p' + e} position={[(ax + bx) / 2, ITH + 0.012, (az + bz) / 2]} rotation-y={rot}>
-            <mesh geometry={ISLE.box} material={im('plank', '#8a5a34')} position={[0, 0.012, 0]} scale={[IK * 0.62, 0.024, 0.075]} castShadow />
-            <mesh geometry={ISLE.box} material={mat('isle-pathc' + col(p), () => new THREE.MeshStandardMaterial({ color: col(p), roughness: 0.55 }))} position={[0, 0.03, 0]} scale={[IK * 0.56, 0.014, 0.05]} castShadow />
+          <group key={'p' + e} position={[(ax + bx) / 2, ITH + 0.012, (az + bz) / 2]} rotation-y={-Math.atan2(bz - az, bx - ax)}>
+            <mesh geometry={ISLE.box} material={im('plankedge', '#3a2a20')} position={[0, 0.012, 0]} scale={[IK * 0.64, 0.024, 0.1]} castShadow />
+            <mesh geometry={ISLE.box} material={mat('isle-pathc' + col(p), () => new THREE.MeshStandardMaterial({ color: col(p), roughness: 0.5 }))} position={[0, 0.028, 0]} scale={[IK * 0.6, 0.016, 0.075]} castShadow />
           </group>
         )
       })}
       {Object.entries(v.homes).map(([i, h]) => { const [x, z] = vpos(+i); return <IsleHome key={'h' + i + h.l} color={col(h.p)} lodge={h.l === 2} pos={[x, ITH + 0.012, z]} /> })}
-      <Raccoon pos={[rt.x * IK + 0.17, ITH + 0.012, rt.y * IK + 0.1]} />
+      <Raccoon pos={[rt.x * IK + 0.3, ITH + 0.012, rt.y * IK - 0.14]} />
       {(pick.kind === 'cottage' || pick.kind === 'lodge') && pick.spots.map(i => { const [x, z] = vpos(i); return (
         <Glow key={'g' + i} onPick={() => pick.onPick(i)}>
-          <mesh geometry={ISLE.ball} material={glowMat} position={[x, ITH + 0.07, z]} scale={0.055} />
-          <mesh geometry={ISLE.ball} material={hitMat} position={[x, ITH + 0.07, z]} scale={0.14} />
+          <mesh geometry={ISLE.ball} material={glowMat} position={[x, ITH + 0.08, z]} scale={0.065} />
+          <mesh geometry={ISLE.ball} material={hitMat} position={[x, ITH + 0.08, z]} scale={0.16} />
         </Glow>
       ) })}
       {pick.kind === 'path' && pick.spots.map(e => {
         const ed = ISLE_EDGES[e], [ax, az] = vpos(ed.a), [bx, bz] = vpos(ed.b)
         return (
           <Glow key={'gp' + e} onPick={() => pick.onPick(e)}>
-            <group position={[(ax + bx) / 2, ITH + 0.04, (az + bz) / 2]} rotation-y={-Math.atan2(bz - az, bx - ax)}>
-              <mesh geometry={ISLE.box} material={glowMat} scale={[IK * 0.5, 0.03, 0.05]} />
-              <mesh geometry={ISLE.box} material={hitMat} scale={[IK * 0.6, 0.12, 0.2]} />
+            <group position={[(ax + bx) / 2, ITH + 0.045, (az + bz) / 2]} rotation-y={-Math.atan2(bz - az, bx - ax)}>
+              <mesh geometry={ISLE.box} material={glowMat} scale={[IK * 0.5, 0.035, 0.06]} />
+              <mesh geometry={ISLE.box} material={hitMat} scale={[IK * 0.6, 0.14, 0.24]} />
             </group>
           </Glow>
         )
       })}
-      <DieMesh value={v.dice[0]} pos={[-2.5, 0, 1.95]} roll={v.rolls} idx={0} />
-      <DieMesh value={v.dice[1]} pos={[-2.05, 0, 2.3]} roll={v.rolls} idx={1} />
+      {ISLE_DICE[tall ? 'tall' : 'wide'].map(([x, z], k) => <DieMesh key={k} value={v.dice[k]} pos={[x, 0, z]} roll={v.rolls} idx={k} />)}
     </group>
   )
 }

@@ -9,6 +9,7 @@ export const getPick = () => state
 export function setPick(next) { state = next || NONE; subs.forEach(f => f()) }
 const sub = f => { subs.add(f); return () => subs.delete(f) }
 export const usePick = () => useSyncExternalStore(sub, getPick)
+if (import.meta.env?.DEV && typeof window !== 'undefined') window.__islePick = getPick // dev: lets a test script "tap" a spot
 
 // The island tells the HUD where a tile is on screen (CSS px in the table's box), so resource chips can fly from it.
 export const screen = { tile: null }

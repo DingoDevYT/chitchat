@@ -100,3 +100,26 @@ body .ci-cards .tt-atop, body .ci-tradep .tt-atop { margin-bottom: 4px; }
   body .ci-brow .ci-go { grid-row: 1 / span 2; grid-column: 3; }
   body .ci-card { width: 100%; }
 }
+
+/* "?" how-to-play button (left, under the signs) and its card */
+body .ci .ci-help-btn { position: absolute; left: 16px; top: 70px; width: 40px; height: 40px; border-radius: 50%; background: var(--cream); color: var(--ink); font: 700 22px Fredoka, Nunito, sans-serif; box-shadow: 0 4px 0 #7a4a2c, 0 8px 14px rgba(0, 0, 0, .3); pointer-events: auto; }
+body .ci .ci-help-btn.on { background: var(--honey); }
+body .ci-helpp > .tt-in { font: 700 13.5px/1.4 Nunito, sans-serif; }
+body .ci-helpp h5 { font: 700 15px Fredoka, Nunito, sans-serif; margin: 10px 0 2px; color: #8a5a34; }
+body .ci-helpp p { margin: 0 0 4px; }
+body .ci-now { background: #fbf2df; border-radius: 12px; padding: 6px 10px; }
+body .ci-key { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin: 4px 0 6px; }
+body .ci-key span { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+body .ci-key i { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: 17px; flex: none; }
+body .ci-key i .tt-i { background: #fff8ec; border-radius: 50%; padding: 2px; }
+body .ci-costs { display: grid; gap: 4px; margin: 4px 0 6px; }
+body .ci-costs span { display: flex; align-items: center; gap: 8px; }
+body .ci-costs b { width: 76px; }
+body .ci .ci-pickres span { font-size: 9.5px; }
+@container (max-width: 560px) {
+  body .ci .ci-help-btn { left: 8px; top: auto; bottom: 156px; width: 36px; height: 36px; font-size: 20px; }
+  body .g-isle .g-me { bottom: 196px; }
+  body .gs.g-isle:has(.ci .tt-trade, .ci .tt-offer) .g-me { display: none; } /* panels cover the table: your corner avatar would sit on them */
+  body .ci .ci-log { bottom: 200px; }
+  body .ci-key { grid-template-columns: 1fr; }
+}

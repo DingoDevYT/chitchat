@@ -16,7 +16,7 @@ import * as property from './property/ui.jsx'
 import * as isle from './isle/ui.jsx'
 import './games.css'
 
-const UIS = { highcard, snack, poker, property, isle }
+export const UIS = { highcard, snack, poker, property, isle }
 const Table3D = lazy(() => import('./Table3D'))
 const HOUSE = {
   snack: [['stack', 'Stack draw cards'], ['drawUntil', 'Draw until you can play']],
@@ -26,6 +26,11 @@ const HOUSE = {
     ['picnicPot', 'Picnic jackpot: taxes and fees pile up on the Picnic Blanket for whoever lands there'],
     ['startDouble', 'Land right on Start: collect 400 instead of 200'],
     ['napNoRent', 'No rent while napping: owners in the Nap Nook collect nothing'],
+  ],
+  isle: [
+    ['quick', 'Quick game: first to 8 points'],
+    ['friendly', "Friendly raccoon: it won't bother anyone under 3 points"],
+    ['bigBaskets', 'Big baskets: only put back on a 7 when holding more than 9'],
   ],
 }
 

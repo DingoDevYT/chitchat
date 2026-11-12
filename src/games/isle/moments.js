@@ -19,7 +19,7 @@ export function describe(v, nm) {
       const sum = l.dice[0] + l.dice[1]
       if (sum === 7) return `${who} rolled 7: the raccoon wakes up!`
       const got = Object.entries(v.gains || {}).map(([p, b]) => `${nm(p)} ${bagText(b)}`)
-      return `${who} rolled ${sum}.${got.length ? ` ${got.join(', ')}.` : ' Nothing grows.'}${l.nibbled ? ' The raccoon nibbled one tile.' : ''}`
+      return `${who} rolled ${sum}.${got.length ? ` ${got.join(', ')}.` : ' Nothing grows.'}${l.nibbled ? ' The raccoon nibbled one tile.' : ''}${l.short ? ` The bank ran out of ${l.short.map(k => RES_NAME[k].toLowerCase()).join(' and ')}.` : ''}`
     }
     case 'discard': return `${who} put back ${bagText(l.give)}.`
     case 'raccoon': return `${who} moved the raccoon to the ${KINDS[v.tiles[l.tile].k].name.toLowerCase()}${l.from ? ` and took a ${RES_ONE[l.took]} from ${nm(l.from)}` : ''}.`
@@ -63,10 +63,14 @@ export function flights(p, v) {
   const l = v.last, out = []
   if (!l) return out
   if (l.type === 'roll' && v.rolls !== p.rolls && v.gains) {
-    const sum = l.dice[0] + l.dice[1]
+    const sum = l.dice[0] + l.dice[1], left = JSON.parse(JSON.stringify(v.gains)) // only what the bank actually paid
     v.tiles.forEach((t, i) => {
       if (t.n !== sum || i === v.raccoon) return
-      for (const vx of TILES[i].v) { const h = v.homes[vx]; if (h) for (let k = 0; k < h.l; k++) out.push({ from: { tile: i }, to: h.p, res: KINDS[t.k].res }) }
+      const r = KINDS[t.k].res
+      for (const vx of TILES[i].v) {
+        const h = v.homes[vx]
+        if (h) for (let k = 0; k < h.l && left[h.p]?.[r] > 0; k++) { left[h.p][r]--; out.push({ from: { tile: i }, to: h.p, res: r }) }
+      }
     })
   } else if (l.type === 'cottage' && l.got) {
     for (const t of VERTS[l.at].t) { const k = KINDS[v.tiles[t].k].res; if (k) out.push({ from: { tile: t }, to: l.pid, res: k }) }

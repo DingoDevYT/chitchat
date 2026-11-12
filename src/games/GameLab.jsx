@@ -1,8 +1,9 @@
 // Dev only (#/table?g=property&n=4&steps=200&seed=3): a game played locally, no server. You sit in seat 0 against
 // Chitbots; `steps` fast-forwards bot play to get a mid-game board. For checking boards and controls by eye.
+// `opts=quick,friendly` sets house rules; `lab=…` hands the game's UI module a named test situation (UI.lab).
 import { useEffect, useMemo, useState } from 'react'
 import { GAMES } from './registry.js'
-import GameScreen from './GameScreen'
+import GameScreen, { UIS } from './GameScreen'
 
 const q = new URLSearchParams(location.hash.split('?')[1] || '')
 const G = q.get('g') || 'property', n = +q.get('n') || 4, seed = +q.get('seed') || 3, steps = +q.get('steps') || 0
@@ -13,13 +14,14 @@ const levels = ['normal', 'normal', 'hard', 'easy', 'hard', 'normal']
 export default function GameLab() {
   const R = GAMES[G]
   const [s, setS] = useState(() => {
-    let st = R.setup(players, seed, { full: q.has('full') })
+    const opts = Object.fromEntries((q.get('opts') || '').split(',').filter(Boolean).map(k => [k, true]))
+    let st = R.setup(players, seed, { full: q.has('full'), ...opts })
     for (let k = 0; k < steps && !R.over(st); k++) {
       const who = R.turn(st)
       const a = R.bot(R.view(st, who), who, who === ME ? 'hard' : levels[players.indexOf(who)], Math.random)
       st = R.move(st, who, a ?? R.timeout(st))
     }
-    return st
+    return q.get('lab') && UIS[G].lab ? UIS[G].lab(st, ME, q.get('lab')) : st
   })
   const [v, setV] = useState(0)
   const apply = (who, m) => { try { setS(st => R.move(st, who, m)); setV(x => x + 1) } catch (e) { alert(e.message) } }

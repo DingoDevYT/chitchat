@@ -37,7 +37,12 @@ export const CARDS = {
   keep: { name: 'Keepsake', n: 4, text: 'Worth 1 point. Keep it hidden until you win.' },
 }
 export const BONUS = { path: { name: 'Winding Way', min: 5, text: 'Longest path (at least 5)' }, help: { name: 'Kindest Neighbour', min: 3, text: 'Most Helping Paws played (at least 3)' } }
-export const TARGET = 10, QUICK_TARGET = 8, DISCARD_OVER = 7, OFFERS = 3
+export const TARGET = 10, QUICK_TARGET = 8, DISCARD_OVER = 7, BIG_BASKETS = 9, OFFERS = 3, BANK = 19, FRIENDLY_UNDER = 3
+// House rules (game.opts): quick (first to 8), friendly (the raccoon leaves players under 3 points alone),
+// bigBaskets (only put back on a 7 when holding more than 9).
+export const basketLimit = pub => (pub.opts?.bigBaskets ? BIG_BASKETS : DISCARD_OVER)
+// The bank holds 19 of each; what's left is whatever nobody is holding.
+export const bankLeft = (pub, k) => BANK - pub.players.reduce((a, p) => a + (pub.res[p]?.[k] || 0), 0)
 
 // ── the island's shape (fixed; only what's on the tiles is shuffled) ──
 // Pointy-top hexes of size 1, axial (q, r) within 2 of the middle. Corners (VERTS) and sides (EDGES) are shared between tiles.
@@ -103,6 +108,7 @@ export function setup(players, seed, opts = {}) {
       helped: Object.fromEntries(players.map(p => [p, 0])), long: Object.fromEntries(players.map(p => [p, 0])), bonus: { path: null, help: null },
       dice: [1, 1], rolls: 0, gains: null, discard: null, back: null, offer: null, offers: 0, free: 0, played: false, acts: 0,
       deck: deck.length, last: null, winner: null, reveal: null,
+      opts: { quick: !!opts.quick, friendly: !!opts.friendly, bigBaskets: !!opts.bigBaskets },
     },
     priv: {}, // a player's cozy cards, made on their first buy: { hand: [{ k, at }] } (at = the turn it was bought)
     secret: { rs: Math.floor(r() * 2 ** 32), deck },
@@ -168,6 +174,14 @@ export function rate(pub, pid, res) {
   }
   return best
 }
+// Where pid may send the raccoon: anywhere but where it is (friendly raccoon: not next to anyone else under 3 points,
+// unless that rules out every tile).
+export function raccoonSpots(pub, pid) {
+  const all = TILES.map((_, t) => t).filter(t => t !== pub.raccoon)
+  if (!pub.opts?.friendly) return all
+  const ok = all.filter(t => TILES[t].v.every(v => { const h = pub.homes[v]; return !h || h.p === pid || score(pub, h.p) >= FRIENDLY_UNDER }))
+  return ok.length ? ok : all
+}
 export const victims = (pub, pid, tile) => [...new Set(TILES[tile].v.map(v => pub.homes[v]?.p).filter(p => p && p !== pid && total(pub.res[p]) > 0))]
 export function score(pub, pid) {
   let n = 0
@@ -224,19 +238,28 @@ function roll(pub, secret) {
   const d = [1 + Math.floor(r() * 6), 1 + Math.floor(r() * 6)]
   return { d, secret: { ...secret, rs: Math.floor(r() * 2 ** 32) } }
 }
+// What a roll makes. If the bank can't cover a resource for everyone owed it, nobody gets any of it, unless only one
+// player is owed: then they get whatever is left. Returns { gains: { pid: { res: n } }, short: [res the bank ran out of] }.
 function produce(pub, sum) {
-  const gains = {}
+  const owed = {}
   pub.tiles.forEach((t, i) => {
     if (t.n !== sum || i === pub.raccoon) return
-    for (const v of TILES[i].v) {
-      const h = pub.homes[v]
-      if (!h) continue
-      const k = KINDS[t.k].res
-      pub.res[h.p][k] += h.l // shortcut: the bank never runs out
-      gains[h.p] = { ...gains[h.p], [k]: (gains[h.p]?.[k] || 0) + h.l }
-    }
+    const k = KINDS[t.k].res
+    for (const v of TILES[i].v) { const h = pub.homes[v]; if (h) owed[k] = { ...owed[k], [h.p]: (owed[k]?.[h.p] || 0) + h.l } }
   })
-  return gains
+  const gains = {}, short = []
+  for (const [k, by] of Object.entries(owed)) {
+    const need = Object.values(by).reduce((a, n) => a + n, 0), have = bankLeft(pub, k), who = Object.keys(by)
+    if (need > have) short.push(k)
+    if (need > have && who.length > 1) continue
+    for (const p of who) {
+      const n = Math.min(by[p], have)
+      if (!n) continue
+      pub.res[p][k] += n
+      gains[p] = { ...gains[p], [k]: n }
+    }
+  }
+  return { gains, short }
 }
 function endTurn(pub) {
   const n = pub.players.length
@@ -267,7 +290,7 @@ export function move(s, pid, a) {
       st.at = at
       if (st.step >= pub.players.length) { // the second cottage brings in one of each tile around it
         const got = {}
-        for (const t of VERTS[at].t) { const k = KINDS[pub.tiles[t].k].res; if (k) { pub.res[pid][k]++; got[k] = (got[k] || 0) + 1 } }
+        for (const t of VERTS[at].t) { const k = KINDS[pub.tiles[t].k].res; if (k && bankLeft(pub, k) > 0) { pub.res[pid][k]++; got[k] = (got[k] || 0) + 1 } }
         pub.gains = { [pid]: got }
         pub.last.got = got
       }
@@ -291,11 +314,13 @@ export function move(s, pid, a) {
     pub.last.dice = r.d
     if (sum === 7) {
       pub.gains = null
-      const disc = Object.fromEntries(pub.players.map(p => [p, total(pub.res[p])]).filter(([, n]) => n > DISCARD_OVER).map(([p, n]) => [p, Math.floor(n / 2)]))
+      const disc = Object.fromEntries(pub.players.map(p => [p, total(pub.res[p])]).filter(([, n]) => n > basketLimit(pub)).map(([p, n]) => [p, Math.floor(n / 2)]))
       pub.back = 'main'
       if (Object.keys(disc).length) { pub.discard = disc; pub.phase = 'discard' } else pub.phase = 'raccoon'
     } else {
-      pub.gains = produce(pub, sum)
+      const made = produce(pub, sum)
+      pub.gains = made.gains
+      if (made.short.length) pub.last.short = made.short
       pub.last.nibbled = pub.tiles[pub.raccoon].n === sum
       pub.phase = 'main'
     }
@@ -311,6 +336,7 @@ export function move(s, pid, a) {
   } else if (type === 'raccoon') {
     need(ph === 'raccoon', 'The raccoon is napping.')
     need(Number.isInteger(a.tile) && TILES[a.tile] && a.tile !== pub.raccoon, 'Move the raccoon to a different tile.')
+    need(raccoonSpots(pub, pid).includes(a.tile), `The friendly raccoon leaves players under ${FRIENDLY_UNDER} points alone.`)
     const vs = victims(pub, pid, a.tile)
     pub.raccoon = a.tile
     pub.last.tile = a.tile
@@ -358,6 +384,7 @@ export function move(s, pid, a) {
     need(i >= 0, hand.some(c => c.k === k) ? 'Cards bought this turn can be played next turn.' : "You don't have that card.")
     if (k === 'picnic') {
       need(Array.isArray(a.res) && a.res.length === 2 && a.res.every(isRes), 'Pick two resources.')
+      need(a.res.every(r => bankLeft(pub, r) >= a.res.filter(x => x === r).length), 'The bank has run out of that.')
       for (const r of a.res) res[r]++
       pub.last.res = a.res
     } else if (k === 'gossip') {
@@ -385,6 +412,7 @@ export function move(s, pid, a) {
     need(isRes(a.give) && isRes(a.get) && a.give !== a.get, 'Pick what to give and what to get.')
     const n = rate(pub, pid, a.give)
     need(res[a.give] >= n, `The harbour wants ${n} ${RES_NAME[a.give].toLowerCase()}.`)
+    need(bankLeft(pub, a.get) > 0, `The bank has no ${RES_NAME[a.get].toLowerCase()} left.`)
     res[a.give] -= n; res[a.get]++
     Object.assign(pub.last, { give: a.give, n, get: a.get })
     pub.acts++
@@ -526,8 +554,8 @@ function raccoonMove(pub, pid, level, rand) {
     }
     return x
   }
-  const tiles = TILES.map((_, t) => t).filter(t => t !== pub.raccoon && (level !== 'easy' || !TILES[t].v.some(v => pub.homes[v]?.p === pid)))
-  const tile = pickBy(tiles, val, level === 'easy' ? 'easy' : level === 'normal' ? 'normal' : 'hard', rand)
+  const tiles = raccoonSpots(pub, pid).filter(t => level !== 'easy' || !TILES[t].v.some(v => pub.homes[v]?.p === pid))
+  const tile = pickBy(tiles.length ? tiles : raccoonSpots(pub, pid), val, level === 'easy' ? 'easy' : level === 'normal' ? 'normal' : 'hard', rand)
   const vs = victims(pub, pid, tile)
   const from = vs.length ? vs.reduce((b, p) => ((level === 'hard' ? score(pub, p) * 3 : 0) + total(pub.res[p]) > (level === 'hard' ? score(pub, b) * 3 : 0) + total(pub.res[b]) ? p : b)) : undefined
   return { type: 'raccoon', tile, from }
@@ -582,8 +610,9 @@ export function bot(v, me, level, rand = Math.random) {
     const g = gs[0] && missing(res, COST[gs[0]])
     if (hand.includes('picnic') && g && total(g) > 0 && total(g) <= 2) {
       const want = Object.entries(g).flatMap(([k, n]) => Array(n).fill(k))
-      while (want.length < 2) want.push(RES.reduce((a, b) => (res[b] < res[a] ? b : a)))
-      return { type: 'play', card: 'picnic', res: want.slice(0, 2) }
+      const stock = k => bankLeft(v, k) - want.filter(x => x === k).length
+      while (want.length < 2) { const k = RES.filter(r => stock(r) > 0).sort((a, b) => res[a] - res[b])[0]; if (!k) break; want.push(k) }
+      if (want.length === 2 && want.every(k => stock(k) >= 0)) return { type: 'play', card: 'picnic', res: want.slice(0, 2) }
     }
     if (hand.includes('gossip') && g && total(g) > 0) {
       const k = Object.keys(g).reduce((a, b) => (v.players.reduce((n, p) => n + (p === me ? 0 : Math.min(2, v.res[p][b])), 0) > v.players.reduce((n, p) => n + (p === me ? 0 : Math.min(2, v.res[p][a])), 0) ? b : a))
@@ -611,7 +640,7 @@ export function bot(v, me, level, rand = Math.random) {
     const short = Object.keys(need)
     if (short.length && total(need) <= (level === 'easy' ? 1 : 2)) {
       const spare = RES.filter(k => !need[k] && res[k] - (COST[g][k] || 0) >= rate(v, me, k)).sort((a, b) => res[b] - res[a])[0]
-      if (spare && (level !== 'easy' || total(res) > DISCARD_OVER)) return { type: 'bank', give: spare, get: short[0] }
+      if (spare && bankLeft(v, short[0]) > 0 && (level !== 'easy' || total(res) > basketLimit(v))) return { type: 'bank', give: spare, get: short[0] }
       if (level !== 'easy' && v.offers === 0) {
         const extra = RES.filter(k => !need[k] && res[k] - (COST[g][k] || 0) >= 1).sort((a, b) => res[b] - res[a])[0]
         const to = v.players.filter(p => p !== me && v.res[p][short[0]] > 0 && score(v, p) < v.target - 2).sort((a, b) => v.res[b][short[0]] - v.res[a][short[0]])[0]
@@ -620,7 +649,7 @@ export function bot(v, me, level, rand = Math.random) {
     }
   }
   // too many to risk on a 7: spend on a card or a path
-  if (total(res) > DISCARD_OVER && level !== 'easy') {
+  if (total(res) > basketLimit(v) && level !== 'easy') {
     if (v.deck > 0 && has(res, COST.card)) return { type: 'buy' }
     if (has(res, COST.path) && left(v, me).path > 0) { const e = pathToward(v, me, level, rand); if (e != null) return { type: 'build', kind: 'path', e } }
   }

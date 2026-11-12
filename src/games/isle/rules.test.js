@@ -275,6 +275,58 @@ test('isle: Chitbots finish whole games at every level and size, without one ill
   }
 })
 
+test('isle: the bank holds 19 of each; when it runs short, several owed get none, one owed gets what is left', () => {
+  const s0 = midGame({ phase: 'roll' }, ['a', 'b', 'c'])
+  const t = s0.pub.tiles.findIndex((x, i) => x.n === 8 && i !== s0.pub.raccoon), [v1, , v3] = TILES[t].v
+  const k = I.KINDS[s0.pub.tiles[t].k].res
+  const other8 = s0.pub.tiles.findIndex((x, i) => x.n === 8 && i !== t)
+  const homes = { [v1]: { p: 'a', l: 1 }, [v3]: { p: 'b', l: 2 } }
+  const roll = res => I.move({ ...P(s0, { homes, raccoon: other8 >= 0 ? other8 : s0.pub.raccoon, res }), secret: { ...s0.secret, rs: rsFor(8) } }, 'a', { type: 'roll' })
+  const full = roll({ a: zero(), b: zero(), c: zero() })
+  assert.equal(I.bankLeft(full.pub, k), I.BANK - 3)
+  const two = roll({ a: zero(), b: zero(), c: { ...zero(), [k]: 17 } }) // 2 left, 3 owed to two players
+  assert.equal(two.pub.res.a[k] + two.pub.res.b[k], 0, 'not enough for everyone: nobody gets it')
+  assert.deepEqual(two.pub.last.short, [k])
+  const solo = I.move({ ...P(s0, { homes: { [v3]: { p: 'b', l: 2 } }, raccoon: other8 >= 0 ? other8 : s0.pub.raccoon, res: { a: zero(), b: zero(), c: { ...zero(), [k]: 18 } } }), secret: { ...s0.secret, rs: rsFor(8) } }, 'a', { type: 'roll' })
+  assert.equal(solo.pub.res.b[k], 1, 'only one owed: they get the last one')
+  // harbour and picnic can't take what the bank doesn't have
+  const empty = midGame({ res: { a: { ...zero(), twig: 4 }, b: { ...zero(), tea: 19 } } })
+  assert.throws(() => I.move(empty, 'a', { type: 'bank', give: 'twig', get: 'tea' }), /no tea left/)
+  const pic = { ...empty, priv: { a: { hand: [{ k: 'picnic', at: -1 }] } } }
+  assert.throws(() => I.move(pic, 'a', { type: 'play', card: 'picnic', res: ['tea', 'wool'] }), /run out/)
+  assert.equal(I.move(pic, 'a', { type: 'play', card: 'picnic', res: ['wool', 'wool'] }).pub.res.a.wool, 2)
+})
+
+test('isle: house rules: quick to 8, friendly raccoon, big baskets', () => {
+  assert.equal(I.setup(['a', 'b'], 1, { quick: true }).pub.target, 8)
+  assert.deepEqual(I.setup(['a', 'b'], 1).pub.opts, { quick: false, friendly: false, bigBaskets: false })
+  // friendly: b has 1 point, so tiles touching b are off limits for a
+  const s = midGame({ phase: 'raccoon', back: 'main', opts: { friendly: true } })
+  const t = s.pub.tiles.findIndex((x, i) => i !== s.pub.raccoon && x.n)
+  const st = P(s, { homes: { [TILES[t].v[0]]: { p: 'b', l: 1 } }, res: { a: zero(), b: { ...zero(), wool: 2 } } })
+  assert.ok(!I.raccoonSpots(st.pub, 'a').includes(t))
+  assert.throws(() => I.move(st, 'a', { type: 'raccoon', tile: t, from: 'b' }), /friendly/)
+  assert.ok(I.raccoonSpots(P(st, { opts: {} }).pub, 'a').includes(t), 'off: anywhere')
+  const big = homes => P(st, { homes, opts: { friendly: true } }).pub
+  const far = VERTS.findIndex((_, i) => !TILES[t].v.includes(i))
+  const lots = { [TILES[t].v[0]]: { p: 'b', l: 2 }, [far]: { p: 'b', l: 1 } }
+  assert.ok(I.raccoonSpots(big(lots), 'a').includes(t), '3 points: fair game')
+  assert.equal(I.move(st, 'a', I.timeout(st)).pub.phase, 'main', 'the timeout picks an allowed tile')
+  // big baskets: 9 is safe, 10 puts back 5
+  const r = midGame({ phase: 'roll', res: { a: { ...zero(), twig: 9 }, b: { ...zero(), wool: 10 } }, opts: { bigBaskets: true } })
+  const seven = I.move({ ...r, secret: { ...r.secret, rs: rsFor(7) } }, 'a', { type: 'roll' })
+  assert.deepEqual(seven.pub.discard, { b: 5 })
+})
+
+test('isle: house-rule games finish with bots too', () => {
+  for (const opts of [{ friendly: true }, { bigBaskets: true, quick: true }, { friendly: true, bigBaskets: true }]) {
+    const players = ['bot:0', 'bot:1', 'bot:2'], rand = rng(3)
+    let s = I.setup(players, 12, opts), k = 0
+    while (!I.over(s) && k++ < 5000) { const who = I.turn(s); s = I.move(s, who, I.bot(I.view(s, who), who, ['easy', 'normal', 'hard'][players.indexOf(who)], rand)) }
+    assert.ok(I.over(s), JSON.stringify(opts))
+  }
+})
+
 test('isle: bots answer trades sensibly', () => {
   const s = midGame({ phase: 'trade', offer: { from: 'a', to: 'b', give: { twig: 3 }, get: { tea: 1 } }, res: { a: { ...zero(), twig: 3 }, b: { ...zero(), tea: 0 } } })
   assert.deepEqual(I.bot(I.view(s, 'b'), 'b', 'hard', Math.random), { type: 'decline' }, "can't pay: no")

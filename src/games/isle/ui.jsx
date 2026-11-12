@@ -18,6 +18,24 @@ export const keys = { r: { type: 'roll' }, e: { type: 'end' } }
 export const seatCards = () => []
 export const info = (v, pid) => `${score(v, pid)} pts`
 
+// Dev lab only (#/table?g=isle&lab=cards|discard|steal): put `me` in a situation to check a picker by eye.
+export function lab(s, me, what) {
+  const pub = { ...s.pub, turn: s.pub.players.indexOf(me), phase: 'main', played: false, offers: 0, free: 0, offer: null, discard: null, back: null, res: { ...s.pub.res } }
+  let priv = s.priv
+  if (what === 'cards') {
+    pub.res[me] = { twig: 2, wool: 2, clay: 2, berry: 1, tea: 2 }
+    priv = { ...priv, [me]: { hand: ['paw', 'picnic', 'paths', 'gossip', 'keep'].map(k => ({ k, at: -1 })) } }
+    pub.cards = { ...pub.cards, [me]: 5 }
+  } else if (what === 'discard') {
+    pub.res[me] = { twig: 3, wool: 3, clay: 2, berry: 2, tea: 1 }
+    Object.assign(pub, { phase: 'discard', discard: { [me]: 5 }, back: 'main' })
+  } else if (what === 'steal') {
+    for (const p of pub.players) if (p !== me) pub.res[p] = { ...pub.res[p], wool: pub.res[p].wool + 2 }
+    Object.assign(pub, { phase: 'raccoon', back: 'main' })
+  }
+  return { ...s, pub, priv }
+}
+
 // The flat island (no WebGL): the same tiles, homes, paths and raccoon in SVG, with the same tap-to-place spots.
 const S = 40
 export function Flat({ v, people }) {
