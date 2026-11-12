@@ -13,12 +13,12 @@ export const banner = (v, nm, me) => {
   if (v.phase === 'voice') return `Round ${v.round}: recording battle cries`
   if (v.phase === 'recap') return `Round ${v.round} results`
   const b = v.bouts[v.bi]
-  return `Bout ${v.bi + 1}: ${champName(v.champs[b.a], nm)} versus ${champName(v.champs[b.b], nm)}, for ${b.prompt}`
+  return `Bout ${v.bi + 1}${b.c ? ', a three-way brawl' : ''}: ${R.sidesOf(b).map(s => champName(v.champs[b[s]], nm)).join(' versus ')}, for ${b.prompt}`
 }
 export const lastText = (v, nm) => {
   const l = v.last
   if (l?.type !== 'bout' || v.phase !== 'battle' || v.stage !== 'win') return ''
-  return `${champName(v.champs[l.w], nm)} wins the pillow fight, ${Math.max(l.va, l.vb)} to ${Math.min(l.va, l.vb)}.`
+  return `${champName(v.champs[l.w], nm)} wins the pillow fight, ${[l.va, l.vb, l.vc].filter(x => x != null).sort((x, y) => y - x).join(' to ')}.`
 }
 export const seatCards = () => []
 export const info = (v, pid) => `${(v.scores[pid] || 0).toLocaleString()} pts`
@@ -40,7 +40,8 @@ export function lab(s, me, what) {
   if (what === 'voice') return hold(45000)
   // Bouts I'm not fighting in go first, so the lab can vote on them.
   st = JSON.parse(JSON.stringify(st))
-  st.pub.bouts.sort((x, y) => +([x.a, x.b].map(k => st.pub.champs[k].owner).includes(me)) - +([y.a, y.b].map(k => st.pub.champs[k].owner).includes(me)))
+  const mineIn = b => +R.sidesOf(b).some(s => st.pub.champs[b[s]].owner === me)
+  st.pub.bouts.sort((x, y) => mineIn(x) - mineIn(y))
   if (p().phase === 'voice') st = R.move(st, me, { type: 'cry', none: true })
   if (what === 'battle') return hold(R.linesMs(p(), p().bouts[p().bi]) + 20000)
   step(q => q.stage === 'vote')

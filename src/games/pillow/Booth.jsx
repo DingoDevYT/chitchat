@@ -5,12 +5,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { FILTERS, emptyRack, rackAdd, rackClear, rackIds, rackMove, rackPut } from './filters.js'
 import { REC_MS, audio, bake, preview, record, speak } from './audio.js'
+import { holdMic } from '../../lib/micHold'
 import { CRIES, MAX_CRY_TEXT } from './cries.js'
 import { squeak } from './filters.js'
 import { Doodle } from './Doodle.jsx'
 import Icon from '../../icons/Icon'
 
 const byId = Object.fromEntries(FILTERS.map(f => [f.id, f]))
+export const HAND_IN_S = 4 // seconds before the voice phase ends that the booth sends whatever it has
 
 // Pointer drag shared by chips and slots: a short press is a tap, a move past 6 px picks it up.
 function useDrag(onDrop) {
@@ -97,16 +99,25 @@ export default function Booth({ champ, prompt, left, onSend, onNone, demo }) {
   const [t0, setT0] = useState(0)
   const [typed, setTyped] = useState('') // no mic: a line for the speech voice to shout
   const rec = useRef(null), stopPrev = useRef(null), sent = useRef(false)
+  // While recording, the call doesn't hear your mic (the battle cry stays a secret); release puts it back as it was.
+  const hold = useRef(null)
+  const release = () => { hold.current?.(); hold.current = null }
   const now = useTick(recOn)
 
-  useEffect(() => () => { rec.current?.cancel(); stopPrev.current?.() }, [])
+  // Leaving the booth (sent, the voice phase ended, the table closed) always gives the mic back to the call.
+  useEffect(() => () => { rec.current?.cancel(); rec.current = null; release(); stopPrev.current?.() }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const startRec = async () => {
     stopPrev.current?.()
+    release()
+    hold.current = holdMic() // before the mic opens, so not a syllable reaches the call
     try {
-      rec.current = await record({ maxMs: REC_MS, onLevel: setLvl, onAuto: () => stopRec() })
+      const r = await record({ maxMs: REC_MS, onLevel: setLvl, onAuto: () => stopRec() })
+      if (sent.current || !hold.current) { r.cancel(); return release() } // the booth closed while the mic was opening
+      rec.current = r
       setRecOn(true); setT0(Date.now())
     } catch (e) {
       console.warn('mic', e)
+      release()
       setNoMic(true)
     }
   }
@@ -115,7 +126,7 @@ export default function Booth({ champ, prompt, left, onSend, onNone, demo }) {
     if (!r) return
     rec.current = null
     setRecOn(false)
-    try { setBuf(await r.stop()) } catch { setNoMic(true) }
+    try { setBuf(await r.stop()) } catch { setNoMic(true) } finally { release() }
   }
   const play = () => {
     if (playing) { stopPrev.current?.(); return }
@@ -136,8 +147,9 @@ export default function Booth({ champ, prompt, left, onSend, onNone, demo }) {
       if (!(await onSend(baked))) { sent.current = false; setBusy('') }
     } catch (e) { console.warn('bake failed', e); onNone(typed) }
   }
-  // Time's nearly up: send what there is (or squeak).
-  useEffect(() => { if (left != null && left <= 2 && !sent.current) send() }, [left]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Time's nearly up: stop any recording and hand in what there is, baked (or squeak). A few seconds early, so the bake
+  // and upload land before the referee closes the booth.
+  useEffect(() => { if (left != null && left <= HAND_IN_S && !sent.current) send() }, [left]) // eslint-disable-line react-hooks/exhaustive-deps
   const recLeft = recOn ? Math.max(0, REC_MS - (now - t0)) : 0
 
   return (
@@ -164,6 +176,7 @@ export default function Booth({ champ, prompt, left, onSend, onNone, demo }) {
             <small>{recOn ? 'Tap to stop' : buf ? 'Tap the mic to record it again' : 'Up to 5 seconds. Shout something heroic!'}</small>
           </div>
           <button className="pcf-tool round" onClick={play} disabled={!buf || recOn || !!busy} aria-label={playing ? 'Stop preview' : 'Preview with filters'} title="Preview with filters"><Icon name={playing ? 'stop' : 'play'} size={20} /></button>
+          <small className={`pcf-hush${recOn ? ' on' : ''}`} role="status"><Icon name="mic-off" size={13} /> Your mic is hidden from the call while you record.</small>
         </div>
       )}
       <Rack slots={slots} setSlots={setSlots} />

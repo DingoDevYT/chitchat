@@ -31,17 +31,173 @@ test('pillow: an even table pairs everyone, one prompt per pair', () => {
   for (const b of p.bouts) assert.deepEqual(b.voters.sort(), ['a', 'b', 'c', 'd'].filter(x => !owners(p, b).includes(x)))
 })
 
-test('pillow: an odd one out faces a House champion, which nobody owns', () => {
+// Every champion in play belongs to a seated player: no House doodles, no Chitbots nobody seated.
+const noFillers = p => {
+  for (const b of p.bouts) for (const s of R.sidesOf(b)) {
+    const c = p.champs[b[s]]
+    assert.ok(c.owner && !c.house && p.players.includes(c.owner), `champion ${b[s]} has a seated owner`)
+  }
+  assert.ok(!Object.keys(p.champs).some(k => k.startsWith('house')))
+}
+// Each player plays exactly once per round: one new or defending champion each (returning old champions aside).
+const everyoneOnce = p => {
+  const own = p.bouts.flatMap(b => R.sidesOf(b).filter(s => s !== b.back).map(s => R.ownerOf(p, b[s]))).sort()
+  assert.deepEqual(own, [...p.players].sort())
+}
+
+test('pillow: an odd table in round 1 makes one bout a three-way brawl, never a House or a bot', () => {
   for (const n of [3, 5, 7]) {
     const players = 'abcdefg'.slice(0, n).split('')
     const p = R.setup(players, n).pub
-    assert.equal(p.bouts.length, Math.ceil(n / 2))
-    const h = p.bouts.find(b => p.champs[b.b].house)
-    assert.ok(h, `${n} players: a house bout`)
-    assert.equal(R.ownerOf(p, h.b), null)
-    assert.ok(p.champs[h.b].art.length > 0, 'the House champion arrives already drawn')
-    assert.equal(h.voters.length, n - 1)
+    assert.equal(p.bouts.length, (n - 1) / 2)
+    const three = p.bouts.filter(b => b.c)
+    assert.equal(three.length, 1, `${n} players: one three-way`)
+    noFillers(p)
+    everyoneOnce(p)
+    assert.ok(p.bouts.every(b => !b.back), 'nobody to bring back in round 1')
+    const t = three[0], fighters = R.sidesOf(t).map(s => R.ownerOf(p, t[s]))
+    if (n === 3) assert.deepEqual(t.voters.sort(), fighters.sort(), 'three players: the fighters vote for a rival')
+    else assert.deepEqual(t.voters.sort(), players.filter(x => !fighters.includes(x)))
+    assert.equal(p.players.length, n, 'no seats were added')
   }
+})
+
+test('pillow: three champions say their lines in turn, each after the pause', () => {
+  const s = make(R.setup(['a', 'b', 'c'], 3))
+  const p = s.pub, b = p.bouts[0], at = R.cryAt(p, b)
+  assert.ok(b.c)
+  assert.equal(at.a, R.MS.slide + R.MS.pause)
+  assert.equal(at.b, at.a + R.cryMs(p.champs[b.a].cry) + R.MS.gap + R.MS.pause)
+  assert.equal(at.c, at.b + R.cryMs(p.champs[b.b].cry) + R.MS.gap + R.MS.pause)
+  assert.equal(R.linesMs(p, b), at.c + R.cryMs(p.champs[b.c].cry) + R.MS.gap)
+  assert.equal(p.until - p.from, R.linesMs(p, b))
+})
+
+test('pillow: three-way votes: pick one of three, never your own; per-vote scoring and the bonus to the top', () => {
+  // Three players: the fighters vote for a rival.
+  let s = make(R.setup(['a', 'b', 'c'], 5))
+  const b = s.pub.bouts[0], own = side => R.ownerOf(s.pub, b[side])
+  assert.throws(() => R.move(s, own('a'), { type: 'vote', side: 'a' }), /own champion/)
+  assert.throws(() => R.move(s, own('a'), { type: 'vote', side: 'd' }), /one of the three/)
+  s = R.move(s, own('a'), { type: 'vote', side: 'c' })
+  s = R.move(s, own('b'), { type: 'vote', side: 'c' })
+  s = R.move(s, own('c'), { type: 'vote', side: 'a' })
+  s = untilStage(s, 'battle', 'win')
+  const res = s.pub.bouts[0].res
+  assert.deepEqual([res.w, res.va, res.vb, res.vc, res.tie], ['c', 1, 0, 2, false])
+  assert.equal(s.pub.scores[own('c')], 2 * R.PTS.vote + R.PTS.win)
+  assert.equal(s.pub.scores[own('a')], R.PTS.vote)
+  assert.equal(s.pub.scores[own('b')], 0)
+  assert.ok(s.pub.champs[b.a].out && s.pub.champs[b.b].out && !s.pub.champs[b.c].out)
+  s = untilStage(s, 'recap', null)
+  assert.deepEqual(s.pub.holders, [b.c])
+
+  // Five players: the two outside voters split, so the tie is a coin toss between the two level champions only.
+  for (let seed = 1; seed < 12; seed++) {
+    let t = make(R.setup(['a', 'b', 'c', 'd', 'e'], seed))
+    const i = t.pub.bouts.findIndex(x => x.c)
+    while (t.pub.bi < i) t = untilStage(tick(t), 'battle', 'lines')
+    const x = t.pub.bouts[i]
+    assert.equal(x.voters.length, 2)
+    t = R.move(t, x.voters[0], { type: 'vote', side: 'b' }); t = R.move(t, x.voters[1], { type: 'vote', side: 'c' })
+    t = untilStage(t, 'battle', 'win')
+    const r = t.pub.bouts[i].res
+    assert.ok(r.tie && ['b', 'c'].includes(r.w))
+    assert.equal(r.pts[r.w], R.PTS.vote + R.PTS.win)
+    assert.equal(r.pts.a, 0)
+  }
+})
+
+// Play a table of people to the end: everyone draws and records, the crowd votes for the first side they may.
+function playPeople(players, seed, opts, onRound = () => {}) {
+  let s = R.setup(players, seed, opts), k = 0, seen = 0
+  while (!R.over(s) && k++ < 5000) {
+    const p = s.pub
+    if (p.round !== seen && p.phase === 'draw') { seen = p.round; onRound(p) }
+    if (p.phase === 'draw' || p.phase === 'voice') { s = make(s); if (s.pub.phase === p.phase) s = tick(s); continue }
+    if (p.phase === 'battle' && p.stage === 'vote') {
+      const b = p.bouts[p.bi]
+      for (const v of b.voters) if (p.votes[v] === undefined) { const side = R.sidesOf(b).find(x => R.ownerOf(p, b[x]) !== v); s = R.move(s, v, { type: 'vote', side }) }
+    }
+    s = tick(s)
+  }
+  assert.ok(R.over(s), 'the game ends')
+  return s
+}
+
+test('pillow: odd tables of people switch old champions back in after round 1, and never get bots', () => {
+  for (const n of [3, 5, 7]) {
+    const players = 'abcdefg'.slice(0, n).split('')
+    let backs = 0
+    const s = playPeople(players, 40 + n, { long: true }, p => {
+      noFillers(p)
+      everyoneOnce(p)
+      for (const b of p.bouts.filter(x => x.back)) {
+        const c = p.champs[b[b.back]], odd = R.ownerOf(p, b.a)
+        assert.equal(p.round > 1, true)
+        assert.ok(c.round < p.round && c.owner !== odd && c.art.length, 'drawn earlier by someone else, with its ink')
+        assert.ok(c.cry, 'with its battle cry')
+        assert.ok(!b.voters.includes(c.owner), "its artist doesn't vote on it")
+        backs++
+      }
+      if (p.round > 1) assert.ok(p.bouts.filter(b => b.back || b.c).length <= 1)
+    })
+    assert.ok(backs >= 1, `${n} players: an old champion came back`)
+    assert.ok(s.pub.players.every(x => !x.startsWith('bot:')))
+    // An old champion never comes back against the same player twice.
+    const pairs = s.pub.log.filter(l => l.back).map(l => `${l[l.back]}>${s.pub.champs[l.a].owner}`)
+    assert.equal(new Set(pairs).size, pairs.length)
+  }
+})
+
+test('pillow: a returning old champion keeps its drawing and cry, scores its artist half, and never takes the title', () => {
+  let s = make(R.setup(['a', 'b', 'c'], 6))
+  s = untilStage(s, 'recap', null)
+  const before = JSON.parse(JSON.stringify(s.pub.champs))
+  s = make(tick(s))
+  const i = s.pub.bouts.findIndex(b => b.back)
+  assert.ok(i >= 0, 'round 2 brings an old champion back')
+  while (s.pub.bi < i) s = untilStage(tick(s), 'battle', 'lines')
+  const b = s.pub.bouts[i], key = b[b.back], artist = s.pub.champs[key].owner
+  assert.deepEqual(s.pub.champs[key].art, before[key].art)
+  assert.deepEqual(s.pub.champs[key].cry, before[key].cry)
+  assert.ok(R.cryAt(s.pub, b).b > R.cryAt(s.pub, b).a)
+  const had = s.pub.scores[artist]
+  for (const v of b.voters) s = R.move(s, v, { type: 'vote', side: b.back })
+  s = untilStage(s, 'battle', 'win')
+  const res = s.pub.bouts[i].res
+  assert.equal(res.w, b.back)
+  const full = b.voters.length * R.PTS.vote + R.PTS.win
+  assert.equal(res.pts[b.back], Math.round(full * R.BACK))
+  assert.equal(s.pub.scores[artist] - had, Math.round(full * R.BACK))
+  s = untilStage(s, 'recap', null)
+  assert.ok(!s.pub.holders.includes(key), 'back to the bench')
+  assert.ok(s.pub.champs[key].out)
+})
+
+test('pillow: a tie between a new champion and a returning one goes to the new one', () => {
+  let s = make(R.setup(['a', 'b', 'c'], 6))
+  s = untilStage(s, 'recap', null)
+  s = make(tick(s))
+  const i = s.pub.bouts.findIndex(b => b.back)
+  while (s.pub.bi < i) s = untilStage(tick(s), 'battle', 'lines')
+  s = untilStage(s, 'battle', 'win')
+  const res = s.pub.bouts[i].res
+  assert.ok(res.tie)
+  assert.equal(res.w, 'a')
+})
+
+test('pillow: with no old champion to bring back, a later odd one out makes a three-way instead', () => {
+  let s = make(R.setup(['a', 'b', 'c'], 6))
+  s = untilStage(s, 'recap', null)
+  s = JSON.parse(JSON.stringify(s))
+  for (const c of Object.values(s.pub.champs)) c.back = ['a', 'b', 'c'] // as if every old champion had met everyone
+  s = tick(s)
+  assert.equal(s.pub.round, 2)
+  assert.ok(!s.pub.bouts.some(b => b.back))
+  assert.equal(s.pub.bouts.filter(b => b.c).length, 1)
+  noFillers(s.pub)
+  everyoneOnce(s.pub)
 })
 
 test('pillow: two players still play (nobody votes, so a coin decides)', () => {
@@ -175,7 +331,7 @@ test('pillow: timeouts fill in missing drawings and cries, and the house rule se
     while (!R.over(s) && k++ < 2000) s = tick(s)
     assert.ok(R.over(s))
     assert.equal(s.pub.round, rounds)
-    assert.equal(s.pub.log.length >= rounds * 2, true)
+    assert.equal(s.pub.log.length, rounds * 2 - 1, 'a three-way in round 1, then a pair and an old-champion bout')
   }
 })
 
@@ -224,12 +380,44 @@ test('pillow: hard Chitbots lean towards the side people are on', () => {
   assert.ok(n > 130, `${n}/200 joined the crowd`)
 })
 
-test('pillow: retired champions give back their ink', () => {
+test('pillow: retired champions keep their ink one round (to come back), then give it back', () => {
   let s = make(R.setup(['a', 'b', 'c', 'd'], 19))
   s = untilStage(s, 'recap', null)
   const losers = s.pub.bouts.map(b => b[b.res.w === 'a' ? 'b' : 'a'])
   s = tick(s)
+  for (const k of losers) assert.ok(s.pub.champs[k].art.length)
+  s = make(s)
+  s = untilStage(s, 'recap', null)
+  s = tick(s)
   for (const k of losers) assert.equal(s.pub.champs[k].art, null)
+})
+
+test('pillow: two people just battle each other every round (nobody votes, the fair fallback holds)', () => {
+  const s = playPeople(['a', 'b'], 12, {}, p => {
+    noFillers(p)
+    assert.equal(p.bouts.length, 1)
+    assert.ok(!p.bouts[0].c && !p.bouts[0].back)
+    assert.deepEqual(p.bouts[0].voters, [])
+    everyoneOnce(p)
+  })
+  assert.equal(s.pub.log.length, 3)
+  assert.deepEqual(s.pub.players, ['a', 'b'])
+})
+
+test('pillow: Chitbots the host seats still play, in three-ways too', () => {
+  for (const players of [['a', 'b', 'bot:1'], ['a', 'bot:1', 'bot:2', 'bot:3', 'bot:4']]) {
+    let s = R.setup(players, 3)
+    assert.equal(s.pub.bouts.filter(b => b.c).length, 1)
+    noFillers(s.pub)
+    for (let k = 0; k < 5000 && !R.over(s); k++) {
+      const p = s.pub
+      if (p.phase === 'draw' || p.phase === 'voice') { s = make(s); if (s.pub.phase === p.phase) s = tick(s); continue }
+      const who = R.turn(s)
+      s = R.move(s, who, who.startsWith('bot:') ? R.bot(R.view(s), who, 'hard', Math.random) : R.timeout())
+    }
+    assert.ok(R.over(s))
+    for (const l of s.pub.log) for (const side of ['a', 'b', 'c']) if (l[side]) assert.ok(s.pub.champs[l[side]].owner)
+  }
 })
 
 test('pillow: a whole game of Chitbots (and a table of 8) finishes with a podium', () => {
@@ -276,8 +464,40 @@ test('pillow ink: every stash doodle is valid and bots match prompts by tag', ()
   const i = pickDoodle('Most Likely to Honk at a Duck', [], () => 0)
   assert.equal(DOODLES[i].name, 'Duck of Doom')
   assert.notEqual(pickDoodle('duck', [i], () => 0), i, 'a used doodle gives way')
-  assert.ok(PROMPTS.length >= 60)
-  assert.equal(new Set(PROMPTS).size, PROMPTS.length)
+})
+
+test('pillow prompts: at least 250, unique (ignoring case), short and clean; a game never repeats one', () => {
+  assert.ok(PROMPTS.length >= 250, `${PROMPTS.length} prompts`)
+  assert.equal(new Set(PROMPTS.map(x => x.toLowerCase().trim())).size, PROMPTS.length)
+  for (const x of PROMPTS) { assert.equal(x, x.trim()); assert.ok(x.length >= 8 && x.length <= 60, x); assert.ok(!/[<>]/.test(x), x) }
+  const s = playPeople(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'], 99, { long: true })
+  const used = s.pub.log.map(l => l.prompt)
+  assert.ok(used.length >= 16)
+  assert.equal(new Set(used).size, used.length, 'no prompt twice at one table')
+})
+
+test('pillow: recording holds the mic back from the call, and every release puts it back', async () => {
+  const { holdMic, micHeld, onMicHold } = await import('../../lib/micHold.js')
+  let pings = 0
+  const off = onMicHold(() => pings++)
+  assert.equal(micHeld(), false)
+  const r1 = holdMic(), r2 = holdMic()
+  assert.equal(micHeld(), true)
+  r1(); r1() // releasing twice is harmless
+  assert.equal(micHeld(), true, 'another hold is still on')
+  r2()
+  assert.equal(micHeld(), false)
+  assert.equal(pings, 4)
+  off()
+})
+
+test('pillow: the voice booth gets 60 s, 90 s on the long house rules', () => {
+  for (const [opts, ms] of [[{}, 60000], [{ long: true }, 90000], [{ longDraw: true }, 90000], [{ quick: true }, 60000]]) {
+    let s = R.setup(['a', 'b'], 1, opts)
+    for (const m of ['a', 'b']) s = R.move(s, m, { type: 'draw', art })
+    assert.equal(s.pub.phase, 'voice')
+    assert.equal(s.pub.until - s.pub.from, ms)
+  }
 })
 
 // ── filters ──
@@ -411,9 +631,6 @@ test('pillow: Chitbots hand in a varied stash doodle and a battle-cry line', () 
     assert.doesNotThrow(() => cleanArt(got))
     assert.ok(!DOODLES.some(d => JSON.stringify(d.art) === JSON.stringify(got)), 'not a straight copy of the stash')
   }
-  // the House champion shouts too
-  const h = Object.values(s.pub.champs).find(c => c.house)
-  assert.ok(h && CRIES.includes(h.cry.text))
   // varyArt is deterministic and stays on the grid
   let n = 1
   const r = () => { n = (n * 16807) % 2147483647; return n / 2147483647 }

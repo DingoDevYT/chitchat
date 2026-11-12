@@ -44,8 +44,8 @@ const HOUSE = {
   ],
   pillow: [
     ['quick', 'Quick fight: 2 rounds (off: 3)'],
-    ['long', 'Long night: 5 rounds'],
-    ['longDraw', 'Take your time: 2 minutes to draw'],
+    ['long', 'Long night: 5 rounds, 90 s for battle cries'],
+    ['longDraw', 'Take your time: 2 minutes to draw, 90 s for battle cries'],
   ],
   starchat: [
     ['quick', 'Quick: 8 rounds (off: 12)'], ['festival', 'Festival: 16 rounds'], ['openBonus', 'Show the bonus stars from the start'],
