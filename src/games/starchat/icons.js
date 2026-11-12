@@ -1,0 +1,42 @@
+// Starchat's icons: 24×24 inline SVG bodies (no emoji anywhere), in the mockups' chunky hand-drawn style. Used by the
+// HUD (as inline <svg>) and the 3D scene (as images drawn into canvas textures).
+const INK = '#3a2a3f'
+export function starPts(cx, cy, R, r, rot = -90, n = 5) {
+  const pts = []
+  for (let i = 0; i < n * 2; i++) { const a = (rot + i * 180 / n) * Math.PI / 180, rr = i % 2 ? r : R; pts.push((cx + rr * Math.cos(a)).toFixed(2) + ',' + (cy + rr * Math.sin(a)).toFixed(2)) }
+  return pts.join(' ')
+}
+export const ICONS = {
+  coin: `<circle cx="12" cy="12.6" r="9.4" fill="#d98e22"/><circle cx="12" cy="11.6" r="9.4" fill="#f6c244"/><circle cx="12" cy="11.6" r="6.6" fill="none" stroke="#e0a12e" stroke-width="1.6"/><path d="M12 7.2l1.2 3.2 3.2 1.2-3.2 1.2L12 16l-1.2-3.2-3.2-1.2 3.2-1.2z" fill="#fff6d0"/>`,
+  star: `<polygon points="${starPts(12, 12.8, 10.4, 4.6)}" fill="#e39a2c" stroke="#e39a2c" stroke-width="2.4" stroke-linejoin="round"/><polygon points="${starPts(12, 12, 10.4, 4.6)}" fill="#ffd45a" stroke="#ffd45a" stroke-width="2.4" stroke-linejoin="round"/><path d="M8.5 9.5l2-1" stroke="#fff8" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="12.6" r="1" fill="${INK}"/><circle cx="14" cy="12.6" r="1" fill="${INK}"/><path d="M10.8 14.6q1.2 1 2.4 0" stroke="${INK}" stroke-width="1" fill="none" stroke-linecap="round"/>`,
+  glow: `<path d="M9 5h6l1 2H8z" fill="#8a5a3a"/><rect x="7" y="7" width="10" height="11" rx="4" fill="#ffcf5a"/><path d="M12 9.5c2 2 2 4.5 0 6-2-1.5-2-4 0-6z" fill="#fff3c0"/><path d="M8 18h8l-1 2H9z" fill="#8a5a3a"/><path d="M12 2v3" stroke="#8a5a3a" stroke-width="1.6" stroke-linecap="round"/>`,
+  drizzle: `<path d="M6.5 14a4 4 0 0 1 .6-8 5 5 0 0 1 9.4 1.2A3.4 3.4 0 0 1 17 14z" fill="#e8eef8"/><path d="M8 17l-1 2.5M12 17l-1 2.5M16 17l-1 2.5" stroke="#9cc4ee" stroke-width="1.8" stroke-linecap="round"/>`,
+  firefly: `<ellipse cx="9" cy="8" rx="4" ry="2.4" fill="#e9f4ff" opacity=".85" transform="rotate(-30 9 8)"/><ellipse cx="15" cy="8" rx="4" ry="2.4" fill="#e9f4ff" opacity=".85" transform="rotate(30 15 8)"/><circle cx="12" cy="16" r="5.4" fill="#d9ff8a" opacity=".5"/><ellipse cx="12" cy="15" rx="3" ry="4" fill="#c8f060"/><circle cx="12" cy="9.6" r="2.6" fill="#4a3a52"/>`,
+  bramble: `<path d="M4 18c4-1 6-5 8-9s5-5 8-5" stroke="#f2e6dc" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M7 16.5 5 13M10 12l-3-1.5M12.5 8.5 11 5.5M15.5 5.5l1 3M9.5 14.5l2.5 1.5" stroke="#f2e6dc" stroke-width="1.8" stroke-linecap="round"/><circle cx="18.5" cy="15.5" r="2.6" fill="#f2e6dc"/>`,
+  stall: `<path d="M3 9l2-5h14l2 5z" fill="#fff"/><path d="M7 4 6 9M11 4v5M13 4v5M17 4l1 5" stroke="#e98a8a" stroke-width="2"/><path d="M3 9q2.3 2.4 4.5 0 2.2 2.4 4.5 0 2.3 2.4 4.5 0 2.2 2.4 4.5 0" fill="#fff" stroke="#fff" stroke-width=".5"/><rect x="5" y="12" width="14" height="8" rx="1.5" fill="#f6e0c0"/><rect x="9" y="14" width="6" height="6" rx="1" fill="#c98a5a"/>`,
+  tea: `<path d="M5 9h12v4a6 6 0 0 1-12 0z" fill="#fff"/><path d="M17 10.5h1.5a2.5 2.5 0 0 1 0 5H17" stroke="#fff" stroke-width="1.8" fill="none"/><path d="M4 20h14" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M9 3.5c-1 1.2 1 1.8 0 3.2M13 3.5c-1 1.2 1 1.8 0 3.2" stroke="#fff" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
+  owl: `<path d="M5 9 4 4l4 2.5M19 9l1-5-4 2.5" fill="#fff"/><ellipse cx="12" cy="13" rx="7.5" ry="8" fill="#fff"/><circle cx="9" cy="11" r="2.7" fill="#5d4a7a"/><circle cx="15" cy="11" r="2.7" fill="#5d4a7a"/><circle cx="9.6" cy="10.4" r=".9" fill="#fff"/><circle cx="15.6" cy="10.4" r=".9" fill="#fff"/><path d="M11 14l1 1.6 1-1.6z" fill="#f2b24a"/><path d="M8.5 18c2 1 5 1 7 0" stroke="#5d4a7a" stroke-width="1.2" fill="none"/>`,
+  post: `<rect x="11" y="9" width="2.4" height="12" rx="1" fill="#a8946e"/><polygon points="${starPts(12.2, 7, 5.6, 2.5)}" fill="#a8946e" stroke="#a8946e" stroke-width="1.4" stroke-linejoin="round"/>`,
+  ferry: `<path d="M3 14h18l-3 5H6z" fill="#fff"/><path d="M12 4v9M12 4l6 8h-6" fill="#fff" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/>`,
+  jar: `<rect x="7" y="3" width="10" height="3" rx="1.2" fill="#b07a4a"/><path d="M6.5 7.5h11v10a3 3 0 0 1-3 3h-5a3 3 0 0 1-3-3z" fill="#cfe9f5" opacity=".8"/><circle cx="10" cy="12" r="1.6" fill="#a6d64a"/><circle cx="14" cy="15" r="1.6" fill="#a6d64a"/><circle cx="13.5" cy="10.5" r="1.1" fill="#a6d64a"/>`,
+  bigjar: `<rect x="6" y="2" width="12" height="3" rx="1.2" fill="#b07a4a"/><path d="M5 6.5h14v11.5a3.5 3.5 0 0 1-3.5 3.5h-7A3.5 3.5 0 0 1 5 18z" fill="#cfe9f5" opacity=".8"/><circle cx="9" cy="11" r="1.6" fill="#a6d64a"/><circle cx="14.5" cy="12" r="1.6" fill="#a6d64a"/><circle cx="11" cy="16.5" r="1.6" fill="#a6d64a"/><circle cx="15" cy="17.5" r="1.1" fill="#a6d64a"/><circle cx="8.5" cy="17" r="1.1" fill="#a6d64a"/>`,
+  boat: `<path d="M2.5 13h19l-4 6h-11z" fill="#fff4e0" stroke="#c9b48e" stroke-width=".8"/><path d="M12 3l6.5 10h-13z" fill="#f2e2c4" stroke="#c9b48e" stroke-width=".8"/><path d="M12 3v10" stroke="#d7c09a" stroke-width="1.2"/><path d="M3 21q3-1.5 6 0t6 0 6 0" stroke="#7fb8de" stroke-width="1.6" fill="none"/>`,
+  trap: `<path d="M5 10h14v6a5 5 0 0 1-5 5h-4a5 5 0 0 1-5-5z" fill="#f2b33a"/><rect x="4" y="7" width="16" height="3.4" rx="1.4" fill="#c9852a"/><path d="M8 10v3a1.4 1.4 0 0 0 2.8 0v-3" fill="#ffd36a"/><path d="M13 3l2 4" stroke="#8a5a3a" stroke-width="1.6" stroke-linecap="round"/>`,
+  snail: `<circle cx="13" cy="12" r="6.5" fill="#e8a777"/><path d="M13 12m-3 0a3 3 0 1 0 3-3 1.6 1.6 0 1 1-1.6 1.6" stroke="#b5683e" stroke-width="1.4" fill="none"/><path d="M3 19h17" stroke="#a98bd6" stroke-width="3" stroke-linecap="round"/><path d="M4.5 18V12M7 18v-5" stroke="#a98bd6" stroke-width="1.6" stroke-linecap="round"/>`,
+  gust: `<path d="M3 9h11a3 3 0 1 0-3-3M3 13h15a3 3 0 1 1-3 3M3 17h7" stroke="#7fb3e0" stroke-width="2.2" fill="none" stroke-linecap="round"/>`,
+  umbrella: `<path d="M3 12a9 9 0 0 1 18 0q-1.5-1.6-3 0-1.5-1.6-3 0-1.5-1.6-3 0-1.5-1.6-3 0-1.5-1.6-3 0-1.5-1.6-3 0z" fill="#e9839a"/><path d="M12 12v6a2 2 0 0 1-4 0" stroke="#8a5a3a" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+  comet: `<path d="M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4z" fill="#f6c244"/><path d="M15 7v10" stroke="#d98e22" stroke-dasharray="1.6 1.6"/><polygon points="${starPts(9, 12, 3.4, 1.5)}" fill="#fff6d0"/>`,
+  die: `<rect x="3.5" y="3.5" width="17" height="17" rx="5" fill="#fff4dc"/><circle cx="8.5" cy="8.5" r="1.6" fill="${INK}"/><circle cx="15.5" cy="15.5" r="1.6" fill="${INK}"/><circle cx="12" cy="12" r="1.6" fill="${INK}"/>`,
+  moon: `<path d="M15 3a9 9 0 1 0 6 13A7.5 7.5 0 0 1 15 3z" fill="#fff1c6"/>`,
+  arrow: `<path d="M5 12h12M12 6l6 6-6 6" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+  bridge: `<path d="M2 15q10-8 20 0" stroke="#c98a5a" stroke-width="2.4" fill="none"/><path d="M2 15h20M6 15v-3.4M10 15v-5M14 15v-5M18 15v-3.4" stroke="#c98a5a" stroke-width="1.8"/><path d="M2 19q3-1.5 6 0t6 0 6 0" stroke="#7fb8de" stroke-width="1.6" fill="none"/>`,
+  loop: `<path d="M20 12a8 8 0 1 1-3-6.2" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M18 2.5v4h-4" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+  mic: `<rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>`,
+  boot: `<path d="M8 3h6v9l5 3a2 2 0 0 1 1 2v2H4v-4l2-1z" fill="currentColor"/>`,
+  bag: `<path d="M5 8h14l-1 12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1z" fill="#c98a5a"/><path d="M9 8V6a3 3 0 0 1 6 0v2" fill="none" stroke="#8a5a3a" stroke-width="2"/>`,
+  pot: `<path d="M5 9h14l-1.5 9a3 3 0 0 1-3 2.5h-5A3 3 0 0 1 6.5 18z" fill="#5fb7b0"/><rect x="4" y="7" width="16" height="3" rx="1.5" fill="#357d77"/><path d="M10 4.5c-1 1 1 1.5 0 2.5M14 4.5c-1 1 1 1.5 0 2.5" stroke="#d6f3ef" stroke-width="1.4" fill="none" stroke-linecap="round"/>`,
+}
+// Each item's icon (data.js ITEMS ids).
+export const ITEM_ICON = { jar: 'jar', bigjar: 'bigjar', boat: 'boat', trap: 'trap', snail: 'snail', gust: 'gust', umbrella: 'umbrella', comet: 'comet' }
+export const svgDoc = (n, px = 128) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${px}" height="${px}">${ICONS[n]}</svg>`
+export const iconUrl = (n, px) => 'data:image/svg+xml;utf8,' + encodeURIComponent(svgDoc(n, px))
