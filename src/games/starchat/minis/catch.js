@@ -42,7 +42,7 @@ export function makeSky(seed) {
     const k = roll < 16 ? 'big' : roll < 72 ? 'dust' : 'cloud'
     const x = EDGE - 20 + r(W - 2 * EDGE + 40)
     if (t + fall < TICKS) out.push({ k, x, t0: t, arr: t + fall })
-    t += 5 + r(Math.max(4, 13 - Math.floor(t / 150))) // the sky gets busier as the half-minute runs on
+    t += 3 + r(Math.max(4, 11 - Math.floor(t / 150))) // the sky gets busier as the half-minute runs on
   }
   return out.sort((a, b) => a.arr - b.arr || a.x - b.x)
 }

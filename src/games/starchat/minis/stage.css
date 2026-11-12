@@ -67,7 +67,7 @@ body .ms-name small { font: 700 12px var(--body); opacity: .7; overflow: hidden;
 body .ms-coins { font: 800 16px var(--body); display: inline-flex; align-items: center; gap: 4px; color: #8a5a1a; font-variant-numeric: tabular-nums; }
 
 /* ── Wishfall Catch ── */
-body .mc { position: absolute; inset: 0; background: #1f1d4d; }
+body .mc { position: absolute; inset: 0; background: #1f1d4d; } /* the field sits at the bottom (near your thumb); above it is more night sky */
 body .mc-field { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: ew-resize; }
 body .mc-tag { font: 700 15px var(--display); fill: #fff3dc; }
 body .mc-tag.me { fill: #ffd877; }
@@ -124,12 +124,12 @@ body .mb-act { position: absolute; left: 50%; bottom: 10px; transform: translate
 body .mb-say { margin: 0; font: 600 17px var(--display); }
 body .mb-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
 @media (max-width: 640px) {
-  body .mb-meter { top: 64px; transform: none; width: 48px; }
-  body .mb-tube { height: 22vh; }
-  body .mb-log { top: auto; bottom: 150px; right: 8px; font-size: 11px; width: 44vw; }
+  body .mb-meter { top: 84px; transform: none; width: 48px; }
+  body .mb-tube { height: 14vh; }
+  body .mb-log { top: 84px; right: 8px; font-size: 11px; width: 44vw; padding: 5px 8px; border-width: 4px; }
   body .mb-log li:nth-child(n+4) { display: none; }
   body .mb-face { width: 40px; height: 40px; font-size: 15px; border-radius: 12px; }
-  body .mb-blanket { top: 40%; }
+  body .mb-blanket { top: 46%; }
   body .mb-bun { width: 70px; height: 64px; }
 }
 

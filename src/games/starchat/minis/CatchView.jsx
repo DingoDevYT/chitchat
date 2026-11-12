@@ -89,9 +89,10 @@ export function Play({ state, me, nm, act, levels, startAt, phase, canPlay, v })
   const others = ghosts.map(g => ({ ...g, x: g.xs[tick], score: g.sc[tick] }))
   return (
     <div className="mc">
-      <svg ref={box} className="mc-field" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet"
+      <svg ref={box} className="mc-field" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMax meet"
         onPointerMove={point} onPointerDown={point} role="img" aria-label="Falling stars">
         <defs>
+          <radialGradient id="ms-glow"><stop offset="0" stopColor="#fff3b0" stopOpacity=".75" /><stop offset=".5" stopColor="#ffd45a" stopOpacity=".25" /><stop offset="1" stopColor="#ffd45a" stopOpacity="0" /></radialGradient>
           <linearGradient id="mc-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#1f1d4d" /><stop offset="1" stopColor="#4a3f78" /></linearGradient>
         </defs>
         <rect width="1000" height="600" fill="url(#mc-sky)" />
@@ -104,8 +105,8 @@ export function Play({ state, me, nm, act, levels, startAt, phase, canPlay, v })
           const s = o.k === 'big' ? 2.6 : o.k === 'dust' ? 2 : 2.4
           return <g key={i} transform={`translate(${o.x} ${y}) scale(${s})`} opacity={f > o.arr ? 0.4 : 1}>{o.k === 'big' ? <Star /> : o.k === 'dust' ? <Dust /> : <Cloud />}</g>
         })}
-        {others.map(g => <g key={g.pid} transform={`translate(${g.x} ${LAND + 22})`} opacity=".42"><Jar tint={g.tint} /><text y="54" textAnchor="middle" className="mc-tag">{nm(g.pid)}</text></g>)}
-        {canPlay && <g transform={`translate(${st.x} ${LAND + 22})`}><Jar tint="#f7c45a" /><text y="54" textAnchor="middle" className="mc-tag me">You</text></g>}
+        {others.map(g => <g key={g.pid} transform={`translate(${g.x} ${LAND + 8})`} opacity=".42"><Jar tint={g.tint} /><text y="48" textAnchor="middle" className="mc-tag">{nm(g.pid)}</text></g>)}
+        {canPlay && <g transform={`translate(${st.x} ${LAND + 8})`}><Jar tint="#f7c45a" /><text y="48" textAnchor="middle" className="mc-tag me">You</text></g>}
         {pops.map(o => <text key={o.arr + ':' + o.x} x={st.x} y={LAND - 30 - (st.n - o.arr) * 2} textAnchor="middle" className={`mc-pop ${VALUE[o.k] < 0 ? 'bad' : ''}`}>{VALUE[o.k] > 0 ? `+${VALUE[o.k]}` : VALUE[o.k]}</text>)}
       </svg>
       <div className="mc-head">
@@ -121,7 +122,7 @@ export function Play({ state, me, nm, act, levels, startAt, phase, canPlay, v })
         <li><Ico><Dust /></Ico>Stardust +1</li>
         <li><Ico><Cloud /></Ico>Dud cloud -2</li>
       </ul>
-      <div className="ms-hint">{canPlay ? (st.n >= TICKS ? 'Jar sent to the referee' : 'Drag or use the arrow keys to move') : "You're watching the sky"}</div>
+      {(phase !== 'play' || f < 4 * HZ || st.n >= TICKS || !canPlay) && <div className="ms-hint">{canPlay ? (st.n >= TICKS ? 'Jar sent to the referee' : 'Drag or use the arrow keys to move') : "You're watching the sky"}</div>}
     </div>
   )
 }

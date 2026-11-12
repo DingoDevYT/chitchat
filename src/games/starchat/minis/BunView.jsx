@@ -50,7 +50,7 @@ export function Play({ state, me, nm, act, phase, canPlay, busy }) {
           return (
             <div key={p} className={`mb-seat${p === holder ? ' hold' : ''}${isOut ? ' out' : ''}${p === me ? ' me' : ''}`} style={{ left: `${x}%`, top: `${y}%` }}>
               <span className="mb-face">{initials(p === me ? 'You' : nm(p))}</span>
-              <span className="mb-name">{p === me ? 'You' : nm(p)}{isOut ? ' (popped)' : p === holder ? ' holds it' : ''}</span>
+              <span className="mb-name">{p === me ? 'You' : nm(p)}{isOut ? ' (popped)' : p === holder ? ' (holding)' : ''}</span>
             </div>
           )
         })}

@@ -6,7 +6,7 @@ const STAR = 'M0 -10 L2.9 -3.9 L9.5 -3.1 L4.6 1.5 L5.9 8.1 L0 4.8 L-5.9 8.1 L-4.
 export function Star({ face = true, glow = true }) {
   return (
     <g>
-      {glow && <circle r="15" fill="#ffe27a" opacity=".28" />}
+      {glow && <circle r="17" fill="url(#ms-glow)" />}
       <path d={STAR} fill="#ffd54f" stroke="#e2a12e" strokeWidth="1.4" strokeLinejoin="round" />
       {face && <g fill="#5a3412"><circle cx="-2.6" cy="-0.6" r=".95" /><circle cx="2.6" cy="-0.6" r=".95" /><path d="M-1.6 1.6 Q0 3 1.6 1.6" stroke="#5a3412" strokeWidth=".8" fill="none" strokeLinecap="round" /></g>}
     </g>
@@ -16,7 +16,7 @@ export function Star({ face = true, glow = true }) {
 export function Dust() {
   return (
     <g>
-      <circle r="8" fill="#fff6c8" opacity=".25" />
+      <circle r="10" fill="url(#ms-glow)" opacity=".8" />
       <path d="M0 -6 Q1 -1 6 0 Q1 1 0 6 Q-1 1 -6 0 Q-1 -1 0 -6 Z" fill="#fff3b0" stroke="#f2c14e" strokeWidth=".8" />
     </g>
   )
