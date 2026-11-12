@@ -1,0 +1,86 @@
+/* Three Lanterns, Last Lantern Standing and Pond Skippers (same trays and night palette as stage.css). */
+
+/* ── shared lantern games ── */
+body .ms-lanterns, body .ms-standing { background: radial-gradient(ellipse at 50% 30%, #3d3a78, #1f1d4d 60%, #17142e); }
+body .ml { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; padding: 70px 12px 12px; gap: 10px; }
+body .ml-head { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); z-index: 2; white-space: nowrap; }
+body .ml-seats { position: absolute; left: 10px; top: 10px; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; z-index: 2; max-height: calc(100% - 200px); overflow: auto; }
+body .ml-seats li { display: flex; align-items: center; gap: 8px; background: var(--cream); border-radius: 14px; padding: 4px 10px 4px 4px; min-width: 150px; box-shadow: 0 3px 0 #c9a77f; opacity: .85; }
+body .ml-seats li.in { opacity: 1; }
+body .ml-seats li.me { box-shadow: 0 0 0 3px var(--honey), 0 3px 0 #c9a77f; }
+body .ml-seats li.hider { background: #ffe8a8; }
+body .ml-seats li > b { margin-left: auto; font: 700 18px var(--display); color: #6b3e24; font-variant-numeric: tabular-nums; }
+body .ml-face { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: #fff; font: 700 13px var(--display); border: 2px solid #fff8ec; flex: none; }
+body .ml-nm { display: flex; flex-direction: column; font: 600 14px var(--display); line-height: 1.1; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .ml-nm small { font: 800 10px var(--body); text-transform: uppercase; opacity: .65; }
+
+body .ml-stage { position: relative; flex: 1 1 auto; min-height: 0; width: min(760px, 100%); display: flex; align-items: center; justify-content: center; gap: 2%; }
+body .ml-cord { position: absolute; left: 4%; right: 4%; top: 8%; width: 92%; height: 40px; pointer-events: none; }
+body .ml-lantern { position: relative; background: none; border: 0; padding: 0; cursor: pointer; width: 30%; max-height: 100%; display: flex; flex-direction: column; align-items: center; touch-action: manipulation; transition: transform .2s; }
+body .ml-lantern svg { width: 100%; max-height: min(46vh, 340px); overflow: visible; }
+body .ml-lantern:disabled { cursor: default; }
+body .ml-lantern:not(:disabled):hover { transform: translateY(-4px); }
+body .ml-lantern.sel { transform: translateY(-8px) scale(1.04); filter: drop-shadow(0 0 18px #ffd45a); }
+body .ml-lantern:focus-visible { outline: 3px solid #fff3b0; outline-offset: 2px; border-radius: 20px; }
+body .ml-point { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); z-index: 1; background: var(--honey); color: #5a3412; font: 800 12px var(--body); padding: 4px 10px; border-radius: 99px; white-space: nowrap; box-shadow: 0 3px 0 #c27f22; animation: ml-bob 1.2s ease-in-out infinite; }
+body .ml-point::after { content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -7px; border: 7px solid transparent; border-bottom: 0; border-top-color: var(--honey); }
+@keyframes ml-bob { 50% { transform: translate(-50%, 4px); } }
+body .ml-picks { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; min-height: 26px; }
+body .ml-picks i, body .mls-cell i { font: 700 11px var(--display); font-style: normal; color: #fff; border-radius: 8px; padding: 3px 6px; border: 2px solid #fff8ec; }
+
+body .ml-news { background: var(--cream); border: 5px solid #b4784a; border-radius: 16px; padding: 6px 12px; display: flex; flex-direction: column; gap: 2px; font: 700 13px var(--body); width: min(520px, 100%); text-align: center; animation: ms-in .35s cubic-bezier(.3, 1.4, .5, 1); }
+body .ml-news b { font: 700 15px var(--display); color: #6b3e24; }
+body .mb-act.ml-act { position: relative; left: auto; bottom: auto; transform: none; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+body .ml-tease { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; font: 800 12px var(--body); text-transform: uppercase; color: #6b4a33; }
+body .ml-chip { font: 700 15px var(--display); border: 0; border-radius: 99px; padding: 6px 14px; min-height: 36px; background: #efe0c2; color: #6b4a33; box-shadow: 0 3px 0 #c9a77f; cursor: pointer; touch-action: manipulation; }
+body .ml-chip.on { background: linear-gradient(#ffd877, #f2b13e); color: #5a3412; box-shadow: 0 3px 0 #c27f22; }
+body .ml-go { min-width: 220px; }
+body .ml-left { margin: 0; font: 800 12px var(--body); text-transform: uppercase; opacity: .65; }
+
+/* Last Lantern Standing */
+body .mls-row { gap: 1%; align-items: flex-end; }
+body .mls-l { width: 18%; }
+body .mls-l svg { transform: scale(var(--s)); transform-origin: 50% 100%; }
+body .mls-last { width: min(560px, 100%); }
+body .mls-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+body .mls-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; border-radius: 10px; padding: 2px; }
+body .mls-cell svg { width: 100%; max-width: 54px; height: 54px; }
+body .mls-cell span { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; }
+body .mls-cell.win { background: #ffe8a8; box-shadow: 0 0 0 2px var(--honey); }
+body .mls-cell.out i { opacity: .55; text-decoration: line-through; }
+
+/* phones: seats become a strip under the title, the stage shrinks to fit */
+@media (max-width: 640px) {
+  body .ml { padding-top: 112px; gap: 6px; }
+  body .ml-seats { left: 6px; right: 6px; top: 62px; flex-direction: row; overflow-x: auto; max-height: none; gap: 4px; }
+  body .ml-seats li { min-width: 0; padding: 2px 8px 2px 2px; gap: 4px; flex: none; }
+  body .ml-face { width: 24px; height: 24px; font-size: 10px; border-radius: 7px; }
+  body .ml-nm { font-size: 12px; max-width: 70px; }
+  body .ml-nm small { display: none; }
+  body .ml-seats li > b { font-size: 14px; }
+  body .ml-lantern svg { max-height: 30vh; }
+  body .ml-lantern { width: 32%; }
+  body .ml-news { font-size: 11px; padding: 4px 8px; border-width: 4px; }
+  body .ml-go { min-width: 0; width: 100%; }
+  body .ml-head b { font-size: 18px; }
+  body .mls-cell svg { height: 40px; }
+}
+
+/* ── Pond Skippers ── */
+body .ms-pond { background: #1d2f3a; }
+body .mp { position: absolute; inset: 0; background: #1d2f3a; }
+body .mp-field { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+body .mc-head.mp-head { white-space: nowrap; }
+body .mp-bank { font: 700 22px var(--display); fill: #fff3dc; opacity: .8; }
+body .mp-guide line { stroke: #ffd877; stroke-width: 6; stroke-dasharray: 14 10; stroke-linecap: round; }
+body .mp-guide circle { fill: #ffd877; }
+body .mp-meter { position: absolute; left: 50%; top: 86px; transform: translateX(-50%); background: var(--cream); border: 5px solid #b4784a; border-radius: 16px; padding: 6px 12px; display: flex; align-items: center; gap: 10px; font: 800 13px var(--body); white-space: nowrap; pointer-events: none; }
+body .mp-meter i { width: 120px; height: 10px; border-radius: 9px; background: #ead9b8; overflow: hidden; }
+body .mp-meter i b { display: block; height: 100%; background: linear-gradient(90deg, #a9dc95, #f2b13e, #e7787f); }
+@media (max-width: 640px) {
+  body .mc-head.mp-head { top: 8px; bottom: auto; }
+  body .mc-head.mp-head .ms-title b { font-size: 17px; }
+  body .mc-scores.mp-scores { top: 136px; left: 6px; }
+  body .mp-meter { top: 96px; font-size: 11px; gap: 6px; padding: 4px 8px; }
+  body .mp-meter i { width: 70px; }
+}
