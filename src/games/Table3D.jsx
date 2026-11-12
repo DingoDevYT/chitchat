@@ -6,6 +6,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Person } from './People'
 import Avatar, { useFace } from '../Avatar'
+import { botChar, botUrl } from './bots.js'
 import { card as playCard } from './highcard/rules.js'
 import { CARDS, FLAVOURS } from './snack/rules.js'
 import { BOARD, GROUPS, N } from './property/rules.js'
@@ -252,8 +253,8 @@ const critterTex = (color, talk, bot) => canvasTex(`critter${color}${talk ? 1 : 
 function Cutout({ p, x, z, turn, won }) {
   const face = useFace(p.user_id, 'stage')
   const talk = p.user_id ? face.talk : turn // Chitbots chatter while they think
-  const photo = useImgTex(p.user_id && face.expr ? face.expr.src : null)
-  const tex = photo || critterTex(p.user_id ? face.p?.color || '#f4a261' : '#ff9f6b', talk, p.bot)
+  const photo = useImgTex(p.user_id ? (face.expr ? face.expr.src : null) : botUrl(botChar(p.bot, p.seat), talk)) // bots: their character
+  const tex = photo || critterTex(p.user_id ? face.p?.color || '#f4a261' : botChar(p.bot, p.seat).color, talk)
   const aspect = Math.min(1.6, Math.max(0.5, tex.image ? tex.image.width / tex.image.height : 1))
   const h = FIG_H * (aspect > 1 ? 1 / Math.sqrt(aspect) : 1), w = h * aspect
   const g = useRef(), inner = useRef()

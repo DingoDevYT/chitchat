@@ -7,6 +7,7 @@ import { playSfx, sfxFor } from './sfx'
 import Icon from '../icons/Icon'
 import { Card } from './Card'
 import { LEVEL_NAMES, Person, nameOf, seatList } from './People'
+import { botChar, botUrl } from './bots.js'
 import * as highcard from './highcard/ui.jsx'
 import * as snack from './snack/ui.jsx'
 import * as poker from './poker/ui.jsx'
@@ -193,15 +194,15 @@ function LobbyButtons({ again, seated, joined, busy, run, seats, R, level, setLe
       </div>
       {seated && !full && (
         <div className="gs-row gs-bots">
-          <span className="seg" role="radiogroup" aria-label="Chitbot difficulty">
+          <span className="seg" role="radiogroup" aria-label="Bot difficulty">
             {Object.entries(LEVEL_NAMES).map(([k, l]) => <button key={k} role="radio" aria-checked={level === k} className={level === k ? 'on' : ''} onClick={() => setLevel(k)}>{l}</button>)}
           </span>
-          <button className="btn ghost" disabled={busy} onClick={() => run('bot', { level })}><Icon name="plus" size={16} /> Add a Chitbot</button>
+          <button className="btn ghost" disabled={busy} onClick={() => run('bot', { level })}><Icon name="plus" size={16} /> Add a bot</button>
         </div>
       )}
       {seats.some(s => s.bot) && seated && (
         <div className="gs-row small">
-          {seats.filter(s => s.bot).map(s => <button key={s.seat} className="chip" disabled={busy} onClick={() => run('unbot', { seat: s.seat })} aria-label={`Send away Chitbot (${LEVEL_NAMES[s.bot]})`}>Chitbot ({LEVEL_NAMES[s.bot]}) <Icon name="close" size={12} /></button>)}
+          {seats.filter(s => s.bot).map(s => { const c = botChar(s.bot, s.seat); return <button key={s.seat} className="chip" disabled={busy} onClick={() => run('unbot', { seat: s.seat })} title={`${c.blurb} (${LEVEL_NAMES[s.bot]})`} aria-label={`Send ${c.name} away`}><img src={botUrl(c)} alt="" width="18" height="18" /> {c.name} <Icon name="close" size={12} /></button> })}
         </div>
       )}
       {host && house.length > 0 && (
