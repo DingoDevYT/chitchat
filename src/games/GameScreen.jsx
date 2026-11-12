@@ -18,9 +18,10 @@ import * as isle from './isle/ui.jsx'
 import * as chitchen from './chitchen/ui.jsx'
 import * as flyer from './flyer/ui.jsx'
 import * as pillow from './pillow/ui.jsx'
+import * as starchat from './starchat/ui.jsx'
 import './games.css'
 
-export const UIS = { highcard, snack, poker, property, isle, chitchen, flyer, pillow }
+export const UIS = { highcard, snack, poker, property, isle, chitchen, flyer, pillow, starchat }
 const Table3D = lazy(() => import('./Table3D'))
 const HOUSE = {
   snack: [['stack', 'Stack draw cards'], ['drawUntil', 'Draw until you can play']],
@@ -45,6 +46,10 @@ const HOUSE = {
     ['quick', 'Quick fight: 2 rounds (off: 3)'],
     ['long', 'Long night: 5 rounds'],
     ['longDraw', 'Take your time: 2 minutes to draw'],
+  ],
+  starchat: [
+    ['quick', 'Quick: 8 rounds (off: 12)'], ['festival', 'Festival: 16 rounds'], ['openBonus', 'Show the bonus stars from the start'],
+    ['noBonus', 'No bonus stars'], ['risingPrice', 'Rising price: each star costs 5 more than the last'], ['noBridge', 'Keep the Firefly Bridge closed'],
   ],
 }
 
@@ -179,7 +184,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
       {hud
         ? <UI.Hud v={v} me={meId} nm={nm} act={doAct} busy={busy} pending={pending} people={people} turnPid={turnPid}
-          deadline={playing ? game.deadline : null} version={game.version} canPlay={playing && inRound} tools={tools} gameId={game.id} />
+          deadline={playing ? game.deadline : null} version={game.version} canPlay={playing && inRound} tools={tools} gameId={game.id} seats={seats} />
         : <div className="gs-top">
           <span className="gs-title"><Icon name="cards" size={18} /> {title}</span>
           {v && !lobby && <span key={turnPid === meId ? 'mine' : 'other'} className={`gs-banner${turnPid === meId ? ' mine' : ''}`}>{UI.banner(v, nm, meId)}{playing && game.deadline && <Timer deadline={game.deadline} version={game.version} />}</span>}
@@ -198,7 +203,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
       {playing && inRound && !hud && (
         <div className="gs-hand" aria-label="Your controls">
-          <UI.Controls v={v} me={meId} act={doAct} nm={nm} busy={busy} pending={pending} />
+          <UI.Controls v={v} me={meId} act={doAct} nm={nm} busy={busy} pending={pending} seats={seats} />
         </div>
       )}
 

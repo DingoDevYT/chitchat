@@ -21,6 +21,10 @@ export function sfxFor(game, p, v) {
   } else if (game === 'snack') {
     if (v.moves !== p.moves && last?.type === 'play') out.push('card')
     if (v.moves !== p.moves && (last?.type === 'draw' || last?.type === 'catch')) out.push('deal')
+  } else if (game === 'starchat') {
+    if (v.rolls > p.rolls) out.push('dice')
+    if (fresh && last.ev?.some(e => ['star', 'buy', 'glow', 'pot', 'post'].includes(e.e))) out.push('coins')
+    if (fresh && last.item) out.push('flip')
   } else if (game === 'highcard') {
     if (fresh && last.type === 'swap') out.push('deal')
     if (v.reveal && !p.reveal) out.push('flip')

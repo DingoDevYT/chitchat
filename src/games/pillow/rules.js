@@ -21,7 +21,8 @@ import { DOODLES, pickDoodle, varyArt } from './doodles.js'
 import { CRIES, cleanCryText, pickCry, speechMs } from './cries.js'
 import { PROMPTS } from './prompts.js'
 
-export const MS = { draw: 90000, drawLong: 120000, voice: 45000, slide: 1600, gap: 700, vote: 12000, win: 6500, recap: 8000 }
+// pause: the beat after a champion steps up before its battle cry plays (every cry, the winner's encore too).
+export const MS = { draw: 90000, drawLong: 120000, voice: 45000, slide: 1600, pause: 2000, gap: 700, vote: 12000, win: 6500, recap: 8000 }
 export const PTS = { vote: 100, win: 250, streak: 150 }
 export const CRY_MIN = 200, CRY_MAX = 6500, SQUEAK_MS = 1300, SQUEAKS = 6
 export const EXTS = ['wav', 'webm', 'ogg', 'mp4']
@@ -35,8 +36,9 @@ const fail = msg => { throw new Error(msg) }
 export const ownerOf = (p, key) => p.champs[key]?.owner ?? null
 // A recording's length; a typed (or Chitbot) line takes as long as a speech voice needs to say it; else the squeak.
 export const cryMs = c => (c?.ms ? Math.max(CRY_MIN, Math.min(CRY_MAX, c.ms)) : c?.text ? Math.max(SQUEAK_MS, Math.min(CRY_MAX, speechMs(c.text))) : SQUEAK_MS)
-// How long the champions take to say their lines: slide in, champion A, a beat, champion B, a beat.
-export const linesMs = (p, b) => MS.slide + cryMs(p.champs[b.a].cry) + MS.gap + cryMs(p.champs[b.b].cry) + MS.gap
+// How long the champions take to say their lines: slide in, a pause, champion A, a beat, a pause, champion B, a beat.
+export const cryAt = (p, b) => ({ a: MS.slide + MS.pause, b: MS.slide + MS.pause + cryMs(p.champs[b.a].cry) + MS.gap + MS.pause })
+export const linesMs = (p, b) => cryAt(p, b).b + cryMs(p.champs[b.b].cry) + MS.gap
 export const roundsOf = opts => (opts.long ? 5 : opts.quick ? 2 : 3)
 
 export function setup(players, seed, opts = {}) {
@@ -154,7 +156,7 @@ function tally(st) {
   b.res = { w, va, vb, pts, streak: W.streak, tie: va === vb }
   p.log.push({ round: p.round, prompt: b.prompt, a: b.a, b: b.b, w, va, vb })
   p.last = { type: 'bout', round: p.round, bi: p.bi, w: b[w], va, vb, streak: W.streak }
-  Object.assign(p, { stage: 'win', from: p.clock, until: p.clock + MS.win + cryMs(W.cry) })
+  Object.assign(p, { stage: 'win', from: p.clock, until: p.clock + MS.win + MS.pause + cryMs(W.cry) })
 }
 
 function fire(st) {

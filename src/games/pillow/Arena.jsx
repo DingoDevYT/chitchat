@@ -2,7 +2,7 @@
 // stretch with the clip's loudness), the pillow fight (dust cloud, stars, feathers, leaning towards whoever is ahead),
 // live voting, and the winner up front with confetti while the loser takes a tumble.
 import { useEffect, useRef, useState } from 'react'
-import { MS, cryMs } from './rules.js'
+import { MS, cryAt, cryMs } from './rules.js'
 import { loadCry, playCry } from './audio.js'
 import { Doodle, reduced } from './Doodle.jsx'
 import { ChampName, Face } from './bits.jsx'
@@ -84,11 +84,13 @@ export default function Arena({ v, gameId, me, roster, nm, vote, myVote, now }) 
   // Fetch the clips as soon as the bout appears.
   useEffect(() => { loadCry(gameId, A); loadCry(gameId, B) }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // The battle cries, on the shared clock: A after the slide-in, B after a beat; the winner again on the win stage.
+  // The battle cries, on the shared clock: A after the slide-in and a pause, B after a beat and a pause; the winner
+  // again on the win stage (after the same pause).
   useEffect(() => {
+    const at = cryAt(v, b)
     const plan = stage === 'lines'
-      ? [['a', A, MS.slide], ['b', B, MS.slide + cryMs(A.cry) + MS.gap]]
-      : stage === 'win' && won ? [[won, won === 'a' ? A : B, 900]] : []
+      ? [['a', A, at.a], ['b', B, at.b]]
+      : stage === 'win' && won ? [[won, won === 'a' ? A : B, 900 + MS.pause]] : []
     const stops = [], timers = []
     const t0 = wall(v, v.from)
     for (const [side, champ, off] of plan) {
