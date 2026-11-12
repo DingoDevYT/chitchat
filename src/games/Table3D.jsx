@@ -25,6 +25,9 @@ const LAYOUT = {
   poker: { shape: 'round', R: 2.5, felt: '#2f6b4f', seatR: 3.3, cam: [0, 5.6, 7.6], look: [0, -0.1, 0.4], H: 2.1 },
   property: { follow: true, shape: 'square', R: 3.1, felt: '#d9c7a3', seatR: 4.0, cam: [0, 8.4, 6.6], look: [0, 0.5, 0.2], H: 2.3 },
   isle: { shape: 'round', R: 3.6, felt: '#5fa8bf', seatR: 4.55, cam: [0, 8.5, 6.7], look: [0, -0.15, 0.45], H: 2.2 }, // the felt is the sea
+  // Starchat is outdoors: no room, table or chairs, everyone walks the board. `fit` (w × d world units) pulls the
+  // camera back until the board fits the width; portrait phones look along the board from the side (camP) instead.
+  starchat: { outdoor: true, follow: true, bg: '#1b1838', seatR: 4, cam: [0, 8.6, 8.4], camP: [10.5, 12.5, 0.4], look: [0, -0.4, 0.55], lookP: [1.2, -0.4, 0], fit: { w: 11.6, d: 7.6 } },
 }
 
 // ── canvas textures (cached) ──
@@ -847,7 +850,568 @@ function IsleScene({ v, seats }) {
 }
 // ════════ end of Chitter Cove (isle) ════════
 
-const SCENES = { snack: SnackScene, highcard: HighScene, poker: PokerScene, property: PropertyScene, isle: IsleScene }
+// ════════ Starchat (Lantern Hollow): its own section, everything below until the end marker ════════
+// A night meadow round a moonlit pond: the painted ground (starchat/boardArt.js), chunky lantern-path tiles with kind
+// icons, the Firefly Bridge across the water, lantern poles strung with fairy lights, the six Wishing Posts with the
+// star hovering over the lit one and Chit beside it, Marzipan's stalls, Juniper's Tea House, fireflies. Everyone walks
+// the path as their own PNGtuber cut-out, step by step, and the follow camera leans in on whoever is moving.
+import { LOOP as SC_LOOP, POSTS as SC_POSTS, SPACES as SC_SPACES } from './starchat/data.js'
+import { BOARD_D as SC_D, BOARD_W as SC_W, POST_SPOTS as SC_POST, SPOTS as SC_SPOTS, TILE_R as SC_TR, beside as scBeside, outward as scOut } from './starchat/geom.js'
+import { boardCanvas as scBoardCanvas, GROUND as SC_GROUND } from './starchat/boardArt.js'
+import { iconUrl as scIconUrl, starPts as scStarPts } from './starchat/icons.js'
+
+const SC_KIND = {
+  glow: { fill: '#f7c45a', rim: '#fff3c4', side: '#c88a2a', ic: 'glow' },
+  drizzle: { fill: '#7f9fd0', rim: '#d8e6fb', side: '#4d6799', ic: 'drizzle' },
+  firefly: { fill: '#8fcf7a', rim: '#e3f6d6', side: '#4f8f45', ic: 'firefly' },
+  bramble: { fill: '#b35d5d', rim: '#f2cfc6', side: '#7a3535', ic: 'bramble' },
+  stall: { fill: '#f19a8c', rim: '#ffe2db', side: '#b25f55', ic: 'stall' },
+  tea: { fill: '#5fb7b0', rim: '#d6f3ef', side: '#357d77', ic: 'tea' },
+  owl: { fill: '#9b86cf', rim: '#e8e0fa', side: '#62508f', ic: 'owl' },
+  post: { fill: '#e8dcc4', rim: '#fffaf0', side: '#a8946e', ic: 'post' },
+}
+const SC_TH = 0.1, SC_BRIDGE_Y = 0.16 // tile thickness; how high the bridge deck lifts its tiles
+const scY = i => (i >= SC_LOOP ? SC_BRIDGE_Y : 0) + SC_TH + 0.005 // the top of a tile
+const SC_GEO = {
+  tile: new THREE.CylinderGeometry(SC_TR, SC_TR * 1.05, SC_TH, 36),
+  box: new THREE.BoxGeometry(1, 1, 1),
+  ball: new THREE.SphereGeometry(1, 16, 12),
+  cyl: new THREE.CylinderGeometry(1, 1, 1, 14),
+  plane: new THREE.PlaneGeometry(1, 1),
+  coin: new THREE.CylinderGeometry(0.07, 0.07, 0.022, 18).rotateX(Math.PI / 2),
+  bulb: new THREE.SphereGeometry(0.032, 8, 6),
+  star: (() => { // a puffy flat star for the post signs
+    const s = new THREE.Shape(), pts = scStarPts(0, 0, 1, 0.48).split(' ').map(p => p.split(',').map(Number))
+    pts.forEach(([x, y], i) => (i ? s.lineTo(x, -y) : s.moveTo(x, -y)))
+    return new THREE.ExtrudeGeometry(s, { depth: 0.25, bevelEnabled: true, bevelSize: 0.12, bevelThickness: 0.1, bevelSegments: 2 }).center()
+  })(),
+}
+const scStd = (key, color, o = {}) => mat('sc-' + key, () => new THREE.MeshStandardMaterial({ color, roughness: 0.8, ...o }))
+const scBasic = (key, color) => mat('sc-b-' + key, () => new THREE.MeshBasicMaterial({ color, toneMapped: false }))
+// A canvas texture that paints now and draws one of starchat/icons.js on top once the SVG image has loaded.
+function scIconTex(key, w, h, draw, icon, box) {
+  if (texCache.has(key)) return texCache.get(key)
+  const t = canvasTex(key, w, h, draw)
+  if (icon && typeof Image !== 'undefined') {
+    const img = new Image()
+    img.onload = () => { t.image.getContext('2d').drawImage(img, ...box); t.needsUpdate = true }
+    img.src = scIconUrl(icon, 256)
+  }
+  return t
+}
+const scTopTex = k => scIconTex('sc-top-' + k, 256, 256, (g, w) => {
+  const K = SC_KIND[k]
+  g.fillStyle = K.rim; g.beginPath(); g.arc(w / 2, w / 2, w / 2, 0, 7); g.fill()
+  g.fillStyle = K.fill; g.beginPath(); g.arc(w / 2, w / 2, w / 2 - 16, 0, 7); g.fill()
+  g.fillStyle = '#ffffff2e'; g.beginPath(); g.ellipse(w * 0.4, w * 0.36, w * 0.26, w * 0.15, -0.4, 0, 7); g.fill()
+}, SC_KIND[k].ic, [38, 38, 180, 180])
+const scTileMats = k => mat('sc-tile-' + k, () => [scStd('side' + k, SC_KIND[k].side, { roughness: 0.6 }), new THREE.MeshStandardMaterial({ map: scTopTex(k), roughness: 0.55 }), scStd('side' + k, SC_KIND[k].side)])
+// A soft round glow (sprites tint it), and the star's smiling face.
+const scGlowTex = () => canvasTex('sc-glow', 128, 128, (g, w) => {
+  const r = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2)
+  r.addColorStop(0, '#ffffffff'); r.addColorStop(0.25, '#ffffff99'); r.addColorStop(1, '#ffffff00')
+  g.fillStyle = r; g.fillRect(0, 0, w, w)
+})
+const scGlowMat = color => mat('sc-glow' + color, () => new THREE.SpriteMaterial({ map: scGlowTex(), color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }))
+const scStarTex = () => canvasTex('sc-star', 256, 256, (g, w) => {
+  const pts = R => scStarPts(w / 2, w / 2 + 8, R, R * 0.5).split(' ').map(p => p.split(',').map(Number))
+  const poly = (R, dy, col) => { g.beginPath(); pts(R).forEach(([x, y], i) => (i ? g.lineTo(x, y + dy) : g.moveTo(x, y + dy))); g.closePath(); g.fillStyle = col; g.lineJoin = 'round'; g.lineWidth = 26; g.strokeStyle = col; g.stroke(); g.fill() }
+  poly(100, 8, '#e39a2c'); poly(100, 0, '#ffd45a')
+  g.fillStyle = '#fff3b080'; g.beginPath(); g.ellipse(w * 0.38, w * 0.36, 22, 10, -0.6, 0, 7); g.fill()
+  g.fillStyle = '#3a2a3f'; g.beginPath(); g.ellipse(w * 0.41, w * 0.53, 9, 12, 0, 0, 7); g.ellipse(w * 0.59, w * 0.53, 9, 12, 0, 0, 7); g.fill()
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(w * 0.415, w * 0.51, 3.5, 0, 7); g.arc(w * 0.595, w * 0.51, 3.5, 0, 7); g.fill()
+  g.strokeStyle = '#3a2a3f'; g.lineWidth = 6; g.lineCap = 'round'; g.beginPath(); g.moveTo(w * 0.45, w * 0.62); g.quadraticCurveTo(w * 0.5, w * 0.67, w * 0.55, w * 0.62); g.stroke()
+  g.fillStyle = '#ff7a8a66'; g.beginPath(); g.ellipse(w * 0.34, w * 0.6, 11, 7, 0, 0, 7); g.ellipse(w * 0.66, w * 0.6, 11, 7, 0, 0, 7); g.fill()
+})
+const scStripeTex = (a, b) => canvasTex('sc-stripe' + a + b, 128, 32, (g, w, h) => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? b : a; g.fillRect(i * w / 8, 0, w / 8, h) } })
+const scPlankTex = () => canvasTex('sc-plank', 256, 64, (g, w, h) => {
+  for (let i = 0; i < 16; i++) { g.fillStyle = i % 2 ? '#9a6a44' : '#8a5c3a'; g.fillRect(i * 16, 0, 15, h); g.fillStyle = '#5a3a22'; g.fillRect(i * 16 + 15, 0, 1, h) }
+})
+let scBoardTexture = null
+const scBoardTex = () => {
+  if (!scBoardTexture) { scBoardTexture = new THREE.CanvasTexture(scBoardCanvas()); scBoardTexture.colorSpace = THREE.SRGBColorSpace; scBoardTexture.anisotropy = 8 }
+  return scBoardTexture
+}
+// Where each walker's feet are right now (the dice and the star's swoop follow them).
+const scFeet = {}
+const _sc = new THREE.Vector3()
+
+function ScLights() {
+  const sun = useRef()
+  useEffect(() => { sun.current.target.position.set(0, 0, 0); sun.current.target.updateMatrixWorld() }, [])
+  return (
+    <>
+      <ambientLight intensity={0.55} color="#8c90d8" />
+      <hemisphereLight args={['#6f86d8', '#24382e', 0.6]} />
+      <directionalLight ref={sun} position={[-5, 11, 4]} intensity={1.15} color="#c9d4ff" castShadow
+        shadow-mapSize-width={1024} shadow-mapSize-height={1024} shadow-bias={-0.0006}
+        shadow-camera-left={-8} shadow-camera-right={8} shadow-camera-top={6} shadow-camera-bottom={-6} shadow-camera-near={1} shadow-camera-far={30} />
+      {/* warm light spilling from the Tea House and the stalls */}
+      {[scBeside(9, 1.0), scBeside(6, 1.0), scBeside(22, 1.0)].map((p, i) => <pointLight key={i} position={[p.x, 0.9, p.z]} intensity={i ? 1.4 : 2} distance={3.2} decay={1.6} color="#ffc27a" />)}
+    </>
+  )
+}
+
+// The sky behind the hollow: stars, a big soft moon, dark hills on the horizon.
+function ScSky() {
+  const stars = useMemo(() => {
+    const n = 420, p = new Float32Array(n * 3)
+    for (let i = 0; i < n; i++) {
+      const a = Math.PI * (0.05 + 0.9 * ((i * 0.618) % 1)), e = 0.06 + 0.5 * ((i * 0.377) % 1), r = 34
+      p.set([Math.cos(a) * Math.cos(e) * r, Math.sin(e) * r - 1, -Math.sin(a) * Math.cos(e) * r], i * 3)
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3))
+    return g
+  }, [])
+  return (
+    <group>
+      <points geometry={stars}><pointsMaterial color="#fff6dc" size={1.6} sizeAttenuation={false} transparent opacity={0.85} fog={false} toneMapped={false} /></points>
+      <group position={[-9, 9, -22]}>
+        <mesh><circleGeometry args={[1.6, 40]} /><meshBasicMaterial color="#fff1c6" fog={false} toneMapped={false} /></mesh>
+        <mesh position={[0.5, 0.35, 0.01]}><circleGeometry args={[0.32, 20]} /><meshBasicMaterial color="#efe0ae" fog={false} toneMapped={false} /></mesh>
+        <sprite scale={9} material={scGlowMat('#8f9be0')} />
+      </group>
+      {[[-11, -11, 9, 3.2], [-2, -13, 11, 3.8], [9, -11.5, 9, 3], [15, -6, 6, 2.6], [-15, -5, 6, 2.4]].map(([x, z, s, h], i) => (
+        <mesh key={i} geometry={SC_GEO.ball} material={scStd('hill' + (i % 2), i % 2 ? '#1c3731' : '#22423a', { roughness: 1 })} position={[x, -0.4, z]} scale={[s, h, s * 0.45]} />
+      ))}
+    </group>
+  )
+}
+
+// Fireflies: a cheap cloud of additive points drifting over the meadow, each blinking on its own beat.
+function ScFireflies({ n = 80 }) {
+  const { geo, seed } = useMemo(() => {
+    const p = new Float32Array(n * 3), c = new Float32Array(n * 3), s = []
+    for (let i = 0; i < n; i++) {
+      const x = (((i * 0.6180339) % 1) - 0.5) * SC_W * 1.1, z = (((i * 0.4142135) % 1) - 0.5) * SC_D * 1.05
+      s.push([x, z, 0.3 + ((i * 0.7548) % 1) * 1.4, i * 1.7])
+      p.set([x, s[i][2], z], i * 3)
+    }
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(p, 3))
+    g.setAttribute('color', new THREE.BufferAttribute(c, 3))
+    return { geo: g, seed: s }
+  }, [n])
+  const tex = useMemo(scGlowTex, [])
+  useFrame(({ clock }) => {
+    const t = reduced ? 3 : clock.elapsedTime, pos = geo.attributes.position, col = geo.attributes.color
+    for (let i = 0; i < n; i++) {
+      const [x, z, y, ph] = seed[i]
+      pos.setXYZ(i, x + Math.sin(t * 0.3 + ph) * 0.5, y + Math.sin(t * 0.7 + ph * 2) * 0.18, z + Math.cos(t * 0.25 + ph) * 0.4)
+      const b = reduced ? 0.7 : Math.max(0, Math.sin(t * 1.3 + ph * 3)) ** 2
+      col.setXYZ(i, 0.85 * b, 1.0 * b, 0.45 * b)
+    }
+    pos.needsUpdate = true; col.needsUpdate = true
+  })
+  return <points geometry={geo}><pointsMaterial map={tex} size={0.16} vertexColors transparent blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} /></points>
+}
+
+// The 41 tiles (36 round the loop, 5 on the bridge), fork choices pulsing, Honey Traps as little pots.
+function ScTiles({ v }) {
+  const ring = useRef()
+  useFrame(({ clock }) => { if (ring.current) ring.current.children.forEach(c => { c.material.opacity = reduced ? 0.9 : 0.55 + 0.4 * Math.sin(clock.elapsedTime * 5) }) })
+  const forks = v?.phase === 'fork' ? v.fork : []
+  return (
+    <group>
+      {SC_SPACES.map((s, i) => (
+        <mesh key={i} geometry={SC_GEO.tile} material={scTileMats(s.k)} position={[SC_SPOTS[i].x, scY(i) - SC_TH / 2, SC_SPOTS[i].z]} castShadow receiveShadow />
+      ))}
+      <group ref={ring}>
+        {forks.map(i => (
+          <mesh key={i} position={[SC_SPOTS[i].x, scY(i) + 0.01, SC_SPOTS[i].z]} rotation-x={-Math.PI / 2}>
+            <ringGeometry args={[SC_TR * 1.08, SC_TR * 1.34, 32]} /><meshBasicMaterial color="#fff3a0" transparent depthWrite={false} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
+      {Object.keys(v?.traps || {}).map(sp => (
+        <group key={'t' + sp} position={[SC_SPOTS[sp].x + 0.12, scY(+sp), SC_SPOTS[sp].z - 0.08]}>
+          <mesh geometry={SC_GEO.cyl} material={scStd('honey', '#f2b33a', { roughness: 0.4 })} position={[0, 0.05, 0]} scale={[0.06, 0.1, 0.06]} castShadow />
+          <mesh geometry={SC_GEO.cyl} material={scStd('honeylid', '#c9852a')} position={[0, 0.105, 0]} scale={[0.07, 0.02, 0.07]} />
+        </group>
+      ))}
+    </group>
+  )
+}
+
+// The Firefly Bridge: a plank deck across the pond on stilts, rails strung with lights.
+function ScBridge() {
+  const a = SC_SPOTS[26], b = SC_SPOTS[9], dx = b.x - a.x, dz = b.z - a.z
+  const L = Math.hypot(dx, dz) - 0.7, mid = [(a.x + b.x) / 2, (a.z + b.z) / 2], rot = -Math.atan2(dz, dx)
+  const deck = useMemo(() => { const t = scPlankTex().clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(L / 1.2, 1); t.needsUpdate = true; return new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 }) }, [L])
+  const n = Math.round(L / 0.55)
+  return (
+    <group position={[mid[0], 0, mid[1]]} rotation-y={rot}>
+      <mesh geometry={SC_GEO.box} material={deck} position={[0, SC_BRIDGE_Y - 0.03, 0]} scale={[L, 0.06, 0.66]} castShadow receiveShadow />
+      {Array.from({ length: n + 1 }, (_, k) => [-1, 1].map(s => {
+        const x = -L / 2 + (k * L) / n
+        return (
+          <group key={k + ':' + s}>
+            <mesh geometry={SC_GEO.cyl} material={scStd('stilt', '#5a3a22')} position={[x, 0.12, s * 0.36]} scale={[0.025, 0.4, 0.025]} castShadow />
+            {k % 2 === 0 && <mesh geometry={SC_GEO.bulb} material={scBasic('bulb' + (k % 3), ['#ffd27a', '#f2a7c3', '#b8e986'][k % 3])} position={[x, 0.34, s * 0.36]} />}
+          </group>
+        )
+      }))}
+      {[-1, 1].map(s => <mesh key={s} geometry={SC_GEO.box} material={scStd('rail', '#7a4e2d')} position={[0, 0.3, s * 0.36]} scale={[L, 0.025, 0.025]} />)}
+    </group>
+  )
+}
+
+// Lantern poles round the inside of the loop with paper lanterns, and fairy lights strung between them.
+const SC_POLES = [0, 3, 6, 11, 14, 17, 20, 23, 29, 32].map(i => {
+  const a = SC_SPOTS[i], b = SC_SPOTS[(i + 1) % SC_LOOP], [ox, oz] = scOut(i)
+  return { x: (a.x + b.x) / 2 - ox * 0.5, z: (a.z + b.z) / 2 - oz * 0.5 }
+})
+const SC_POLE_H = 1.25
+function ScLanterns() {
+  const { lines, bulbs } = useMemo(() => {
+    const pairs = [], bl = [], N = 10
+    SC_POLES.forEach((p, i) => {
+      const q = SC_POLES[(i + 1) % SC_POLES.length]
+      const at = k => { const t = k / N; return [p.x + (q.x - p.x) * t, SC_POLE_H - 0.06 - Math.sin(t * Math.PI) * 0.32, p.z + (q.z - p.z) * t] }
+      for (let k = 0; k < N; k++) { pairs.push(...at(k), ...at(k + 1)); if (k) bl.push(at(k)) }
+    })
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pairs, 3))
+    return { lines: new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#2a2230' })), bulbs: bl }
+  }, [])
+  const inst = useRef()
+  useLayoutEffect(() => {
+    const m = new THREE.Matrix4(), c = new THREE.Color(), pal = ['#ffd27a', '#f2a7c3', '#9fd0ea', '#b8e986', '#fff4dc']
+    bulbs.forEach((p, i) => { m.makeTranslation(p[0], p[1] - 0.04, p[2]); inst.current.setMatrixAt(i, m); inst.current.setColorAt(i, c.set(pal[i % 5])) })
+    inst.current.instanceMatrix.needsUpdate = true
+    if (inst.current.instanceColor) inst.current.instanceColor.needsUpdate = true
+  }, [bulbs])
+  return (
+    <group>
+      <primitive object={lines} />
+      <instancedMesh ref={inst} args={[SC_GEO.bulb, null, bulbs.length]}><meshBasicMaterial toneMapped={false} /></instancedMesh>
+      {SC_POLES.map((p, i) => (
+        <group key={i} position={[p.x, 0, p.z]}>
+          <mesh geometry={SC_GEO.cyl} material={scStd('pole', '#4a3020')} position={[0, SC_POLE_H / 2, 0]} scale={[0.03, SC_POLE_H, 0.03]} castShadow />
+          <mesh geometry={SC_GEO.box} material={scStd('pole', '#4a3020')} position={[0.09, SC_POLE_H - 0.04, 0]} scale={[0.2, 0.025, 0.025]} />
+          <group position={[0.17, SC_POLE_H - 0.2, 0]}>
+            <mesh geometry={SC_GEO.ball} material={scBasic('lantern' + (i % 3), ['#ffcf5a', '#f7a26a', '#ffe08a'][i % 3])} scale={[0.075, 0.1, 0.075]} />
+            <mesh geometry={SC_GEO.cyl} material={scStd('lcap', '#6b3f2a')} position={[0, 0.1, 0]} scale={[0.045, 0.025, 0.045]} />
+            <sprite scale={0.7} material={scGlowMat('#ffb560')} />
+          </group>
+        </group>
+      ))}
+    </group>
+  )
+}
+
+// Turns its children to face the camera round the vertical axis (lean: tip back toward a high camera).
+function Billboard({ y = 0, children, lean = 0 }) {
+  const g = useRef()
+  useFrame(({ camera }) => {
+    const o = g.current
+    o.getWorldPosition(_sc)
+    const dx = camera.position.x - _sc.x, dz = camera.position.z - _sc.z
+    o.rotation.set(lean ? -Math.atan2(camera.position.y - _sc.y, Math.hypot(dx, dz)) * lean : 0, Math.atan2(dx, dz), 0, 'YXZ')
+  })
+  return <group ref={g} position={[0, y, 0]}>{children}</group>
+}
+
+// Wishing Posts: a wooden post with a cream star sign; the lit one glows gold.
+function ScPosts({ star }) {
+  return SC_POSTS.map(p => {
+    const s = SC_POST[p], lit = p === star
+    return (
+      <group key={p} position={[s.x, 0, s.z]}>
+        <mesh geometry={SC_GEO.cyl} material={scStd('post', '#6e4a30')} position={[0, 0.4, 0]} scale={[0.035, 0.8, 0.035]} castShadow />
+        <Billboard y={0.88}>
+          <mesh geometry={SC_GEO.star} scale={0.13} material={lit ? scStd('postlit', '#ffd45a', { emissive: '#e8a230', emissiveIntensity: 0.9 }) : scStd('postsign', '#efe2c4')} castShadow />
+        </Billboard>
+        {lit && <sprite position={[0, 0.88, 0]} scale={0.9} material={scGlowMat('#ffd27a')} />}
+      </group>
+    )
+  })
+}
+
+// Marzipan's Lantern Stall: a striped tent with a counter and a warm lamp, facing the path.
+function ScStall({ i }) {
+  const p = scBeside(i, 1.0), [ox, oz] = scOut(i), face = Math.atan2(-ox, -oz)
+  const stripes = useMemo(() => { const t = scStripeTex('#f19a8c', '#fff4dc').clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(3, 1); t.needsUpdate = true; return t }, [])
+  return (
+    <group position={[p.x, 0, p.z]} rotation-y={face}>
+      <mesh geometry={SC_GEO.cyl} position={[0, 0.2, 0]} scale={[0.36, 0.4, 0.36]} castShadow receiveShadow><meshStandardMaterial map={stripes} roughness={0.8} /></mesh>
+      <mesh position={[0, 0.58, 0]} scale={[0.5, 0.42, 0.5]} castShadow><coneGeometry args={[1, 1, 16]} /><meshStandardMaterial map={stripes} roughness={0.8} /></mesh>
+      <mesh geometry={SC_GEO.box} material={scStd('counter', '#c98a5a')} position={[0, 0.14, 0.38]} scale={[0.5, 0.28, 0.14]} castShadow />
+      <mesh geometry={SC_GEO.box} material={scBasic('stallglow', '#ffd27a')} position={[0, 0.2, 0.452]} scale={[0.44, 0.08, 0.002]} />
+      {[[-0.15, '#cfe9f5'], [0, '#f6c244'], [0.15, '#e9839a']].map(([x, c], k) => <mesh key={k} geometry={SC_GEO.ball} material={scStd('ware' + k, c)} position={[x, 0.31, 0.38]} scale={0.045} />)}
+      <mesh geometry={SC_GEO.cyl} material={scStd('pole', '#4a3020')} position={[0, 0.88, 0]} scale={[0.012, 0.22, 0.012]} />
+      <mesh geometry={SC_GEO.box} material={scStd('flag', '#ffd45a')} position={[0.06, 0.95, 0]} scale={[0.11, 0.07, 0.005]} />
+      <sprite position={[0, 0.35, 0.45]} scale={1.1} material={scGlowMat('#ffb560')} />
+    </group>
+  )
+}
+// Juniper's Tea House (the cottage model, grown into a teal-roofed inn) and the Owl Post birdhouses.
+function ScBuildings() {
+  const th = scBeside(9, 1.08), [tx, tz] = scOut(9)
+  return (
+    <group>
+      <group position={[th.x, 0, th.z]} rotation-y={Math.atan2(-tx, -tz)} scale={2.9}>
+        <Cottage inn color="#5fb7b0" pos={[0, 0, 0]} rot={0} />
+      </group>
+      <sprite position={[th.x - tx * 0.45, 0.35, th.z - tz * 0.45]} scale={1.4} material={scGlowMat('#ffb560')} />
+      {[15, 30].map(i => {
+        const p = scBeside(i, 0.62), [ox, oz] = scOut(i)
+        return (
+          <group key={i} position={[p.x, 0, p.z]} rotation-y={Math.atan2(-ox, -oz)}>
+            <mesh geometry={SC_GEO.cyl} material={scStd('post', '#6e4a30')} position={[0, 0.3, 0]} scale={[0.03, 0.6, 0.03]} castShadow />
+            <group position={[0, 0.58, 0]} scale={2.6}><Cottage color="#9b86cf" pos={[0, 0, 0]} rot={0} /></group>
+          </group>
+        )
+      })}
+    </group>
+  )
+}
+// Trees round the meadow (deep teal and dusky purple, like the mockup), clear of the path.
+const SC_TREES = [[-6.2, -3.6, 1.1, 0], [-5.9, 3.7, 0.9, 1], [6.1, 3.5, 1.0, 0], [6.3, -3.1, 1.2, 1], [-2.6, -4.2, 0.8, 1], [2.4, -4.3, 0.9, 0],
+  [-6.4, 0.4, 0.8, 0], [6.6, 1.3, 0.7, 1], [0.6, -4.5, 0.7, 0], [-4.0, -4.4, 0.7, 0], [4.4, -4.3, 0.75, 1], [-3.6, 4.3, 0.6, 0], [3.2, 4.4, 0.65, 1]]
+function ScTrees() {
+  return SC_TREES.map(([x, z, s, hue], i) => (
+    <group key={i} position={[x, 0, z]} scale={s}>
+      <mesh geometry={SC_GEO.cyl} material={scStd('trunk', '#4a3020')} position={[0, 0.4, 0]} scale={[0.07, 0.8, 0.07]} castShadow />
+      <mesh geometry={SC_GEO.ball} material={scStd('leaf' + hue, hue ? '#5b5fa8' : '#2f6b55', { roughness: 0.95 })} position={[0, 1.0, 0]} scale={0.48} castShadow />
+      <mesh geometry={SC_GEO.ball} material={scStd('leafb' + hue, hue ? '#6f73bf' : '#3f8064', { roughness: 0.95 })} position={[0.22, 1.25, 0.1]} scale={0.32} castShadow />
+      <mesh geometry={SC_GEO.ball} material={scStd('leaf' + hue, hue ? '#5b5fa8' : '#2f6b55', { roughness: 0.95 })} position={[-0.25, 0.85, 0.05]} scale={0.3} castShadow />
+    </group>
+  ))
+}
+
+// Chit, the host: a cut-out beside the lit post, chattering while offering the star and hopping when it's caught.
+function ScChit({ star, offering, cheer }) {
+  const c = botChar('normal', 0) // Chit
+  const tex = useImgTex(botUrl(c, offering)) || critterTex(c.color, offering)
+  const ref = useRef(), inner = useRef(), at = useRef(null)
+  const target = scBeside(star, 1.05)
+  useFrame(({ clock }, dt) => {
+    if (!at.current) at.current = new THREE.Vector3(target.x, 0, target.z)
+    const k = reduced ? 1 : 1 - Math.exp(-Math.min(dt, 0.05) * 1.6)
+    const d = Math.hypot(at.current.x - target.x, at.current.z - target.z)
+    at.current.x += (target.x - at.current.x) * k; at.current.z += (target.z - at.current.z) * k
+    ref.current.position.set(at.current.x, reduced ? 0 : Math.min(0.6, d * 0.3), at.current.z)
+    const t = clock.elapsedTime
+    inner.current.position.y = reduced ? 0 : cheer ? Math.abs(Math.sin(t * 7)) * 0.2 : offering ? Math.abs(Math.sin(t * 3)) * 0.04 : 0
+  })
+  return (
+    <group ref={ref}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.012, 0]}><circleGeometry args={[0.2, 20]} /><meshBasicMaterial color="#000" transparent opacity={0.3} depthWrite={false} /></mesh>
+      <Billboard lean={0.4}><group ref={inner}><mesh position={[0, 0.34, 0]} renderOrder={1}><planeGeometry args={[0.68, 0.68]} /><meshBasicMaterial map={tex} transparent alphaTest={0.04} toneMapped={false} side={THREE.DoubleSide} /></mesh></group></Billboard>
+    </group>
+  )
+}
+
+// The star: hovers and bobs over the lit post. When it moves it drifts there along a high arc (the camera follows);
+// when someone buys it, it first swoops into their arms with a burst, then a new one drifts in to the next post.
+const scPostTop = sp => new THREE.Vector3(SC_POST[sp].x, 1.55, SC_POST[sp].z)
+function ScStar({ v }) {
+  const ref = useRef(), glow = useRef(), burst = useRef()
+  const anim = useRef(null), pos = useRef(null), seen = useRef(v.star)
+  useEffect(() => {
+    if (v.star === seen.current) return
+    seen.current = v.star
+    const caught = v.last?.ev?.find(e => e.e === 'star')
+    anim.current = { t0: -1, from: (pos.current || scPostTop(v.star)).clone(), to: scPostTop(v.star), buyer: caught ? v.last.pid : null }
+  }, [v.star]) // eslint-disable-line react-hooks/exhaustive-deps
+  const face = useMemo(() => new THREE.MeshBasicMaterial({ map: scStarTex(), transparent: true, alphaTest: 0.05, toneMapped: false, side: THREE.DoubleSide }), [])
+  const burstMat = useMemo(() => new THREE.SpriteMaterial({ map: scGlowTex(), color: '#fff3a0', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), [])
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime
+    if (!pos.current) pos.current = scPostTop(v.star)
+    const a = anim.current
+    let s = 1, b = 0
+    if (a && !reduced) {
+      if (a.t0 < 0) a.t0 = t
+      const e = t - a.t0, CATCH = a.buyer ? 1.1 : 0, DRIFT = 2.2
+      const f = a.buyer ? (scFeet[a.buyer] || a.from) : a.from
+      if (a.buyer && e < CATCH) { // swoop down to the buyer's head, shrinking into their arms
+        const k = Math.min(1, e / 0.8), q = k * k * (3 - 2 * k)
+        pos.current.lerpVectors(a.from, _sc.set(f.x, (f.y || 0) + 1.1, f.z), q)
+        s = 1 - q * 0.55
+        b = e > 0.8 ? (e - 0.8) / 0.3 : 0
+        camFocus.x = pos.current.x; camFocus.z = pos.current.z; camFocus.t = t
+      } else if (e < CATCH + DRIFT) { // drift along a high arc to the new post
+        const k = (e - CATCH) / DRIFT, q = k * k * (3 - 2 * k)
+        if (!a.p0) a.p0 = a.buyer ? new THREE.Vector3(f.x, 3.2, f.z) : a.from.clone()
+        const mid = a.p0.clone().add(a.to).multiplyScalar(0.5); mid.y += 2.2
+        pos.current.copy(a.p0).multiplyScalar((1 - q) ** 2).addScaledVector(mid, 2 * q * (1 - q)).addScaledVector(a.to, q * q)
+        s = a.buyer ? Math.min(1, 0.3 + k * 1.4) : 1
+        camFocus.x = pos.current.x; camFocus.z = pos.current.z; camFocus.t = t
+      } else { anim.current = null; pos.current.copy(a.to) }
+    } else if (a) { anim.current = null; pos.current.copy(a.to) }
+    const bob = reduced || anim.current ? 0 : Math.sin(t * 1.8) * 0.08
+    ref.current.position.set(pos.current.x, pos.current.y + bob, pos.current.z)
+    ref.current.scale.setScalar(0.85 * s * (reduced ? 1 : 1 + Math.sin(t * 2.4) * 0.03))
+    glow.current.material.opacity = 0.75 + (reduced ? 0 : Math.sin(t * 2) * 0.2)
+    burst.current.visible = b > 0 && b < 1
+    if (burst.current.visible) { burst.current.scale.setScalar(0.5 + b * 3); burstMat.opacity = 1 - b; burst.current.position.copy(pos.current) }
+  })
+  return (
+    <>
+      <group ref={ref}>
+        <sprite ref={glow} scale={2.2} material={scGlowMat('#ffd27a')} />
+        <Billboard><mesh geometry={SC_GEO.plane} material={face} /></Billboard>
+      </group>
+      <sprite ref={burst} material={burstMat} visible={false} />
+    </>
+  )
+}
+
+// Someone walking the lantern path as their own cut-out: one hop per space (from the rules' step list), a glide for
+// jumps (Bramble walk-backs, ferries, swaps, comets). Coins pop out of them when they gain and tumble when they lose,
+// and an item they use flashes over their head.
+const scSpot = (sp, slot, n) => {
+  const p = SC_SPOTS[sp], a = n > 1 ? (slot / n) * Math.PI * 2 + 0.6 : 0, r = n > 1 ? 0.17 : 0
+  return new THREE.Vector3(p.x + Math.cos(a) * r, scY(sp), p.z + Math.sin(a) * r * 0.8)
+}
+const SC_FIG = 0.95
+function ScWalker({ p, v, slot, n, turn, lead }) {
+  const pid = p.pid, target = v.pos[pid]
+  const face = useFace(p.user_id, 'stage')
+  const talk = p.user_id ? face.talk : turn
+  const photo = useImgTex(p.user_id ? (face.expr ? face.expr.src : null) : botUrl(botChar(p.bot, p.seat), talk))
+  const tex = photo || critterTex(p.user_id ? face.p?.color || '#f4a261' : botChar(p.bot, p.seat).color, talk)
+  const aspect = Math.min(1.6, Math.max(0.5, tex.image ? tex.image.width / tex.image.height : 1))
+  const h = SC_FIG * (aspect > 1 ? 1 / Math.sqrt(aspect) : 1), w = h * aspect
+  const root = useRef(), inner = useRef(), coins = useRef(), itemS = useRef()
+  const st = useRef(null)
+  const seenLast = useRef(v.last), coinsWas = useRef(v.coins[pid]), pop = useRef(null)
+  const [item, setItem] = useState(null)
+  if (!st.current) st.current = { at: target, queue: [], from: null, prog: 1, dur: 0.24, glide: false }
+  useEffect(() => {
+    const s = st.current, l = v.last
+    if (l !== seenLast.current) {
+      seenLast.current = l
+      if (l?.pid === pid && l.path?.length) s.queue.push(...l.path.map(x => ({ s: x })))
+      if (l?.pid === pid && l.item) setItem({ id: l.item, t0: -1, k: Math.random() })
+    }
+    const end = s.queue.length ? s.queue[s.queue.length - 1].s : s.at
+    if (end !== target) s.queue.push({ s: target, glide: true })
+    const d = v.coins[pid] - coinsWas.current
+    coinsWas.current = v.coins[pid]
+    if (d) pop.current = { d, t0: -1 }
+  }, [v]) // eslint-disable-line react-hooks/exhaustive-deps
+  const itemMat = useMemo(() => item && new THREE.SpriteMaterial({ map: scIconTex('sc-item-' + item.id, 128, 128, () => {}, item.id, [0, 0, 128, 128]), transparent: true, depthTest: false, toneMapped: false }), [item])
+  useFrame(({ clock }, dt) => {
+    const s = st.current, t = clock.elapsedTime
+    if (s.prog >= 1 && s.queue.length) {
+      const nx = s.queue.shift()
+      s.from = scSpot(s.at, slot, n); s.at = nx.s; s.glide = !!nx.glide; s.prog = 0
+      s.dur = s.glide ? 0.8 : s.queue.length > 6 ? 0.14 : 0.24
+    }
+    const to = scSpot(s.at, slot, n)
+    let y = 0, squash = 0
+    if (s.prog < 1 && s.from) {
+      s.prog = reduced ? 1 : Math.min(1, s.prog + dt / s.dur)
+      const k = s.prog
+      root.current.position.lerpVectors(s.from, to, k)
+      y = Math.sin(k * Math.PI) * (s.glide ? 0.9 : 0.28)
+      squash = k > 0.8 ? (1 - k) * 2.5 : 0
+      if (lead) { camFocus.x = root.current.position.x; camFocus.z = root.current.position.z; camFocus.t = t }
+    } else root.current.position.lerp(to, reduced ? 1 : Math.min(1, dt * 6))
+    root.current.position.y = to.y + y
+    scFeet[pid] = root.current.position
+    // talking: squash and stretch with voice (bots chatter on their turn); a little squish on each landing
+    const vol = reduced ? 0 : p.user_id ? (voiceLevels.get(p.user_id) || 0) : talk ? 0.3 + 0.3 * Math.abs(Math.sin(t * 9)) : 0
+    const sy = 1 + vol * 0.14 - squash * 0.2, sx = 1 - vol * 0.07 + squash * 0.15
+    inner.current.scale.x += (sx - inner.current.scale.x) * 0.4
+    inner.current.scale.y += (sy - inner.current.scale.y) * 0.4
+    // coin pops: up and out on a gain, tumbling down on a loss
+    const P = pop.current, cg = coins.current
+    if (P && P.t0 < 0 && !s.queue.length && s.prog >= 1) P.t0 = t // once they've arrived
+    const pe = P && P.t0 >= 0 ? t - P.t0 : 9
+    cg.visible = !!P && P.t0 >= 0 && pe < 1.4 && !reduced
+    if (cg.visible) cg.children.forEach((c, i) => {
+      const e = Math.max(0, pe - i * 0.08), up = P.d > 0
+      c.visible = i < Math.min(5, Math.ceil(Math.abs(P.d) / 3))
+      c.position.set((i - 2) * 0.09 * (up ? 1 : 1.6), up ? h + 0.1 + e * 0.9 - e * e * 0.3 : h + 0.1 - e * e * 1.6, 0)
+      c.rotation.y = e * 9
+      c.material.opacity = Math.max(0, 1 - e / 1.2)
+    })
+    else if (P && P.t0 >= 0 && pe >= 1.4) pop.current = null
+    // the item they just used, over their head
+    const is = itemS.current
+    if (is && item) {
+      if (item.t0 < 0) item.t0 = t
+      const ie = t - item.t0
+      is.visible = ie < 2.2
+      const k = Math.min(1, ie / 0.25)
+      is.scale.setScalar(0.5 * (reduced ? 1 : k * (1 + 0.12 * Math.sin(ie * 8))))
+      is.material.opacity = ie > 1.8 ? Math.max(0, (2.2 - ie) / 0.4) : 1
+      is.position.y = h + 0.4 + (reduced ? 0 : ie * 0.1)
+    }
+  })
+  return (
+    <group ref={root}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.006, 0]}><ringGeometry args={[0.12, 0.17, 28]} /><meshBasicMaterial color={p.color} toneMapped={false} /></mesh>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.003, 0]}><circleGeometry args={[0.16, 24]} /><meshBasicMaterial color="#000" transparent opacity={0.3} depthWrite={false} /></mesh>
+      <Billboard lean={0.35}>
+        <group ref={inner}>
+          <mesh position={[0, h / 2, 0]} renderOrder={1}><planeGeometry args={[w, h]} /><meshBasicMaterial map={tex} transparent alphaTest={0.04} toneMapped={false} side={THREE.DoubleSide} opacity={p.gone ? 0.45 : 1} /></mesh>
+        </group>
+        <group ref={coins} visible={false}>
+          {[0, 1, 2, 3, 4].map(i => <mesh key={i} geometry={SC_GEO.coin}><meshStandardMaterial color="#f6c244" emissive="#9a6a10" emissiveIntensity={0.5} metalness={0.3} roughness={0.35} transparent /></mesh>)}
+        </group>
+        {itemMat && <sprite key={item.k} ref={itemS} material={itemMat} renderOrder={3} />}
+      </Billboard>
+    </group>
+  )
+}
+
+// The dice tumble over the head of whoever just rolled, then shrink away once they've set off.
+function ScDice({ v }) {
+  const g = useRef(), t0 = useRef(-1), who = v.last?.dice ? v.last.pid : null
+  useEffect(() => { t0.current = -1 }, [v.rolls])
+  useFrame(({ clock }) => {
+    if (!who) { g.current.visible = false; return }
+    if (t0.current < 0) t0.current = clock.elapsedTime
+    const e = clock.elapsedTime - t0.current, f = scFeet[who]
+    g.current.visible = e < 2.6
+    if (f) g.current.position.set(f.x, (f.y || 0) + 1.25, f.z)
+    g.current.scale.setScalar(e > 2.2 ? Math.max(0.01, (2.6 - e) / 0.4) * 0.8 : 0.8)
+  })
+  const dice = v.last?.dice || []
+  return (
+    <group ref={g} visible={false}>
+      {dice.map((d, k) => <DieMesh key={v.rolls + ':' + k} value={d} pos={[(k - (dice.length - 1) / 2) * 0.42, 0, 0]} roll={v.rolls} idx={k} />)}
+    </group>
+  )
+}
+
+function StarchatScene({ v, seats }) {
+  const board = useMemo(scBoardTex, [])
+  const slots = {}, counts = {}
+  if (v) for (const p of v.players) counts[v.pos[p]] = (counts[v.pos[p]] || 0) + 1
+  const turnPid = v && v.phase !== 'mini' && !v.winners ? v.order[v.turn] : null
+  return (
+    <group>
+      <ScLights />
+      <ScSky />
+      <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 0]} receiveShadow><planeGeometry args={[80, 80]} /><meshStandardMaterial color={SC_GROUND} roughness={1} /></mesh>
+      <mesh rotation-x={-Math.PI / 2} receiveShadow><planeGeometry args={[SC_W, SC_D]} /><meshStandardMaterial map={board} roughness={0.95} /></mesh>
+      <ScTiles v={v} />
+      <ScBridge />
+      <ScLanterns />
+      <ScPosts star={v?.star ?? 20} />
+      <ScStall i={6} /><ScStall i={22} />
+      <ScBuildings />
+      <ScTrees />
+      <ScFireflies />
+      {v && <ScChit star={v.star} offering={v.phase === 'star'} cheer={!!v.last?.ev?.some(e => e.e === 'star')} />}
+      {v && <ScStar v={v} />}
+      {v && seats.filter(s => v.players.includes(s.pid)).map(s => {
+        const sp = v.pos[s.pid]
+        slots[sp] = (slots[sp] || 0) + 1
+        return <ScWalker key={s.pid} p={s} v={v} slot={slots[sp] - 1} n={counts[sp]} turn={s.pid === turnPid} lead={s.pid === v.last?.pid} />
+      })}
+      {v && <ScDice v={v} />}
+    </group>
+  )
+}
+// ════════ end of Starchat ════════
+
+const SCENES = { snack: SnackScene, highcard: HighScene, poker: PokerScene, property: PropertyScene, isle: IsleScene, starchat: StarchatScene }
 
 // Puts the camera where this game looks best, pulled back on narrow (phone) screens.
 // Teacup Town tokens report where they are while they walk; the camera leans in and follows for everyone watching.
@@ -856,6 +1420,14 @@ function Rig({ layout }) {
   const { camera, size } = useThree()
   const base = useMemo(() => {
     const aspect = size.width / Math.max(1, size.height)
+    if (layout.fit) { // back the camera off along its view line until the board's width fits the screen
+      const portrait = aspect < 0.9 && layout.camP
+      const look = new THREE.Vector3(...(portrait ? layout.lookP || layout.look : layout.look))
+      const dir = new THREE.Vector3(...(portrait ? layout.camP : layout.cam)).sub(look)
+      const half = Math.atan(Math.tan((42 / 2) * Math.PI / 180) * aspect)
+      const k = Math.max(1, ((portrait ? layout.fit.d : layout.fit.w) / 2) / Math.tan(half) / dir.length())
+      return { pos: look.clone().addScaledVector(dir, k), look }
+    }
     const k = aspect < 1.25 ? Math.min(1.7, Math.pow(1.25 / aspect, 0.8)) : 1
     // Portrait phones: higher and steeper rather than just further away, so the table fills the width.
     return { pos: new THREE.Vector3(layout.cam[0], layout.cam[1] * (1 + (k - 1) * 1.5), layout.cam[2] * (1 + (k - 1) * 0.55)), look: new THREE.Vector3(...layout.look) }
@@ -921,25 +1493,28 @@ export default function Table3D({ game, v, people, meIdx, me, turnPid, info, win
     <div className="g3d">
       <Canvas shadows dpr={[1, 1.5]} frameloop={hidden ? 'never' : 'always'} camera={{ fov: 42, near: 0.1, far: 60, position: layout.cam }}
         gl={{ antialias: true, powerPreference: 'low-power' }} onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.05 }}>
-        <color attach="background" args={['#2a1f2b']} />
-        <fog attach="fog" args={['#2a1f2b', 18, 40]} />
+        <color attach="background" args={[layout.bg || '#2a1f2b']} />
+        <fog attach="fog" args={[layout.bg || '#2a1f2b', 18, 40]} />
         <Rig layout={layout} />
-        <Lights layout={layout} />
-        <Room layout={layout} />
-        <TableMesh layout={layout} />
-        {seats.filter(s => s.pid !== me).map(s => <Chair key={s.pid} x={s.x * 1.14} z={s.z * 1.14} a={s.a} />)}
-        {others.map(s => <Cutout key={s.pid} p={s} x={s.x} z={s.z} turn={s.pid === turnPid} won={winners?.includes(s.pid)} />)}
-        {v && <Scene v={v} seats={seats} meId={me} pending={pending} />}
-        <Projector seats={others} els={els} />
+        {layout.outdoor ? <Scene v={v} seats={seats} meId={me} pending={pending} /> : <>
+          <Lights layout={layout} />
+          <Room layout={layout} />
+          <TableMesh layout={layout} />
+          {seats.filter(s => s.pid !== me).map(s => <Chair key={s.pid} x={s.x * 1.14} z={s.z * 1.14} a={s.a} />)}
+          {others.map(s => <Cutout key={s.pid} p={s} x={s.x} z={s.z} turn={s.pid === turnPid} won={winners?.includes(s.pid)} />)}
+          {v && <Scene v={v} seats={seats} meId={me} pending={pending} />}
+          <Projector seats={others} els={els} />
+        </>}
       </Canvas>
-      {/* you: your live PNGtuber in the bottom-left corner (like your corner in the stadium crowd), no name */}
-      {seats.some(s => s.pid === me) && (
+      {/* you: your live PNGtuber in the bottom-left corner (like your corner in the stadium crowd), no name.
+          Outdoor games (Starchat) walk everyone, you included, on the board and name them in their HUD. */}
+      {!layout.outdoor && seats.some(s => s.pid === me) && (
         <div className="g-me" aria-hidden="true">
           <Avatar id={me} size={innerWidth < 700 ? 64 : 112} full mode="stage" vbadge />
           {v && <span className="g-me-info">{info(me)}</span>}
         </div>
       )}
-      {others.map((p, i) => (
+      {!layout.outdoor && others.map((p, i) => (
         <Person key={p.pid} head p={p} elRef={el => { els.current[i] = el }} turn={p.pid === turnPid} info={info(p.pid)} me={p.pid === me} />
       ))}
     </div>
