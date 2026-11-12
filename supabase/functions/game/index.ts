@@ -65,6 +65,7 @@ async function handle(req: Request, body: any) {
     if (!(await asUser.rpc('can_view_channel', { cid: body.channelId })).data) throw new Nope("You can't see that stadium.", 403)
     const { data, error } = await db.rpc('game_create', { uid, cid: body.channelId, gkind: body.game })
     if (error) throw new Nope(error.message, error.hint === 'busy' ? 409 : 400)
+    if (body.game === 'pillow') await tidyCries(sweepCries())
     return { gameId: data }
   }
 
@@ -123,6 +124,7 @@ async function handle(req: Request, body: any) {
       if (players.length < R.meta.min) throw new Nope(`${R.meta.name} needs at least ${R.meta.min} players.`)
       // Real-time games (meta.realtime: Midnight Chitchen) keep a game clock that follows the server's.
       const next = R.setup(players, seed(), R.meta.realtime ? { ...(g.opts || {}), now: Date.now() } : g.opts || {})
+      if (g.game === 'pillow') await tidyCries(dropCries(g.id))
       return save({ ...payload(R, null, next, seats), privs_reset: true })
     }
     case 'move': {
@@ -154,11 +156,35 @@ async function handle(req: Request, body: any) {
       if (g.host_id !== uid && !idle) throw new Nope('Only the host can close the table.', 403)
       const { error } = await db.from('games').delete().eq('id', g.id)
       if (error) throw new Nope(error.message)
+      if (g.game === 'pillow') await tidyCries(dropCries(g.id), sweepCries())
       return { closed: true }
     }
   }
   throw new Nope('Unknown action.')
 }
+
+// Pillow Chit Fight battle cries live in the private 'battle-cries' bucket at <game id>/<owner>/<round>.<ext>
+// (migration 040). They only matter while the table is open: the host closing it, a new round starting, or any new
+// Pillow table sweeps them away. Storage objects can only be removed through the Storage API, hence here.
+const CRIES = 'battle-cries'
+async function dropCries(gid: string) {
+  const files: string[] = []
+  const { data: owners } = await db.storage.from(CRIES).list(gid, { limit: 100 })
+  for (const o of owners || []) {
+    const { data } = await db.storage.from(CRIES).list(`${gid}/${o.name}`, { limit: 100 })
+    for (const f of data || []) files.push(`${gid}/${o.name}/${f.name}`)
+  }
+  if (files.length) await db.storage.from(CRIES).remove(files)
+}
+async function sweepCries() {
+  const { data: dirs } = await db.storage.from(CRIES).list('', { limit: 100 })
+  const ids = (dirs || []).map((d: any) => d.name).filter(isUuid)
+  if (!ids.length) return
+  const { data: live } = await db.from('games').select('id').in('id', ids)
+  const keep = new Set((live || []).map((g: any) => g.id))
+  for (const id of ids) if (!keep.has(id)) await dropCries(id)
+}
+const tidyCries = (...jobs: Promise<unknown>[]) => Promise.all(jobs).catch(e => console.warn('battle-cries cleanup', e))
 
 const stamp = (R: any, a: any) => (R.meta.realtime ? { ...(a || {}), now: Date.now() } : a)
 
