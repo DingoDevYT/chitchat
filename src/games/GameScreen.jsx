@@ -10,6 +10,7 @@ import Icon from '../icons/Icon'
 import { Card } from './Card'
 import { LEVEL_NAMES, Person, nameOf, seatList } from './People'
 import { botChar, botUrl } from './bots.js'
+import { awayOf } from './away.js'
 import * as highcard from './highcard/ui.jsx'
 import * as snack from './snack/ui.jsx'
 import * as poker from './poker/ui.jsx'
@@ -102,7 +103,8 @@ function Confetti() {
   return <div className="gs-confetti" aria-hidden="true">{Array.from({ length: 24 }, (_, i) => <i key={i} style={{ '--i': i }} />)}</div>
 }
 
-export default function GameScreen({ table, meId, joined, full, onFull, channelName }) {
+// onHide: back to the plain stadium view (Voice.jsx keeps the table running and offers "Show the game").
+export default function GameScreen({ table, meId, joined, full, onFull, onHide, channelName }) {
   const { game, seats, hand, act } = table
   const R = GAMES[game.game], UI = UIS[game.game]
   const title = gameName(game.game, R.meta.name) // the picker name (Chomp Chat, Chatterton…) wins over the rules module name
@@ -111,9 +113,11 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
   useProfiles(seats)
   const v = useMemo(() => game.pub ? R.view({ pub: game.pub, priv: hand ? { [meId]: hand } : {} }, meId) : null, [game.pub, hand, meId, R])
   const playing = game.status === 'playing', lobby = game.status === 'lobby', done = game.status === 'done'
-  const people = seatList(seats, lobby ? null : v)
-  const seated = seats.some(s => s.user_id === meId)
-  const inRound = !!v?.players?.includes(meId) && !lobby
+  // Away: people who left mid-round (src/games/away.js). Their seat stays until the round ends, played by a Chitbot.
+  const away = awayOf(game.opts)
+  const people = seatList(seats, lobby ? null : v, away)
+  const seated = seats.some(s => s.user_id === meId) && !away.includes(meId)
+  const inRound = !!v?.players?.includes(meId) && !lobby && seated
   const host = game.host_id === meId
   const turnPid = playing && v && !R.meta.realtime ? R.turn({ pub: v }) : null // real-time games have no "your turn"
   const winners = done && v ? R.over({ pub: v }) : null
@@ -130,7 +134,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
   // Keyboard: game shortcuts on your turn (K / S, F, R / E…), unless you're typing somewhere.
   useEffect(() => {
-    if (!playing || turnPid !== meId || !UI.keys) return
+    if (!playing || turnPid !== meId || !UI.keys || !inRound) return
     const kd = e => {
       if (e.ctrlKey || e.metaKey || e.altKey || /input|textarea|select/i.test(e.target.tagName) || e.target.isContentEditable) return
       const m = UI.keys[e.key.toLowerCase()]
@@ -138,10 +142,10 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
     }
     addEventListener('keydown', kd)
     return () => removeEventListener('keydown', kd)
-  }, [playing, turnPid, meId, UI, game.version]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [playing, turnPid, meId, UI, game.version, inRound]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // A little blip (the UI-sound setting applies) when it becomes your turn.
-  useEffect(() => { if (playing && turnPid === meId && !UI.Stage) uiSound('got') }, [playing, turnPid === meId]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (playing && inRound && turnPid === meId && !UI.Stage) uiSound('got') }, [playing, turnPid === meId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Table sounds (dice, cards, chips, coins, gavel, fanfare) for everyone watching, from what changed in the view.
   const prevV = useRef(v)
@@ -158,9 +162,20 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
   const mod = !!(app.ctx?.can?.('manage_channels') || app.ctx?.can?.('manage_messages'))
   const canClose = host || mod
   const close = async () => { if (await ask({ text: `Close the ${title} game for everyone?${host ? '' : ' (You are closing it as a server admin.)'}`, confirm: 'Close game', danger: true })) run('leave') }
+  // Leave game (seated players, any state): the referee's `quit`. Mid-round a Chitbot finishes your seat (or, in a
+  // game without Chitbots, your run times out); between rounds it's Stand up. Then back to the plain stadium.
+  const lastOne = !seats.some(s => s.user_id && s.user_id !== meId && !away.includes(s.user_id))
+  const quit = async () => {
+    const what = lastOne ? ' You are the last person at the table, so it closes.'
+      : `${playing ? (R.meta.noBots ? " You can't rejoin this round." : ' A Chitbot plays your seat for the rest of this round.') : ' You give up your seat.'}${host ? ' Someone else at the table becomes the host.' : ''}`
+    if (!(await ask({ text: `Leave ${title}?${what} You can sit down again next round.`, confirm: 'Leave game', danger: true }))) return
+    if (await run('quit')) onHide?.()
+  }
   const tools = (
     <span className="gs-tools">
       <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Exit fullscreen (Esc)' : 'Fullscreen'} aria-label={full ? 'Exit fullscreen' : 'Fullscreen'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
+      {!seated && onHide && <button className="icon-btn gs-btn" onClick={onHide} title="Back to stadium" aria-label="Back to stadium"><Icon name="stadium" size={18} /></button>}
+      {seated && <button className="icon-btn gs-btn" onClick={quit} disabled={busy} title="Leave game" aria-label="Leave game"><Icon name="leave" size={18} /></button>}
       {canClose && <button className="icon-btn gs-btn" onClick={close} title="Close game" aria-label="Close game"><Icon name="close" size={18} /></button>}
     </span>
   )

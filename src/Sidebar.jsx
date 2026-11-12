@@ -160,12 +160,20 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
     return () => removeEventListener('keydown', onKey)
   })
 
+  // Clicking a stadium opens it and joins its call, like a voice channel. joinVoice keeps its gates (rules agreement /
+  // timeout, "leave your DM call?"), and the mic prompt and errors come from the call itself; if any of that stops it,
+  // the stage still offers "Join stadium".
+  const open = c => {
+    go(server.id, c.id)
+    if (c.kind === 'voice' && voice?.id !== c.id) ctx.joinVoice?.(c)
+  }
+
   const chan = c => (
     <div key={c.id} className={`ch-drag${drag.cls('channel', c.id)}${moved === c.id ? ' just-moved' : ''}`} {...drag.item('channel', c.id, isAdmin)}>
       <div className={`ch-item room-row${current?.id === c.id ? ' active' : ''}${isUnread(c) ? ' unread' : ''}${chanMuted(c) ? ' ch-muted' : ''}${ctx.quiet?.(c) ? ' ch-quiet' : ''}`}
         style={roomVars(c)} onContextMenu={e => openMenu(e, () => channelItems(c))} {...drag.zone('channel', c.id)}>
         <RoomTint c={c} />
-        <button className="ch-main" onClick={() => go(server.id, c.id)} title={c.topic || undefined}>
+        <button className="ch-main" onClick={() => open(c)} title={c.topic || undefined}>
           <RoomIcon c={c} />
           <RoomName c={c} className="ch-name" />
           {c.private && <span className="lock" title="Private"><Icon name="lock" size={13} /></span>}

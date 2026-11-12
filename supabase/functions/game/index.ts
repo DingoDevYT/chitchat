@@ -7,10 +7,13 @@
 //   { action: 'start', gameId }                       host: deal (also "Again?" after a round)
 //   { action: 'move', gameId, version, move }         your move; refused unless it's still `version`
 //   { action: 'tick', gameId }                        anyone watching, once `deadline` passes: a timeout or a Chitbot's turn
+//   { action: 'quit', gameId }                        leave the game, any state: mid-round a Normal Chitbot plays your seat out
+//                                                      (src/games/away.js); between rounds it's `stand`
 //   { action: 'leave', gameId }                       host or a server admin/mod: close the table, any state (anyone, once it's been idle 10 minutes)
 // The rules are the same files the browser uses (src/games/*), bundled at deploy time: see src/games/README.md.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { GAMES } from '../../../src/games/registry.js'
+import { awayOf, quitPlan, settleAway, standIns, withoutAway } from '../../../src/games/away.js'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const ANON = Deno.env.get('SUPABASE_ANON_KEY')!
@@ -34,7 +37,8 @@ function stateOf(row: any) {
 }
 
 // Turns a new rules state into the game_save payload: public state, changed human hands, the secret (with bot hands).
-function payload(R: any, old: any, next: any, seats: any[], extra: Record<string, unknown> = {}) {
+// auto: away people a Chitbot is playing for (their turns get the bot's quick clock, not the turn timer).
+function payload(R: any, old: any, next: any, seats: any[], extra: Record<string, unknown> = {}, auto: string[] = []) {
   const privs: Record<string, unknown> = {}, bots: Record<string, unknown> = {}
   for (const [pid, hand] of Object.entries(next.priv || {})) {
     if (isBot(pid)) bots[pid] = hand
@@ -42,7 +46,7 @@ function payload(R: any, old: any, next: any, seats: any[], extra: Record<string
   }
   const won = R.over(next)
   const who = won ? null : R.turn(next)
-  const ms = who == null ? null : R.delay?.(next) ?? (isBot(who) ? botWait() : R.meta.turnMs)
+  const ms = who == null ? null : R.delay?.(next) ?? (isBot(who) || auto.includes(who) ? botWait() : R.meta.turnMs)
   return {
     pub: next.pub, privs, secret: { secret: next.secret, bots },
     status: won ? 'done' : 'playing',
@@ -78,10 +82,22 @@ async function handle(req: Request, body: any) {
   const seats: any[] = row.seats
   const mine = seats.find(s => s.user_id === uid)
   const between = g.status !== 'playing'
-  const save = (p: Record<string, unknown>) => db.rpc('game_save', { gid: g.id, ver: g.version, p }).then(({ data, error }) => {
+  // Away people (left mid-round, src/games/away.js): their seats stay until the round ends; `auto` are the ones a Chitbot plays.
+  const away = awayOf(g.opts), auto = standIns(R.meta, g.opts)
+  const save = (p: Record<string, unknown>) => {
+    if (p.status === 'done' && away.length) { const s = settleAway(seats, g.opts); p = { ...p, seats: plain(s.seats), opts: s.opts } }
+    return saveRaw(p)
+  }
+  const saveRaw = (p: Record<string, unknown>) => db.rpc('game_save', { gid: g.id, ver: g.version, p }).then(({ data, error }) => {
     if (error) throw new Nope(error.hint === 'conflict' ? 'The table moved on. Try again.' : error.message, error.hint === 'conflict' ? 409 : 400)
     return { version: data }
   })
+  const close = async () => {
+    const { error } = await db.from('games').delete().eq('id', g.id)
+    if (error) throw new Nope(error.message)
+    if (g.game === 'pillow') await tidyCries(dropCries(g.id), sweepCries())
+    return { closed: true }
+  }
   const freeSeat = () => [...Array(R.meta.max).keys()].find(i => !seats.some(s => s.seat === i))
   const plain = (list: any[]) => list.map(s => ({ seat: s.seat, user_id: s.user_id, bot: s.bot }))
 
@@ -124,20 +140,22 @@ async function handle(req: Request, body: any) {
       const players = seats.map(seatIdOf)
       if (players.length < R.meta.min) throw new Nope(`${R.meta.name} needs at least ${R.meta.min} players.`)
       // Real-time games (meta.realtime: Midnight Chitchen) keep a game clock that follows the server's.
-      const next = R.setup(players, seed(), R.meta.realtime ? { ...(g.opts || {}), now: Date.now() } : g.opts || {})
+      const opts = withoutAway(g.opts)
+      const next = R.setup(players, seed(), R.meta.realtime ? { ...opts, now: Date.now() } : opts)
       if (g.game === 'pillow') await tidyCries(dropCries(g.id))
-      return save({ ...payload(R, null, next, seats), privs_reset: true })
+      return save({ ...payload(R, null, next, seats), privs_reset: true, opts })
     }
     case 'move': {
       if (g.status !== 'playing') throw new Nope('No round is running.')
       if (!mine) throw new Nope("You're watching this one.", 403)
+      if (away.includes(uid)) throw new Nope('You left this round. Sit down again after it.', 403)
       // Real-time games take moves from everyone at once, so a stale version is fine there: the rules check
       // everything, and game_save still refuses a write that raced another one. Their moves carry the server clock.
       if (body.version !== g.version && !R.meta.realtime) throw new Nope('The table moved on. Try again.', 409)
       const st = stateOf(row)
       let next
       try { next = R.move(st, uid, stamp(R, body.move)) } catch (e) { throw new Nope(e instanceof Error ? e.message : String(e)) }
-      return save(payload(R, st, next, seats))
+      return save(payload(R, st, next, seats, {}, auto))
     }
     case 'tick': {
       if (g.status !== 'playing' || !g.deadline) return { version: g.version, idle: true }
@@ -145,21 +163,38 @@ async function handle(req: Request, body: any) {
       const st = stateOf(row)
       const who = R.turn(st)
       let next
-      if (isBot(who)) {
-        const level = seats.find(s => botId(s.seat) === who)?.bot || 'normal'
+      if (isBot(who) || auto.includes(who)) {
+        // A Chitbot, or one standing in for someone who left (Normal, playing from that person's own view and hand).
+        const level = isBot(who) ? seats.find(s => botId(s.seat) === who)?.bot || 'normal' : 'normal'
         const a = R.bot?.(R.view(st, who), who, level, Math.random)
         try { next = R.move(st, who, stamp(R, a ?? R.timeout(st))) } catch { next = R.move(st, who, stamp(R, R.timeout(st))) }
       } else next = R.move(st, who, stamp(R, R.timeout(st)))
-      return save(payload(R, st, next, seats))
+      return save(payload(R, st, next, seats, {}, auto))
+    }
+    case 'quit': {
+      const plan = quitPlan({ status: g.status, seats, hostId: g.host_id, uid, away })
+      if (plan.kind === 'none') return { version: g.version }
+      if (plan.kind === 'close') return close()
+      const p: Record<string, unknown> = plan.kind === 'stand'
+        ? { seats: plain(plan.seats) }
+        : { opts: { ...(g.opts || {}), away: plan.away } }
+      // Quitting on your own turn in a turn-based game: the stand-in moves in a second instead of waiting out your timer.
+      if (plan.kind === 'away' && !R.meta.noBots && !R.meta.realtime && g.deadline && R.turn(stateOf(row)) === uid) {
+        p.deadline = new Date(Date.now() + botWait()).toISOString()
+      }
+      const r = await saveRaw(p)
+      // game_save never touches host_id, so the referee (service role) hands the table over directly.
+      if (plan.host) {
+        const { error } = await db.from('games').update({ host_id: plan.host }).eq('id', g.id)
+        if (error) console.warn('host handover', error)
+      }
+      return { ...r, quit: true }
     }
     case 'leave': {
       // The host, anyone once it's been idle 10 minutes, or a server admin/mod (Manage rooms / Manage messages), in any state.
       const idle = Date.now() - Date.parse(g.updated_at) > 10 * 60_000
       if (g.host_id !== uid && !idle && !(await isMod(asUser, g.channel_id))) throw new Nope('Only the host or a server admin can close the game.', 403)
-      const { error } = await db.from('games').delete().eq('id', g.id)
-      if (error) throw new Nope(error.message)
-      if (g.game === 'pillow') await tidyCries(dropCries(g.id), sweepCries())
-      return { closed: true }
+      return close()
     }
   }
   throw new Nope('Unknown action.')

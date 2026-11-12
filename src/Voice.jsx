@@ -22,6 +22,7 @@ import { clampPan, zoomAt, toggleAt } from './lib/zoom'
 import './styles/stadium-crowd.css'
 import { GAMES_ON, useTable, create as createGame } from './games/useGame'
 import GamePicker from './games/GamePicker'
+import { awayOf } from './games/away.js'
 import { Entrance, seatFx, useArrivals } from './Entrances'
 import { RadioCard, RadioDrawer, RadioPlayer } from './Radio'
 
@@ -623,8 +624,12 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   })), { separator: true }, ...viewItems()])
   const gamesOn = GAMES_ON && channel.games_enabled !== false
   const table = useTable(channel.id, meId, gamesOn)
-  const g = gamesOn && table.game
-  const atTable = new Set(g ? table.seats.map(s => s.user_id) : []) // seated players walk from the crowd to the table
+  // "Back to stadium" (or leaving the game) hides this table for you until you pick "Show the game"; it keeps running.
+  const [hiddenGame, setHiddenGame] = useState(null)
+  const shelved = gamesOn && table.game && hiddenGame === table.game.id ? table.game : null
+  const g = !shelved && gamesOn && table.game
+  const awayIds = awayOf(table.game?.opts) // left mid-round: back in the crowd while a Chitbot plays their seat
+  const atTable = new Set(g ? table.seats.filter(s => !awayIds.includes(s.user_id)).map(s => s.user_id) : []) // seated players walk from the crowd to the table
   const others = list.filter(id => id !== meId && !atTable.has(id))
   const crowd = view !== 'list' && box.w ? fitCrowd(others.length, box.w, box.h * 0.5, list.includes(meId) && !atTable.has(meId)) : null
   const seat = id => ({ id, fx: fx[id], live: lives.includes(id), face: joined && faces[id], pin: joined && faces[id] && camItem(id) })
@@ -660,7 +665,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
           {g ? (
             <>
               <Boundary key={g.id}><Suspense fallback={<div className="gs-loading gs-setup" role="status"><span className="dots"><i /><i /><i /></span>Setting up the table…</div>}>
-                <GameScreen table={table} meId={meId} joined={joined} full={gameFull} onFull={toggleFull} />
+                <GameScreen table={table} meId={meId} joined={joined} full={gameFull} onFull={toggleFull} onHide={() => setHiddenGame(g.id)} />
               </Suspense></Boundary>
               {shown.length > 0 && !gameFull && <div className="stage-thumbs game-thumbs">{shown.map(id => <div key={id} className="stage-thumb" onContextMenu={streamMenu(id)} title="Live"><Screen stream={all[id]} /></div>)}</div>}
             </>
@@ -731,7 +736,8 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
             <button className="icon-btn danger" onClick={onLeave} title="Leave stadium" aria-label="Leave stadium"><Icon name="phone-off" /></button>
           </div>
         )}
-        {joined && gamesOn && !g && <button className="btn primary" onClick={() => setPicking(true)}><Icon name="cards" size={18} /> Games</button>}
+        {shelved && <button className="btn primary" onClick={() => setHiddenGame(null)}><Icon name="cards" size={18} /> Show the game</button>}
+        {joined && gamesOn && !g && !shelved && <button className="btn primary" onClick={() => setPicking(true)}><Icon name="cards" size={18} /> Games</button>}
         {picking && <GamePicker onPick={pickGame} onClose={() => setPicking(false)} />}
       </div>
       <RadioDrawer channel={channel} meId={meId} />
