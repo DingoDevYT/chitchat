@@ -2,9 +2,10 @@
 // and the Chitbot pilots built on it. Pure and seeded: a bot's whole run follows from (seed, seat, level), so the
 // referee, the browser drawing its ghost and the tests all see the same flight.
 import { rng } from '../rng.js'
-import { BOT, TOP, MAX_TICKS, chunkOf, clone, makeWorld, metres, newRun, step } from './course.js'
+import { BOT, TOP, MAX_TICKS, VEHICLES, chunkOf, clone, makeWorld, metres, newRun, step } from './course.js'
 
 const MID = (TOP + BOT) / 2
+const VI = Object.fromEntries(VEHICLES.map((v, i) => [v, i + 1]))
 
 // Depth-first search over blocks of `block` ticks (button held or not for the whole block), up to `horizon` ticks.
 // States are bucketed by (depth, height, speed, vehicle) so the search stays polynomial. Any path it returns was
@@ -24,7 +25,7 @@ export function search(world, st0, horizon, { block = 5, maxNodes = 20000, targe
       s.strict = strict
       for (let i = 0; i < block && s.alive; i++) step(s, world, h)
       if (!s.alive) continue
-      const key = depth * 1e7 + Math.round(s.y / 6) * 1e4 + Math.round(s.vy / 75 + 50) * 10 + (s.veh ? s.veh.length : 0) + (s.flip < 0 ? 5 : 0)
+      const key = depth * 1e7 + Math.round(s.y / 6) * 1e4 + Math.round(s.vy / 75 + 50) * 100 + (s.veh ? VI[s.veh] : 0) * 2 + (s.flip < 0 ? 1 : 0)
       if (seen.has(key)) continue
       seen.add(key)
       path[depth] = h
@@ -45,6 +46,7 @@ export const LEVELS = {
   hard: { react: 6, horizon: 85, slip: 0.0015, tire: 850, greedy: 0.3 },
 }
 const BLOCK = 5, NODES = 2500
+const WHISTLE_SPR = 40 // bots fill the Kettle Whistle with sprinkles only (they don't talk), as a quiet person would
 
 // The next sprinkle ahead (a target height to steer towards), else hold the middle.
 function aim(world, st, greedy, rand) {
@@ -53,18 +55,23 @@ function aim(world, st, greedy, rand) {
   return rand() < 0.5 ? MID : st.y
 }
 
-// A Chitbot at the controls: call next(st) before each tick for the button state.
+// A Chitbot at the controls: call next(st) before each tick for the button state; next.w is true on a tick it blows
+// the Kettle Whistle (house rule on, meter full, and its look-ahead sees no clean way through the next half second).
 export function pilot(world, level, seed, seat) {
   const L = LEVELS[level] || LEVELS.normal
   const rand = rng(((seed >>> 0) ^ Math.imul(seat + 7, 0x85ebca6b)) >>> 0)
-  let plan = [], bi = 0, sub = 0, stale = 0, act = false
-  return st => {
+  let plan = [], bi = 0, sub = 0, stale = 0, act = false, sprSeen = 0, meter = 0
+  const next = st => {
+    next.w = false
+    if (st.spin || st.bub) { sub = 0; plan = []; bi = 0; return false } // nothing to steer
+    if (world.opts.whistle && st.spr > sprSeen) { meter = Math.min(1, meter + (st.spr - sprSeen) / WHISTLE_SPR); sprSeen = st.spr }
     if (sub === 0) {
       // After a slip the old plan carries on for the reaction delay, then the bot notices and replans.
       if (stale > 0 && (stale -= BLOCK) <= 0) { plan = []; bi = 0 }
       if (stale <= 0 && plan.length - bi < Math.ceil(L.horizon / BLOCK / 2)) {
-        plan = search(world, st, L.horizon, { block: BLOCK, maxNodes: NODES, target: aim(world, st, L.greedy, rand) }).path
-        bi = 0
+        const r = search(world, st, L.horizon, { block: BLOCK, maxNodes: NODES, target: aim(world, st, L.greedy, rand) })
+        plan = r.path; bi = 0
+        if (!r.ok && world.opts.whistle && meter >= 1 && st.wc === 0 && st.wh === 0 && r.path.length * BLOCK < 30) { next.w = true; meter = 0 }
       }
       act = bi < plan.length ? plan[bi++] : st.y > MID
       const m = metres(st)
@@ -73,17 +80,21 @@ export function pilot(world, level, seed, seat) {
     sub = (sub + 1) % BLOCK
     return act
   }
+  next.w = false
+  return next
 }
 
-// A bot's whole run: { st, log } (log in the same shape a player's client sends).
-export function botRun(seed, seat, level, opts = {}) {
-  const world = makeWorld(seed, opts), st = newRun(), next = pilot(world, level, seed, seat)
-  const t = []
+// A bot's whole run: { st, log } (log in the same shape a player's client sends). onTick(st) after every tick.
+export function botRun(seed, seat, level, opts = {}, onTick = null) {
+  const world = makeWorld(seed, opts), st = newRun({ bot: true }), next = pilot(world, level, seed, seat)
+  const t = [], w = []
   let held = false
   while (st.alive && st.n < MAX_TICKS) {
     const h = next(st)
     if (h !== held) { t.push(st.n); held = h }
-    step(st, world, h)
+    if (next.w) w.push(st.n)
+    step(st, world, h, next.w)
+    if (onTick) onTick(st)
   }
-  return { st, log: { t, w: [] } }
+  return { st, log: { t, w } }
 }

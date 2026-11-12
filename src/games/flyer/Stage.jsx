@@ -6,7 +6,7 @@ import Avatar from '../../Avatar'
 import { toast } from '../../lib/store'
 import { callGame } from '../useGame'
 import { botChar, botUrl } from '../bots.js'
-import { TICK_MS } from './course.js'
+import { TICK_MS, missionText } from './course.js'
 import { ranking } from './rules.js'
 import { FaceFeed } from './faces.jsx'
 import Run, { Star } from './Run.jsx'
@@ -90,7 +90,7 @@ export function Stage({ v, game, seats, people, me, nm, act, refresh, buttons, t
   return (
     <div className="fly" onPointerDownCapture={() => flyerAudio().unlock()} onKeyDownCapture={() => flyerAudio().unlock()}>
       {roster.map(p => <FaceFeed key={p.pid} p={p} faces={faces} />)}
-      {(phase === 'lineup' || phase === 'countdown') && <LineUp {...{ roster, me, nm, buttons, lobby, title, count, whistle: lobby ? game.opts?.whistle : v?.opts.whistle }} />}
+      {(phase === 'lineup' || phase === 'countdown') && <LineUp {...{ roster, me, nm, buttons, lobby, title, count, whistle: lobby ? game.opts?.whistle : v?.opts.whistle, flock: lobby ? game.opts?.flock : v?.opts.flock }} />}
       {(phase === 'run' || phase === 'countdown') && <RotateHint />}
       {phase === 'run' && <Run key={startAt} v={v} me={me} people={roster} nm={nm} faces={faces} channelId={game.channel_id} submit={submit} lab={game.id === 'lab'} />}
       {phase === 'run' && game.status === 'done' && <button className="btn fly-skip" onClick={() => setSkip(game.version)}>Results</button>}
@@ -100,7 +100,7 @@ export function Stage({ v, game, seats, people, me, nm, act, refresh, buttons, t
   )
 }
 
-function LineUp({ roster, me, nm, buttons, lobby, title, count, whistle }) {
+function LineUp({ roster, me, nm, buttons, lobby, title, count, whistle, flock }) {
   return (
     <div className="fly-lineup">
       <div className="fly-sky" aria-hidden="true">
@@ -127,7 +127,7 @@ function LineUp({ roster, me, nm, buttons, lobby, title, count, whistle }) {
         ))}
       </div>
       {count == null && <div className="fly-dock">{buttons(!lobby)}</div>}
-      <p className="fly-keys">Hold to thrust (Space, W, mouse or touch){whistle ? ' · E to whistle · talk to fill your whistle' : ''}</p>
+      <p className="fly-keys">Hold to thrust (Space, W, mouse or touch){whistle ? ' · E to whistle · talk to fill your whistle' : ''}{flock ? ' · Flock: fly through a friend\'s bubble to save them' : ''}</p>
     </div>
   )
 }
@@ -139,7 +139,14 @@ function Podium({ v, roster, me, nm, buttons }) {
   const longest = Math.max(...rk.map(x => res[x].ticks || 0))
   const by = (f, pick = Math.max) => { const vals = rk.map(x => f(res[x])).filter(x => x != null); if (!vals.length) return null; const b = pick(...vals); return { who: rk.find(x => f(res[x]) === b), val: b } }
   const magpie = by(r => r.spr || 0), shave = by(r => r.shave ?? null, Math.min), chorus = by(r => r.talk || 0)
+  const ms = v.missions || [], bits = x => { let c = 0; for (let i = 0; i < ms.length; i++) if (x & (1 << i)) c++; return c }
+  const master = ms.length ? by(r => bits(r.ms || 0)) : null
+  const hero = rk.map(x => res[x].resc).find(c => c?.ok && c.by)
+  const saved = hero && rk.find(x => res[x].resc === hero)
   const ribbons = [
+    v.opts.flock && { k: 'flock', name: 'The Flock', who: rk[0], text: `Together you flew ${(v.flock ?? rk.reduce((a, x) => a + (res[x].m || 0), 0)).toLocaleString()} m` },
+    master?.val > 0 && { k: 'mission', name: 'Mission Star', who: master.who, text: `${nm(master.who)} finished ${master.val} of ${ms.length} missions` },
+    hero && { k: 'rescue', name: 'Bubble Hero', who: hero.by, text: `${nm(hero.by)} popped ${nm(saved)}'s rescue bubble` },
     magpie?.val > 0 && { k: 'magpie', name: 'Sprinkle Magpie', who: magpie.who, text: `${nm(magpie.who)} grabbed ${magpie.val} sprinkles` },
     shave && { k: 'shave', name: 'Closest Shave', who: shave.who, text: `${nm(shave.who)} slipped past by ${shave.val} px` },
     chorus?.val > 0 && { k: 'chorus', name: 'Kettle Chorus', who: chorus.who, text: `${nm(chorus.who)} talked for ${chorus.val}% of the flight` },
@@ -167,6 +174,7 @@ function Podium({ v, roster, me, nm, buttons }) {
         <div className="fly-ribbons">
           {ribbons.map(r => <div key={r.k} className={`fly-ribbon ${r.k}`}><i /><b>{r.name}</b><small>{r.text}</small><span className="fly-ribbon-face"><Face p={p(r.who)} size={40} /></span></div>)}
           <div className="fly-ribbon spr"><Star /><b>Your sprinkles</b><small>{res[me] ? `${res[me].spr} this flight` : 'Watched this one'}</small></div>
+          {res[me] && ms.length > 0 && <div className="fly-ribbon mission"><i /><b>Your missions · {bits(res[me].ms || 0)}/{ms.length}</b><ul className="fly-mlist">{ms.map((m, i) => <li key={i} className={res[me].ms & (1 << i) ? 'done' : ''}>{missionText(m)}</li>)}</ul></div>}
         </div>
         <div className="fly-dock end">{buttons(true)}</div>
       </div>

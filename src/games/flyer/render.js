@@ -10,9 +10,10 @@ import {
   BALL_R, chunkOf, yarnEnds, speed,
 } from './course.js'
 import { BACK_W, NEAR_W } from './art.js'
+import { VEH_NAMES_2, drawVehicle } from './extras.js'
 
 const CH = FLOOR - CEIL
-export const VEH_NAMES = { trotter: 'Teapot Trotter · tap to hop', brolly: 'Brolly Glider · hold to rise', flip: 'Flip-Tub · tap to flip' }
+export const VEH_NAMES = { trotter: 'Teapot Trotter · tap to hop', brolly: 'Brolly Glider · hold to rise', flip: 'Flip-Tub · tap to flip', ...VEH_NAMES_2 }
 export const BEEP_EVERY = 18 // ticks between crane warning beeps while it tracks you (and blinks in time)
 export const LOCK_EVERY = 6
 const FULL = { x0: 0, x1: VIEW_W, y0: 0, y1: VIEW_H }
@@ -52,7 +53,7 @@ export function drawFlyer(g, art, f) {
   g.save()
   g.globalAlpha = alpha * (blink && Math.floor(t * 12) % 2 ? 0.45 : 1)
   if (sq && (sq[0] !== 1 || sq[1] !== 1)) { g.translate(x, y + R); g.scale(sq[0], sq[1]); g.translate(-x, -y - R) }
-  if (veh === 'trotter') {
+  if (drawVehicle(g, art, f)) { /* the Teacup, Rocket Kettle and Sponge live in extras.js */ } else if (veh === 'trotter') {
     const bob = Math.abs(Math.sin(t * 14)) * (y >= BOT - 1 ? 4 : 0)
     g.drawImage(art.trotter, x - 76, y + R - 112 - bob, 150, 120)
     if (face) g.drawImage(face, x - 26, y - 70 - bob, 52, 52)
@@ -209,9 +210,9 @@ export function drawFrame(g, S) {
         g.fillStyle = `rgba(60,30,20,${0.25 * near})`; g.beginPath(); g.ellipse(fx, FLOOR - 2, 34 * (0.5 + near / 2), 7, 0, 0, 7); g.fill()
         g.translate(fx, y); g.rotate(S.fall.r); g.translate(-fx, -y)
       }
-      drawFlyer(g, art, { x: PX + (me.alive ? 0 : S.fall.x), y, face: S.face, veh: me.alive ? me.veh : null, flip: me.flip, vy: me.alive ? me.vy : 0, t, blink: me.grace > 0, sq: me.alive ? S.sq : S.fall.sq })
+      drawFlyer(g, art, { x: PX + (me.alive ? 0 : S.fall.x), y, face: S.face, veh: me.alive ? me.veh : null, flip: me.flip, vy: me.alive ? me.vy : 0, t, blink: me.grace > 0, sq: me.alive ? S.sq : S.fall.sq, held: me.held })
       g.restore()
-      if (me.alive && me.veh) pill(g, VEH_NAMES[me.veh], PX + 40, me.veh === 'trotter' ? me.y - 104 : me.y - 92)
+      if (me.alive && me.veh) pill(g, VEH_NAMES[me.veh], PX + 40, me.y - ({ trotter: 104, cup: 124, rocket: 102 }[me.veh] || 92))
       if (me.alive && me.brew) g.drawImage(art.gift.brew, PX + 26, me.y - 52, 26, 26)
     }
     // Paper cranes: a big warning at the right edge that follows your height, turns red and locks, then the crane.
