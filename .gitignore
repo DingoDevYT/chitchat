@@ -2,3 +2,5 @@ node_modules
 dist
 .DS_Store
 supabase/test-users.md
+
+.claude/worktrees/
