@@ -18,11 +18,15 @@ body .lt-lid { fill: color-mix(in srgb, var(--bg-4) 70%, var(--text) 30%); filte
 body .lt-rim { stroke: color-mix(in srgb, var(--text) 45%, transparent); stroke-width: .9; fill: none; stroke-linecap: round; }
 body .lt-logo { opacity: .75; }
 
+/* phone held up in both paws: we see its back */
+body .ph-body { fill: color-mix(in srgb, var(--bg-4) 70%, var(--text) 30%); stroke: color-mix(in srgb, var(--text) 40%, transparent); stroke-width: .7; filter: drop-shadow(-1px 1px 1.2px #0005); }
+body .ph-cam { fill: color-mix(in srgb, var(--bg-4) 40%, #000 60%); }
+
 /* paws tapping on the keys, alternating */
 body .paw { stroke: #0003; stroke-width: .8; transform-box: fill-box; transform-origin: center bottom; }
 body .paw-l { animation: paw-tap .3s ease-in-out infinite; }
 body .paw-r { animation: paw-tap .3s ease-in-out infinite; animation-delay: .15s; }
-@keyframes paw-tap { 0%, 100% { transform: translateY(-2.2px) scale(1, 1.05); } 50% { transform: translateY(.4px) scale(1.06, .9); } }
+@keyframes paw-tap { 0%, 100% { transform: translateY(-2.2px); } 50% { transform: translateY(.4px); } } /* round paws stay round: they bob, never squash */
 
 @media (prefers-reduced-motion: reduce) { body .paw { animation: none; } }
 

@@ -1,4 +1,4 @@
-import { useProfile } from './lib/store'
+import { createStore, useProfile } from './lib/store'
 import Avatar from './Avatar'
 import './styles/typing.css'
 
@@ -19,8 +19,8 @@ function Deck() {
 function Paws({ color }) {
   return (
     <svg className="tp-layer" viewBox={VB} aria-hidden="true">
-      <ellipse className="paw paw-l" cx="18.6" cy="28.9" rx="2.7" ry="2.1" fill={color} />
-      <ellipse className="paw paw-r" cx="24.2" cy="29.6" rx="2.7" ry="2.1" fill={color} />
+      <circle className="paw paw-l" cx="18.6" cy="28.9" r="2.3" fill={color} />
+      <circle className="paw paw-r" cx="24.2" cy="29.6" r="2.3" fill={color} />
     </svg>
   )
 }
@@ -35,15 +35,33 @@ function Lid({ color }) {
   )
 }
 
+// On a phone: same angle, but they hold a phone up in both paws (we see its back, with the logo blob) and tap away.
+function Phone({ color }) {
+  return (
+    <svg className="tp-layer" viewBox={VB} aria-hidden="true">
+      <g transform="rotate(-14 16 25)">
+        <rect className="ph-body" x="11.4" y="18" width="9.4" height="14.6" rx="2.1" />
+        <circle className="ph-cam" cx="13.8" cy="20.6" r=".8" />
+        <ellipse className="lt-logo" cx="16.1" cy="26" rx="1.9" ry="1.5" fill={color} />
+      </g>
+      <circle className="paw paw-l" cx="12" cy="28.8" r="2.3" fill={color} />
+      <circle className="paw paw-r" cx="20.6" cy="26.9" r="2.3" fill={color} />
+    </svg>
+  )
+}
+
+// Who's typing from a phone (sent with their typing ping); you: from this device.
+export const onPhone = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+export const typingPhones = createStore({})
+
 function Typer({ id, me }) {
   const p = useProfile(id)
   const color = p?.color || '#f4a261'
+  const phone = typingPhones.use(s => (me ? onPhone : !!s[id]))
   return (
     <span className={`typer${me ? ' me' : ''}`} title={me ? 'You' : p?.display_name || p?.username}>
       <Avatar id={id} size={29} mode="typing" />
-      <Deck />
-      <Paws color={color} />
-      <Lid color={color} />
+      {phone ? <Phone color={color} /> : <><Deck /><Paws color={color} /><Lid color={color} /></>}
     </span>
   )
 }

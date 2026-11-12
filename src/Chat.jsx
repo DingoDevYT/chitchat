@@ -5,7 +5,7 @@ import { ensureProfiles, prefs, profiles, setPref, setTypingIn, toast } from './
 import { ask } from './Dialog'
 import { uiSound } from './lib/animalese'
 import { youGot } from './YouGot'
-import TypingRow from './Typing'
+import TypingRow, { onPhone, typingPhones } from './Typing'
 import './styles/composer-fit.css'
 import { applyReaction, mergeIncoming, overLimit, settleSent, startsGroup, MAX_LEN } from './lib/chat'
 import { uploadFile } from './lib/upload'
@@ -110,7 +110,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
         setMsgs(l => applyReaction(l, old, false)))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'poll_votes', filter }, ({ new: v }) => onVote(v, true))
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'poll_votes' }, ({ old }) => onVote(old, false))
-      .on('broadcast', { event: 'typing' }, ({ payload }) => { stadium?.onType(payload.id); setTypers(t => ({ ...t, [payload.id]: Date.now() })) })
+      .on('broadcast', { event: 'typing' }, ({ payload }) => { stadium?.onType(payload.id); if (!!payload.phone !== !!typingPhones.get()[payload.id]) typingPhones.set(s => ({ ...s, [payload.id]: !!payload.phone })); setTypers(t => ({ ...t, [payload.id]: Date.now() })) })
       .subscribe()
     chRef.current = ch
     return () => { alive = false; supabase.removeChannel(ch) }
@@ -289,7 +289,7 @@ export default function Chat({ channel, ctx, onMenu, stadium }) {
     if (Date.now() - lastTyping.current < 2500) return
     lastTyping.current = Date.now()
     stadium?.onType(userId)
-    chRef.current?.send({ type: 'broadcast', event: 'typing', payload: { id: userId } })
+    chRef.current?.send({ type: 'broadcast', event: 'typing', payload: { id: userId, ...(onPhone && { phone: true }) } })
   }, [userId])
 
   const canPin = canPinPerm || channel.kind === 'dm' // mirrors public.can_pin() in the DB
