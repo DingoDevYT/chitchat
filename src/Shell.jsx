@@ -343,7 +343,8 @@ export default function Shell({ userId }) {
           ? <StadiumChat key={channel.id} channel={channel} ctx={ctx}>
             <VoiceStage channel={channel} meId={userId} joined={voice?.id === channel.id} onJoin={() => joinVoice(channel)}
               live={vstate.live} onLive={() => setVstate(v => ({ ...v, live: !v.live }))}
-              cam={vstate.cam} onCam={() => setVstate(v => ({ ...v, cam: !v.cam }))} onMenu={() => setNavOpen(true)} />
+              cam={vstate.cam} onCam={() => setVstate(v => ({ ...v, cam: !v.cam }))} onMenu={() => setNavOpen(true)}
+              vstate={vstate} setVstate={setVstate} onLeave={() => joinVoice(null)} />
           </StadiumChat>
           : channel?.kind === 'gallery'
             ? <Gallery key={channel.id} channel={channel} ctx={ctx} onMenu={() => setNavOpen(true)} />

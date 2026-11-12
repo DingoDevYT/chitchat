@@ -47,3 +47,9 @@ body .stage-tile { cursor: pointer; }
 body .stage-tile .stage-caption { top: 8px; left: 8px; font-size: 12px; }
 
 @media (prefers-reduced-motion: reduce) { body .stadium .crowd .stage-seat { transition: none; } }
+
+/* stadium call controls: a pill of round buttons, always there while you are in */
+body .stage-ctl { display: inline-flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px; background: var(--bg-2); box-shadow: var(--shadow), inset 0 0 0 1px var(--line); }
+body .stage-ctl .icon-btn { width: 40px; height: 40px; border-radius: 50%; }
+body .stage-ctl .icon-btn.on { background: color-mix(in srgb, #e8857a 28%, transparent); color: #e8857a; }
+body .stage-ctl .icon-btn.danger { background: #e8857a; color: #1b1420; }

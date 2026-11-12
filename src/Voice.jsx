@@ -562,7 +562,7 @@ function Seat({ id, me, size, back, tile, live, face, pin, style }) {
 
 // The main-area view of a stadium: the screen for whoever is live, and the crowd in front of it.
 // Crowd: you in the bottom-right corner, everyone else flowing left in rows (lib/crowd.js). List: plain tiles under the screen.
-export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, onCam, onMenu }) {
+export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, onCam, onMenu, vstate, setVstate, onLeave }) {
   const ids = online.use(s => Object.keys(s).filter(id => s[id].voice === channel.id).join(','))
   const liveIds = online.use(s => Object.keys(s).filter(id => s[id].voice === channel.id && s[id].live).join(','))
   const all = streams.use()
@@ -676,8 +676,20 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
       <div className="stage-actions">
         {!joined && <button className="btn primary big join-voice" onClick={onJoin}>Join stadium</button>}
         {joined && hidden.length > 0 && <button className="btn ghost" onClick={() => setHidden([])}><Icon name="eye" size={18} /> Show {hidden.length} hidden</button>}
-        {joined && canShare && <button className={`btn ${live ? 'danger' : 'primary'}`} onClick={onLive}><Icon name={live ? 'stop' : 'screen'} size={18} /> {live ? 'Stop sharing' : 'Go live'}</button>}
-        {joined && canCam && <button className={`btn ${cam ? 'danger' : 'primary'}`} onClick={onCam}><Icon name={cam ? 'camera-off' : 'camera'} size={18} /> {cam ? 'Camera off' : 'Camera'}</button>}
+        {/* your call controls, always here while you're in (the sidebar's copy is tucked away on phones) */}
+        {joined && (
+          <div className="stage-ctl" role="toolbar" aria-label="Call controls">
+            <button className={`icon-btn${vstate?.muted ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, muted: !v.muted }))}
+              aria-pressed={!!vstate?.muted} title={vstate?.muted ? 'Unmute' : 'Mute'} aria-label={vstate?.muted ? 'Unmute' : 'Mute'}><Icon name={vstate?.muted ? 'mic-off' : 'mic'} /></button>
+            <button className={`icon-btn${vstate?.deafened ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, deafened: !v.deafened }))}
+              aria-pressed={!!vstate?.deafened} title={vstate?.deafened ? 'Undeafen' : 'Deafen'} aria-label={vstate?.deafened ? 'Undeafen' : 'Deafen'}><Icon name={vstate?.deafened ? 'headphones-off' : 'headphones'} /></button>
+            {canCam && <button className={`icon-btn${cam ? ' on' : ''}`} onClick={onCam} aria-pressed={!!cam}
+              title={cam ? 'Turn camera off' : 'Turn camera on'} aria-label={cam ? 'Turn camera off' : 'Turn camera on'}><Icon name={cam ? 'camera-off' : 'camera'} /></button>}
+            {canShare && <button className={`icon-btn${live ? ' on' : ''}`} onClick={onLive} aria-pressed={!!live}
+              title={live ? 'Stop sharing' : 'Go live'} aria-label={live ? 'Stop sharing' : 'Go live'}><Icon name={live ? 'stop' : 'screen'} /></button>}
+            <button className="icon-btn danger" onClick={onLeave} title="Leave stadium" aria-label="Leave stadium"><Icon name="phone-off" /></button>
+          </div>
+        )}
         {joined && gamesOn && !g && <button className="btn primary" onClick={() => setPicking(true)}><Icon name="cards" size={18} /> Games</button>}
         {picking && <GamePicker onPick={pickGame} onClose={() => setPicking(false)} />}
       </div>

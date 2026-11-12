@@ -13,6 +13,13 @@ import { groupMembers } from './lib/roles'
 // Members of another server (or not loaded yet): never shown under this one, and Members draws a skeleton instead of a blank.
 export const LOADING_MEMBERS = Object.freeze([])
 
+let pingChannel = null, pingFetch = null
+// Tell everyone in the open server (you included: broadcasts skip the sender) to refetch the member list now.
+export function pingMembers() {
+  pingChannel?.send({ type: 'broadcast', event: 'changed', payload: {} })
+  pingFetch?.()
+}
+
 export function useMembers(serverId) {
   const [list, setList] = useState({ sid: null, data: [] })
   useEffect(() => {
@@ -31,7 +38,17 @@ export function useMembers(serverId) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'members', filter: `server_id=eq.${serverId}` }, fetch)
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'members' }, ({ old }) => old.server_id === serverId && fetch())
       .subscribe()
-    return () => { alive = false; supabase.removeChannel(ch) }
+    // Belt and braces: database change events weren't reaching other members for nickname edits, so whoever changes a
+    // member (nickname, timeout, role) also pings everyone in the server, and coming back to the tab refetches.
+    const ping = supabase.channel('members-ping:' + serverId).on('broadcast', { event: 'changed' }, fetch).subscribe()
+    pingChannel = ping; pingFetch = fetch
+    const onVis = () => { if (!document.hidden) fetch() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      alive = false; supabase.removeChannel(ch); supabase.removeChannel(ping)
+      if (pingChannel === ping) { pingChannel = null; pingFetch = null }
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [serverId])
   return !serverId ? NO_MEMBERS : list.sid === serverId ? list.data : LOADING_MEMBERS
 }

@@ -4,6 +4,7 @@ import { createStore, ensureProfiles, nicknames, profiles, toast, useProfile } f
 import { canModerate } from './lib/roles'
 import { AUDIT_ACTIONS, BAN_PURGE, INVITE_AGES, INVITE_USES, TIMEOUTS, describeAudit, inviteState, leftText, postBlock, relTime, timedOut, usesText } from './lib/moderation'
 import { canModerateNow, useMemberRoles } from './Roles'
+import { pingMembers } from './Members'
 import { app, copy, menuExtras } from './menus'
 import Avatar, { Critter } from './Avatar'
 import Markdown from './Markdown'
@@ -170,6 +171,7 @@ function ModDialog({ kind, uid, ctx, onClose }) {
     const { error } = await supabase.rpc(fn, { sid, uid, ...args })
     setBusy(false)
     if (error) return toast(error.message)
+    pingMembers() // everyone's member list (and nicknames) updates now, not on the next reload
     toast(done)
     onClose()
   }
