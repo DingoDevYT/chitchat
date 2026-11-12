@@ -10,7 +10,29 @@ import { TICK_MS } from './course.js'
 import { ranking } from './rules.js'
 import { FaceFeed } from './faces.jsx'
 import Run, { Star } from './Run.jsx'
+import { flyerAudio } from './sound.js'
+import { SoundControl } from './SoundControl.jsx'
 import './flyer.css'
+
+// Portrait phones: the tunnel is a landscape game, so ask for a turn (it still plays if you'd rather not).
+let rotateDismissed = false
+function RotateHint() {
+  const [gone, setGone] = useState(rotateDismissed)
+  if (gone) return null
+  return (
+    <div className="fly-rotate" role="dialog" aria-label="Turn your phone sideways">
+      <div className="fly-rotate-card">
+        <svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true" className="fly-rotate-phone">
+          <rect x="20" y="8" width="24" height="44" rx="5" fill="#fff8ec" stroke="#4a3324" strokeWidth="3" />
+          <circle cx="32" cy="46" r="2" fill="#4a3324" />
+        </svg>
+        <b>Turn your phone sideways</b>
+        <small>Chatterflies flies best in landscape</small>
+        <button type="button" className="btn" onClick={() => { rotateDismissed = true; setGone(true) }}>Play upright</button>
+      </div>
+    </div>
+  )
+}
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 const fmtTime = ticks => { const s = Math.round(ticks * TICK_MS / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
@@ -53,11 +75,23 @@ export function Stage({ v, game, seats, people, me, nm, act, refresh, buttons, t
   // Bots' distances count from the start, but their ghosts are still flying: hold the podium until they land.
   const flyingUntil = useMemo(() => v && !lobby ? Math.max(0, ...Object.values(v.results).map(r => startAt + r.ticks * TICK_MS)) : 0, [v, lobby, startAt])
   const phase = lobby || !v ? 'lineup' : now < startAt ? 'countdown' : game.status === 'done' && (now >= flyingUntil || skip === game.version) ? 'podium' : 'run'
+  const count = phase === 'countdown' ? Math.ceil((startAt - now) / 1000) : null
+
+  // Sound cues outside the run: countdown ticks, the "Boil!" go and the podium fanfare.
+  const cue = useRef({ count: null, phase })
+  useEffect(() => {
+    const a = flyerAudio(), was = cue.current
+    if (count != null && count !== was.count && count <= 3) a.play(count > 0 ? 'tick' : 'go')
+    if (phase === 'run' && was.phase === 'countdown') a.play('go')
+    if (phase === 'podium' && was.phase !== 'podium') a.play('fanfare', { won: v && ranking(v)[0] === me })
+    cue.current = { count, phase }
+  }, [count, phase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="fly">
+    <div className="fly" onPointerDownCapture={() => flyerAudio().unlock()} onKeyDownCapture={() => flyerAudio().unlock()}>
       {roster.map(p => <FaceFeed key={p.pid} p={p} faces={faces} />)}
-      {(phase === 'lineup' || phase === 'countdown') && <LineUp {...{ roster, me, nm, buttons, lobby, title, count: phase === 'countdown' ? Math.ceil((startAt - now) / 1000) : null, whistle: lobby ? game.opts?.whistle : v?.opts.whistle }} />}
+      {(phase === 'lineup' || phase === 'countdown') && <LineUp {...{ roster, me, nm, buttons, lobby, title, count, whistle: lobby ? game.opts?.whistle : v?.opts.whistle }} />}
+      {(phase === 'run' || phase === 'countdown') && <RotateHint />}
       {phase === 'run' && <Run key={startAt} v={v} me={me} people={roster} nm={nm} faces={faces} channelId={game.channel_id} submit={submit} lab={game.id === 'lab'} />}
       {phase === 'run' && game.status === 'done' && <button className="btn fly-skip" onClick={() => setSkip(game.version)}>Results</button>}
       {phase === 'podium' && <Podium v={v} roster={roster} me={me} nm={nm} buttons={buttons} />}
@@ -78,6 +112,7 @@ function LineUp({ roster, me, nm, buttons, lobby, title, count, whistle }) {
         <i className="fly-hills" />
       </div>
       <div className="fly-badge">{title}</div>
+      <SoundControl className="lineup" />
       <div className="fly-sign">
         <b>{count != null ? (count > 0 ? count : 'Boil!') : 'Perch up, flyers!'}</b>
         <small>{count != null ? 'Hold anywhere to thrust, let go to fall' : `${roster.length} perched · the host boils the kettles`}</small>

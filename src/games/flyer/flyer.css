@@ -101,18 +101,59 @@ body .fly-ribbon.shave b { color: #5b3f8a; } body .fly-ribbon.chorus b { color: 
 body .fly-ribbon small { color: #6b5a50; font-weight: 700; }
 body .fly-ribbon-face { position: absolute; right: 10px; top: 10px; }
 body .fly-dock.end { margin: 14px 0 0; }
+/* ── juice: milestone banners, streak counter, a bonk card that waits for the tumble ── */
+body .fly-run { -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+body .fly-milestone { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); pointer-events: none; text-align: center; animation: fly-ms 1.7s cubic-bezier(.2,1.4,.4,1) both; }
+body .fly-milestone b { display: block; font: 700 clamp(40px, 8vw, 76px)/1 Fredoka, Nunito, sans-serif; color: #fff3c4; -webkit-text-stroke: 3px #8a4a26; paint-order: stroke fill; text-shadow: 0 5px 0 #6b3a1e88; letter-spacing: 1px; }
+body .fly-milestone small { display: inline-block; margin-top: 4px; background: #fff8ec; color: #8a4a26; font: 800 15px Nunito, sans-serif; padding: 3px 14px; border-radius: 99px; box-shadow: 0 3px 0 #0003; }
+@keyframes fly-ms { 0% { opacity: 0; transform: translate(-50%, 20px) scale(.5); } 14% { opacity: 1; transform: translate(-50%, 0) scale(1.08); } 22% { transform: translate(-50%, 0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -16px) scale(1); } }
+body .fly-streak { font-style: normal; margin-left: 4px; font: 800 14px Nunito, sans-serif; color: #fff; background: #f08a4a; border-radius: 99px; padding: 1px 7px; animation: fly-pop .25s ease-out; }
+@keyframes fly-pop { 0% { transform: scale(1.5); } 100% { transform: scale(1); } }
+body .fly-run .fly-bonk:not(.watch) { animation: fly-bonk-in .45s cubic-bezier(.2,1.5,.4,1) 1.5s both; }
+@keyframes fly-bonk-in { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.6); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+
+/* ── sound control ── */
+body .fly-snd { pointer-events: auto; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; background: #fff8ec; border-radius: 99px; padding: 3px; box-shadow: 0 3px 0 #0003; }
+body .fly-snd-btn { width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: #4a3324; display: grid; place-items: center; cursor: pointer; }
+body .fly-snd-btn:hover { background: #f4dfc4; }
+body .fly-snd input { width: 0; opacity: 0; transition: width .15s, opacity .15s; accent-color: #d97a5a; margin: 0; }
+body .fly-snd:hover input, body .fly-snd:focus-within input { width: 84px; opacity: 1; margin-right: 8px; }
+body .fly-run .fly-hud { right: 108px; } /* room for the table's tools (full view, close) */
+body .fly-snd.lineup { position: absolute; right: 10px; top: 58px; z-index: 2; }
+@media (hover: none) { body .fly-snd input { width: 72px; opacity: 1; margin-right: 8px; } }
+@media (max-width: 760px) { body .fly-snd.lineup input { display: none; } }
+
+/* ── phones: turn sideways, big reachable whistle ── */
+body .fly-rotate { display: none; }
+@media (orientation: portrait) and (max-width: 700px) {
+  body .fly-rotate { display: grid; place-items: center; position: absolute; inset: 0; z-index: 6; background: #4a3024e6; padding: 16px; }
+  body .fly-rotate-card { background: #fff8ec; border-radius: 22px; padding: 18px 22px; text-align: center; display: grid; gap: 6px; justify-items: center; box-shadow: 0 5px 0 #0003; max-width: 300px; }
+  body .fly-rotate-card b { font-size: 20px; color: #4a2c1e; }
+  body .fly-rotate-card small { color: #8a6a58; font-weight: 700; }
+  body .fly-rotate-card .btn { margin-top: 6px; }
+  body .fly-rotate-phone { animation: fly-turn 2.2s ease-in-out infinite; }
+}
+@keyframes fly-turn { 0%, 30% { transform: rotate(0); } 55%, 85% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
+@media (pointer: coarse) {
+  /* The whole screen is the thrust pad; the whistle sits where a right thumb rests, clear of the corner and the notch. */
+  body .fly-whistle { width: 104px; height: 104px; right: max(28px, calc(env(safe-area-inset-right) + 16px)); bottom: max(28px, calc(env(safe-area-inset-bottom) + 16px)); }
+  body .fly-whistle span { width: 84px; height: 84px; font-size: 16px; }
+  body .fly-whistle::before { content: ''; position: absolute; inset: -18px; border-radius: 50%; }
+  body .fly-hint { bottom: 30%; }
+}
+
 @media (max-width: 760px), (max-height: 520px) {
   body .fly-podium { grid-template-columns: 1fr; }
   body .fly-side { grid-column: 1; grid-row: auto; }
   body .fly-cakes { min-height: 300px; }
   body .fly-cake.c1 .fly-cake-tier { height: 150px; } body .fly-cake.c2 .fly-cake-tier { height: 110px; } body .fly-cake.c3 .fly-cake-tier { height: 80px; }
-  body .fly-hud { right: 56px; }
+  body .fly-run .fly-hud { right: 100px; }
   body .fly-bar { display: none; }
   body .fly-perch-face { width: 64px; height: 64px; }
   body .fly-perch-face .avatar, body .fly-perch-face .fly-botface { width: 64px !important; height: 64px !important; }
   body .fly-pot { height: 56px; }
-  body .fly-whistle { width: 76px; height: 76px; } body .fly-whistle span { width: 60px; height: 60px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  body .fly-perch-face, body .fly-whistle.ready span { animation: none; }
+  body .fly-perch-face, body .fly-whistle.ready span, body .fly-rotate-phone { animation: none; }
+  body .fly-milestone { animation-name: fly-fade; }
 }
