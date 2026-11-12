@@ -3,7 +3,8 @@
 // the card-draw moment and coin moments. GameScreen renders this instead of its shared top bar / toast / dock.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Icon from '../../icons/Icon'
-import { BAIL, BOARD, DECKS, GROUPS, canBuild, canMortgage, canSell, canUnmortgage, fullGroup, groupOf, houseCost, housesLeft, mortgageValue, turn, unmortgageCost, worth } from './rules.js'
+import { ask } from '../../Dialog'
+import { BAIL, BOARD, DECKS, GROUPS, buildWhy, canMortgage, canSell, canUnmortgage, fullGroup, groupOf, houseCost, housesLeft, mortgageValue, turn, unmortgageCost, worth } from './rules.js'
 import { drawn, money, spColor, ticks } from './moments.js'
 import './hud.css'
 
@@ -47,6 +48,7 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
   const t = turn({ pub: v })
   const mine = canPlay && t === me
   const off = busy || !!pending
+  const debt = mine && v.cash[me] < 0 && ['roll', 'buy', 'end'].includes(v.phase) // must raise it before rolling or ending
 
   // What changed since the last view: ticker lines, coin moment, drawn card. Everyone watching sees them.
   const prev = useRef(v)
@@ -99,7 +101,7 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
               <span className="tt-av">{short(p.pid)[0]}</span>
               <div>
                 <b><span className="tt-long">{p.pid === me ? 'You' : nm(p.pid)}</span><span className="tt-short">{short(p.pid)}</span></b>
-                <span className={`tt-amt${d < 0 ? ' neg' : d > 0 ? ' pos' : ''}`}>
+                <span className={`tt-amt${d < 0 ? ' neg' : d > 0 ? ' pos' : ''}${v.cash[p.pid] < 0 ? ' owe' : ''}`}>
                   {v.broke[p.pid] ? 'Out of coins' : <><Coin />{fmt(v.cash[p.pid])}</>}
                   {v.napping[p.pid] && <I n="moon" className="tt-nap" />}
                 </span>
@@ -142,14 +144,18 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
 
       {canPlay && (
         <div className="tt-dock" role="toolbar" aria-label="Your moves">
-          <Bb icon="dice" label={v.napping[me] && ph === 'roll' ? 'Roll doubles' : 'Roll'} on={mine && ph === 'roll'} off={off} pri onClick={() => mv({ type: 'roll' })} kbd="R" />
+          {debt && <div className="tt-owe" role="status">You owe <b>{fmt(-v.cash[me])}</b>. Sell, mortgage or trade to pay it before your turn ends.</div>}
+          {debt && <Bb icon="flag" label="Bankrupt" on off={off} onClick={async () => { if (await ask({ text: 'Declare bankruptcy? Everything you own goes to whoever you owe, and you are out of the game.', confirm: 'Go bankrupt', danger: true })) mv({ type: 'bankrupt' }) }} aria="Declare bankruptcy" />}
+          <Bb icon="dice" label={v.napping[me] && ph === 'roll' ? 'Roll doubles' : 'Roll'} on={mine && ph === 'roll' && !debt} off={off} pri onClick={() => mv({ type: 'roll' })} kbd="R" />
           {napping && <Bb icon="moon" label={`Wake · ${BAIL}`} on={v.cash[me] >= BAIL} off={off} onClick={() => mv({ type: 'bail' })} aria={`Pay ${BAIL} to wake up`} />}
           {napping && held && <Bb icon="star" label="Blanket" on off={off} onClick={() => mv({ type: 'blanket' })} aria="Use your blanket card to wake up" />}
           <Bb icon="bag" label={mine && ph === 'buy' ? `Buy · ${fmt(here.price)}` : 'Buy'} on={mine && ph === 'buy' && v.cash[me] >= here.price} off={off} pri onClick={() => mv({ type: 'buy' })}
             aria={mine && ph === 'buy' ? `Buy ${here.name} for ${fmt(here.price)}` : 'Buy'} />
           {mine && ph === 'buy'
-            ? <Bb icon="gavel" label="Auction" on off={off} onClick={() => mv({ type: 'pass' })} aria={`Put ${here.name} up for auction`} />
-            : <Bb icon="moon" label={v.again && mine && ph === 'end' ? 'Roll again' : 'End turn'} on={mine && ph === 'end'} off={off} pri onClick={() => mv({ type: 'end' })} kbd="E" />}
+            ? v.opts?.noAuction
+              ? <Bb icon="moon" label="Leave it" on off={off} onClick={() => mv({ type: 'pass' })} aria={`Don't buy ${here.name}`} />
+              : <Bb icon="gavel" label="Auction" on off={off} onClick={() => mv({ type: 'pass' })} aria={`Put ${here.name} up for auction`} />
+            : <Bb icon="moon" label={v.again && mine && ph === 'end' ? 'Roll again' : 'End turn'} on={mine && ph === 'end' && !debt} off={off} pri onClick={() => mv({ type: 'end' })} kbd="E" />}
           <Bb icon="cards" label={<><span className="tt-long">My streets</span><span className="tt-short">Streets</span></>} aria="My streets" on go={panel === 'streets'} pressed={panel === 'streets'} onClick={() => toggle('streets')} />
           <Bb icon="swap" label="Trade" on={canOffer || panel === 'trade'} go={panel === 'trade'} pressed={panel === 'trade'} onClick={() => { setDraft(null); toggle('trade') }} />
         </div>
@@ -374,7 +380,9 @@ function Deed({ v, me, sp, mv, off }) {
   )
   const acts = []
   if (b.k === 'prop' && fullGroup(v, b.g, me)) {
-    if (c < 5) acts.push(<button key="b" type="button" className="g" disabled={off || !canBuild(v, me, sp)} onClick={() => mv({ type: 'build', space: sp })} aria-label={`Build ${c === 4 ? 'an inn' : 'a cottage'} on ${b.name} for ${houseCost(sp)}`}>{c === 4 ? 'Inn' : 'Build +1'} · {houseCost(sp)}</button>)
+    const why = buildWhy(v, me, sp) // say why the button is grey instead of leaving people guessing
+    if (c < 5) acts.push(<button key="b" type="button" className="g" disabled={off || !!why} title={why || undefined} onClick={() => mv({ type: 'build', space: sp })} aria-label={`Build ${c === 4 ? 'an inn' : 'a cottage'} on ${b.name} for ${houseCost(sp)}${why ? `. ${why}` : ''}`}>{c === 4 ? 'Inn' : 'Build +1'} · {houseCost(sp)}</button>)
+    if (why && c < 5) acts.push(<small key="why" className="tt-why">{why}</small>)
     if (c > 0) acts.push(<button key="s" type="button" disabled={off || !canSell(v, me, sp)} onClick={() => mv({ type: 'sell', space: sp })} aria-label={`Sell a building on ${b.name} for ${houseCost(sp) / 2}`}>Sell +{houseCost(sp) / 2}</button>)
   }
   if (!c && (b.k !== 'prop' || !groupOf(b.g).some(i => v.cottages[i]))) acts.push(<button key="m" type="button" disabled={off || !canMortgage(v, me, sp)} onClick={() => mv({ type: 'mortgage', space: sp })} aria-label={`Mortgage ${b.name} for ${mortgageValue(sp)}`}>Mortgage +{mortgageValue(sp)}</button>)

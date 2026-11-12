@@ -1,7 +1,8 @@
 // Teacup Town: the classic property-trading board game, cozy. 40 spaces, 8 street groups, 4 trolleys, 2 works,
 // two card decks, the Nap Nook (jail), cottages and inns (houses and hotels, with a limited bank), mortgages,
-// auctions and trades. Quick mode (default) ends after 20 rounds and the richest player wins; the Full game
-// plays until everyone but one is broke. Plain JS: runs in the browser and in the `game` edge function.
+// auctions and trades. The full game (default) plays until everyone but one is broke; Quick mode ends after 20
+// rounds and the richest wins. House rules (opts): quick, noAuction, picnicPot, startDouble, napNoRent.
+// Can't pay? Your coins go negative: sell, mortgage or trade before your turn ends, or declare bankruptcy. Plain JS: runs in the browser and in the `game` edge function.
 import { rng, shuffle } from '../rng.js'
 
 export const meta = { id: 'property', name: 'Teacup Town', min: 2, max: 6, turnMs: 45000, blurb: 'The classic property game: buy streets, trade, build cottages and inns, and bankrupt your friends.' }
@@ -135,14 +136,22 @@ export function worth(pub, pid) {
 }
 const groupBuilt = (pub, sp) => BOARD[sp].k === 'prop' && groupOf(BOARD[sp].g).some(i => lvl(pub, i) > 0)
 
-// Build evenly, on a whole unmortgaged group, while the bank has cottages (or an inn) left.
-export function canBuild(pub, pid, sp) {
+// Why you can't build here right now (null = you can): build evenly, on a whole unmortgaged group, while the bank has stock.
+export function buildWhy(pub, pid, sp) {
   const b = BOARD[sp]
-  if (b?.k !== 'prop' || pub.owner[sp] !== pid || !fullGroup(pub, b.g, pid)) return false
+  if (b?.k !== 'prop' || pub.owner[sp] !== pid) return 'Not your street.'
+  if (!fullGroup(pub, b.g, pid)) return `Own the whole ${GROUPS[b.g].name} set to build.`
   const g = groupOf(b.g), c = lvl(pub, sp)
-  if (c >= 5 || g.some(i => pub.mortgaged[i]) || g.some(i => lvl(pub, i) < c) || pub.cash[pid] < houseCost(sp)) return false
-  return c < 4 ? housesLeft(pub) > 0 : innsLeft(pub) > 0
+  if (c >= 5) return 'It already has an inn.'
+  const m = g.find(i => pub.mortgaged[i])
+  if (m != null) return `Pay off ${BOARD[m].name} first.`
+  const behind = g.find(i => lvl(pub, i) < c)
+  if (behind != null) return `Build evenly: ${BOARD[behind].name} needs ${c === 4 ? '4 cottages' : 'a cottage'} first.`
+  if (pub.cash[pid] < houseCost(sp)) return `You need ${houseCost(sp)} coins.`
+  if (c < 4 ? housesLeft(pub) <= 0 : innsLeft(pub) <= 0) return `The bank is out of ${c < 4 ? 'cottages' : 'inns'}.`
+  return null
 }
+export const canBuild = (pub, pid, sp) => buildWhy(pub, pid, sp) === null
 // Sell evenly, at half price. Breaking an inn back into 4 cottages needs 4 in the bank.
 export function canSell(pub, pid, sp) {
   if (BOARD[sp]?.k !== 'prop' || pub.owner[sp] !== pid) return false
@@ -160,7 +169,8 @@ export function setup(players, seed, opts = {}) {
       players: [...players], turn: 0, phase: 'roll', cash: Object.fromEntries(players.map(p => [p, START_CASH])),
       pos: Object.fromEntries(players.map(p => [p, 0])), owner: {}, cottages: {}, mortgaged: {}, napping: {}, broke: {},
       held: { cookie: null, party: null }, auction: null, offer: null, offers: 0,
-      dice: [1, 1], doubles: 0, again: false, round: 1, maxRounds: opts.full ? 0 : QUICK_ROUNDS, card: null, last: null, winner: null, rolls: 0,
+      dice: [1, 1], doubles: 0, again: false, round: 1, maxRounds: opts.quick ? QUICK_ROUNDS : 0, debtTo: {}, pot: 0,
+      opts: { noAuction: !!opts.noAuction, picnicPot: !!opts.picnicPot, startDouble: !!opts.startDouble, napNoRent: !!opts.napNoRent }, card: null, last: null, winner: null, rolls: 0,
     },
     priv: {},
     secret: { rs: Math.floor(r() * 2 ** 32), cookie: shuffle([...DECKS.cookie.cards.keys()], r), party: shuffle([...DECKS.party.cards.keys()], r) },
@@ -181,7 +191,7 @@ function sellOne(pub, sp) {
   pub.cottages[sp]--
   if (!pub.cottages[sp]) delete pub.cottages[sp]
 }
-// shortcut: debts are covered automatically (sell buildings evenly, then mortgage), not by the player choosing what to sell.
+// Only when a debtor's timer runs out: sell buildings evenly, then mortgage, so an away player doesn't stall the table.
 function raise(pub, pid) {
   const mine = () => Object.keys(pub.owner).filter(sp => pub.owner[sp] === pid).map(Number)
   while (pub.cash[pid] < 0) {
@@ -195,24 +205,32 @@ function raise(pub, pid) {
     pub.cash[pid] += mortgageValue(m)
   }
 }
-// Pay `amt` to `to` (a player, or null for the bank). Raises the money if it can; else bankrupt: everything goes to the creditor.
+// Pay amt to `to` (a player, or null for the bank). Coins can go negative: the payer owes it until they raise
+// the money or go bankrupt (the creditor is paid in full now and loses back whatever was never covered).
 function pay(pub, pid, amt, to) {
   if (amt <= 0) return
   pub.cash[pid] -= amt
-  raise(pub, pid)
-  const short = Math.min(0, pub.cash[pid])
-  if (to) pub.cash[to] += amt + short
-  if (!short) return
+  if (to) pub.cash[to] += amt
+  else if (pub.opts?.picnicPot) pub.pot = (pub.pot || 0) + amt // house rule: bank fees pile up on the Picnic Blanket
+  if (pub.cash[pid] < 0) pub.debtTo = { ...pub.debtTo, [pid]: to }
+}
+const owes = (pub, pid) => pub.cash[pid] < 0
+// Out of the game: everything goes to whoever they owed (the bank takes property back unowned).
+function goBroke(pub, pid) {
+  const to = pub.debtTo?.[pid] ?? null
+  if (to && !pub.broke[to] && pub.cash[pid] < 0) pub.cash[to] += pub.cash[pid] // they never got what wasn't there
   pub.broke[pid] = true
   pub.cash[pid] = 0
+  const { [pid]: _, ...rest } = pub.debtTo || {}
+  pub.debtTo = rest
   for (const sp of Object.keys(pub.owner)) {
     if (pub.owner[sp] !== pid) continue
     delete pub.cottages[sp]
     // shortcut: the bank takes property back unowned instead of auctioning it.
-    if (to) pub.owner[sp] = to
+    if (to && !pub.broke[to]) pub.owner[sp] = to
     else { delete pub.owner[sp]; delete pub.mortgaged[sp] }
   }
-  for (const d of Object.keys(pub.held)) if (pub.held[d] === pid) pub.held[d] = to
+  for (const d of Object.keys(pub.held)) if (pub.held[d] === pid) pub.held[d] = to && !pub.broke[to] ? to : null
 }
 function toNap(pub, pid) {
   pub.pos[pid] = JAIL; pub.napping[pid] = 1; pub.doubles = 0; pub.again = false; pub.phase = 'end'
@@ -232,6 +250,7 @@ function land(pub, pid, secret, mod) {
   const sp = pub.pos[pid], b = BOARD[sp]
   if (b.k === 'tax') pay(pub, pid, b.amt, null)
   else if (b.k === 'gojail') toNap(pub, pid)
+  else if (b.k === 'parking' && pub.opts?.picnicPot && pub.pot) { pub.cash[pid] += pub.pot; pub.last.pot = pub.pot; pub.pot = 0 }
   else if (b.k === 'cookie' || b.k === 'party') {
     const d = draw(pub, secret, b.k)
     secret = d.secret
@@ -259,7 +278,7 @@ function land(pub, pid, secret, mod) {
   } else if (ownable(sp)) {
     const o = pub.owner[sp]
     if (o == null) pub.phase = 'buy'
-    else if (o !== pid && !pub.broke[o]) {
+    else if (o !== pid && !pub.broke[o] && !(pub.opts?.napNoRent && pub.napping[o])) {
       let dice = pub.dice
       if (mod === 'util10') {
         const r = rng(secret.rs)
@@ -298,7 +317,7 @@ function finishAuction(pub) {
 
 const clone = pub => ({
   ...pub, cash: { ...pub.cash }, pos: { ...pub.pos }, owner: { ...pub.owner }, cottages: { ...pub.cottages }, mortgaged: { ...pub.mortgaged },
-  napping: { ...pub.napping }, broke: { ...pub.broke }, held: { ...pub.held }, auction: pub.auction && { ...pub.auction, in: [...pub.auction.in] },
+  napping: { ...pub.napping }, broke: { ...pub.broke }, held: { ...pub.held }, debtTo: { ...pub.debtTo }, auction: pub.auction && { ...pub.auction, in: [...pub.auction.in] },
 })
 const ints = (x, n = 40) => Array.isArray(x) && x.length <= n && x.every(Number.isInteger) && new Set(x).size === x.length
 
@@ -324,6 +343,7 @@ export function move(s, pid, a) {
     delete pub.napping[pid]
   } else if (type === 'roll') {
     if (pub.phase !== 'roll') throw new Error('Not time to roll.')
+    if (owes(pub, pid)) throw new Error(`You owe ${-pub.cash[pid]}. Sell, mortgage or trade to pay it first, or declare bankruptcy.`)
     const r = rng(secret.rs)
     const d = [1 + Math.floor(r() * 6), 1 + Math.floor(r() * 6)]
     secret = { ...secret, rs: Math.floor(r() * 2 ** 32) }
@@ -342,6 +362,7 @@ export function move(s, pid, a) {
     } else pub.again = dbl
     if (!pub.broke[pid]) {
       walk(pub, pid, (pub.pos[pid] + d[0] + d[1]) % N)
+      if (pub.pos[pid] === 0 && pub.opts?.startDouble) { pub.cash[pid] += SALARY; pub.last.startDouble = true } // house rule: land right on Start, collect double
       secret = land(pub, pid, secret)
       if (pub.napping[pid]) pub.last.napped = true
     }
@@ -356,9 +377,12 @@ export function move(s, pid, a) {
   } else if (type === 'pass') {
     if (pub.phase !== 'buy') throw new Error('Nothing to buy.')
     const alive = live(pub), i = alive.indexOf(pid)
-    pub.auction = { sp: pub.pos[pid], bid: 0, high: null, in: [...alive.slice(i + 1), ...alive.slice(0, i + 1)], at: 0 }
     pub.last.space = pub.pos[pid]
-    pub.phase = 'auction'
+    if (pub.opts?.noAuction) pub.phase = 'end' // house rule: no auctions, it just stays for sale
+    else {
+      pub.auction = { sp: pub.pos[pid], bid: 0, high: null, in: [...alive.slice(i + 1), ...alive.slice(0, i + 1)], at: 0 }
+      pub.phase = 'auction'
+    }
   } else if (type === 'bid' || type === 'fold') {
     if (pub.phase !== 'auction') throw new Error('No auction right now.')
     const au = pub.auction
@@ -378,7 +402,8 @@ export function move(s, pid, a) {
     if (!managing) throw new Error('Not right now.')
     pub.last.space = sp
     if (type === 'build') {
-      if (!canBuild(pub, pid, sp)) throw new Error("You can't build there yet.")
+      const why = buildWhy(pub, pid, sp)
+      if (why) throw new Error(why)
       pub.cash[pid] -= houseCost(sp)
       pub.cottages[sp] = lvl(pub, sp) + 1
     } else if (type === 'sell') {
@@ -419,8 +444,13 @@ export function move(s, pid, a) {
     pub.offer = null
   } else if (type === 'end') {
     if (pub.phase !== 'end') throw new Error('Roll first.')
+    if (owes(pub, pid)) throw new Error(`You owe ${-pub.cash[pid]}. Sell, mortgage or trade to pay it before your turn ends, or declare bankruptcy.`)
     if (pub.again && !pub.broke[pid] && !pub.napping[pid]) { pub.again = false; pub.phase = 'roll' }
     else endTurn(pub)
+  } else if (type === 'bankrupt' || type === 'settle') {
+    if (!managing || !owes(pub, pid)) throw new Error("You don't owe anything.")
+    if (type === 'settle') raise(pub, pid) // the timer ran out: cover it automatically if possible
+    if (owes(pub, pid)) { goBroke(pub, pid); pub.last.broke = true }
   } else throw new Error('Roll, buy, build, trade or end your turn.')
   if (live(pub).length <= 1 && !pub.winner) pub.winner = live(pub)[0]
   else if (pub.broke[owner] && !pub.winner && pub.phase !== 'auction' && pub.phase !== 'trade') endTurn(pub)
@@ -428,6 +458,8 @@ export function move(s, pid, a) {
 }
 
 export function timeout(s) {
+  const p = s.pub
+  if ((p.phase === 'roll' || p.phase === 'end') && owes(p, p.players[p.turn])) return { type: 'settle' }
   return { roll: { type: 'roll' }, buy: { type: 'pass' }, end: { type: 'end' }, auction: { type: 'fold' }, trade: { type: 'decline' } }[s.pub.phase]
 }
 export const view = s => ({ ...s.pub, me: null })
@@ -481,6 +513,13 @@ export function bot(v, me, level, rand = Math.random) {
     return next <= limit && cash - next >= reserve ? { type: 'bid', amount: next } : { type: 'fold' }
   }
   const mine = Object.keys(v.owner).filter(sp => v.owner[sp] === me).map(Number)
+  if (cash < 0) { // in debt: sell buildings, then mortgage the cheapest streets, then give up
+    const sell = mine.filter(sp => canSell(v, me, sp)).sort((a, b) => (v.cottages[b] || 0) - (v.cottages[a] || 0))[0]
+    if (sell != null) return { type: 'sell', space: sell }
+    const m = mine.filter(sp => canMortgage(v, me, sp)).sort((a, b) => BOARD[a].price - BOARD[b].price)[0]
+    if (m != null) return { type: 'mortgage', space: m }
+    return { type: 'bankrupt' }
+  }
   if (level !== 'easy' && v.phase !== 'buy') {
     const pay = mine.filter(sp => canUnmortgage(v, me, sp) && cash - unmortgageCost(sp) >= 400)[0]
     if (pay != null) return { type: 'unmortgage', space: pay }

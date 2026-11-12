@@ -22,6 +22,8 @@ test('property: classic board, rents, full group doubles, rails, works, even bui
   assert.equal(prop.rentOf({ ...pub, mortgaged: { 5: true } }, 5, [1, 1]), 0, 'mortgaged: no rent')
   assert.ok(prop.canBuild(pub, 'a', 1))
   assert.ok(!prop.canBuild({ ...pub, cottages: { 1: 1 } }, 'a', 1), 'build evenly')
+  assert.match(prop.buildWhy({ ...pub, cottages: { 1: 1 } }, 'a', 1), /evenly: Acorn Alley needs a cottage/)
+  assert.match(prop.buildWhy({ ...pub, owner: { 1: 'a' } }, 'a', 1), /whole Mossy set/)
   assert.ok(!prop.canBuild({ ...pub, mortgaged: { 3: true } }, 'a', 1), 'no building with a mortgage in the group')
   assert.equal(prop.rentOf({ ...pub, cottages: { 1: 5, 3: 5 } }, 3, [1, 2]), 450, 'inn')
   assert.ok(prop.canBuild({ ...pub, cottages: { 1: 4, 3: 4 } }, 'a', 1), 'inn after 4 cottages')
@@ -81,14 +83,40 @@ test('property: trades swap streets and coins; built groups and out-of-turn answ
   assert.throws(() => prop.move(P(base, { owner: { 1: 'a', 3: 'a', 39: 'b' }, cottages: { 1: 1, 3: 1 } }), 'a', { type: 'offer', to: 'b', give: [1], get: [39] }), /cottages/)
 })
 
-test('property: a debt sells and mortgages first, then bankruptcy hands everything to the creditor', () => {
+test('property: a debt leaves you negative until you raise it; bankruptcy hands everything to the creditor', () => {
   const s = prop.setup(['a', 'b'], 5)
   // a lands on Moonbeam Manor with an inn (2000) holding 100 coins and the Mossy pair with a cottage each.
   const poor = P(s, { cash: { a: 100, b: 0 }, pos: { a: 35, b: 0 }, owner: { 37: 'b', 39: 'b', 1: 'a', 3: 'a' }, cottages: { 37: 5, 39: 5, 1: 1, 3: 1 }, held: { cookie: 'a', party: null } })
   const t = prop.move({ ...poor, secret: { ...poor.secret, rs: seedWhere(d => d[0] + d[1] === 4 && d[0] !== d[1]) } }, 'a', { type: 'roll' })
   assert.equal(t.pub.pos.a, 39)
-  assert.ok(t.pub.broke.a); assert.equal(t.pub.owner[1], 'b'); assert.equal(t.pub.mortgaged[1], true); assert.equal(t.pub.held.cookie, 'b')
-  assert.equal(t.pub.cash.b, 100 + 50 + 30 + 30, 'all a could raise'); assert.equal(t.pub.winner, 'b')
+  assert.equal(t.pub.cash.a, -1900, 'nothing sold for you'); assert.equal(t.pub.cash.b, 2000); assert.ok(!t.pub.broke.a)
+  assert.equal(t.pub.cottages[1], 1, 'cottages untouched')
+  assert.throws(() => prop.move(t, 'a', { type: 'end' }), /owe 1900/)
+  const sold = prop.move(t, 'a', { type: 'sell', space: 1 })
+  assert.equal(sold.pub.cash.a, -1875)
+  assert.deepEqual(prop.timeout(sold), { type: 'settle' })
+  const out = prop.move(sold, 'a', { type: 'bankrupt' })
+  assert.ok(out.pub.broke.a); assert.equal(out.pub.owner[1], 'b'); assert.equal(out.pub.held.cookie, 'b')
+  assert.equal(out.pub.cash.b, 2000 - 1875, 'b keeps only what a really had'); assert.equal(out.pub.winner, 'b')
+  // the timer running out instead: buildings sold and streets mortgaged automatically, then bankrupt if still short
+  const auto = prop.move(t, 'a', prop.timeout(t))
+  assert.ok(auto.pub.broke.a); assert.equal(auto.pub.cash.b, 2000 - 1900 + 50 + 60)
+})
+
+test('property house rules: full game by default, quick mode, no auctions, picnic pot, double Start, no rent while napping', () => {
+  assert.equal(prop.setup(['a', 'b'], 1).pub.maxRounds, 0)
+  assert.equal(prop.setup(['a', 'b'], 1, { quick: true }).pub.maxRounds, prop.QUICK_ROUNDS)
+  const s = prop.setup(['a', 'b'], 1, { noAuction: true, picnicPot: true, startDouble: true, napNoRent: true })
+  const passed = prop.move(P(s, { phase: 'buy', pos: { a: 39, b: 0 } }), 'a', { type: 'pass' })
+  assert.equal(passed.pub.phase, 'end'); assert.equal(passed.pub.owner[39], undefined)
+  const taxed = prop.move({ ...P(s, { pos: { a: 1, b: 0 } }), secret: { ...s.secret, rs: seedWhere(d => d[0] + d[1] === 3 && d[0] !== d[1]) } }, 'a', { type: 'roll' })
+  assert.equal(taxed.pub.pot, 200, 'Tea Tax lands on the Picnic Blanket')
+  const picnic = prop.move({ ...P(s, { pos: { a: 15, b: 0 }, pot: 300 }), secret: { ...s.secret, rs: seedWhere(d => d[0] + d[1] === 5 && d[0] !== d[1]) } }, 'a', { type: 'roll' })
+  assert.equal(picnic.pub.cash.a, 1800); assert.equal(picnic.pub.pot, 0)
+  const start = prop.move({ ...P(s, { pos: { a: 35, b: 0 } }), secret: { ...s.secret, rs: seedWhere(d => d[0] + d[1] === 5 && d[0] !== d[1]) } }, 'a', { type: 'roll' })
+  assert.equal(start.pub.cash.a, 1900, 'landing right on Start pays 400')
+  const nap = prop.move({ ...P(s, { pos: { a: 35, b: 10 }, owner: { 39: 'b' }, napping: { b: 1 } }), secret: { ...s.secret, rs: seedWhere(d => d[0] + d[1] === 4 && d[0] !== d[1]) } }, 'a', { type: 'roll' })
+  assert.equal(nap.pub.cash.a, 1500, 'b is napping: no rent')
 })
 
 test('property bots: buy, bid up to value, judge trades, build, end the turn', () => {

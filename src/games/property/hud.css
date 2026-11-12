@@ -324,3 +324,9 @@ body .gs:has(.tt-album-open) .g-me { display: none; } /* the album covers the ta
   body .tt-steep > span { transition: none; }
 }
 @keyframes tt-fade { 0% { opacity: 0; } 8%, 85% { opacity: 1; } 100% { opacity: 0; } }
+
+/* debt: red coins, a note over the dock, why a build button is grey */
+body .tt-amt.owe { color: #c8414f; }
+body .tt-owe { position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); white-space: nowrap; padding: 6px 14px; border-radius: 14px; background: #fff4dc; color: #c8414f; font: 800 13.5px Nunito, sans-serif; box-shadow: 0 3px 0 rgba(0,0,0,.2); }
+body .tt-why { display: block; width: 100%; font: 700 11.5px Nunito, sans-serif; color: #8a6a4a; text-align: center; margin-top: 2px; }
+@container (max-width: 560px) { body .tt-owe { white-space: normal; width: calc(100% - 12px); text-align: center; font-size: 12.5px; } }

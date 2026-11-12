@@ -7,7 +7,7 @@ import { rng } from './rng.js'
 
 function playOut(R, players, levels, seed, cap = 20000) {
   const rand = rng(seed + 1)
-  let s = R.setup(players, seed)
+  let s = R.setup(players, seed, { quick: true }) // Teacup Town defaults to the full game; quick keeps the test bounded
   let steps = 0
   while (!R.over(s) && steps++ < cap) {
     // Any bot may act out of turn (catches); otherwise the player whose turn it is.
@@ -31,7 +31,7 @@ for (const [id, R] of Object.entries(GAMES)) {
 
   // Snack Stack never ends if nobody plays a card (a timeout only draws), so it's checked by its own tests.
   if (id !== 'snack') test(`${id}: timeouts alone also finish the game`, () => {
-    let s = R.setup(['a', 'b'], 11), k = 0
+    let s = R.setup(['a', 'b'], 11, { quick: true }), k = 0
     while (!R.over(s) && k++ < 20000) s = R.move(s, R.turn(s), R.timeout(s))
     assert.ok(R.over(s))
   })

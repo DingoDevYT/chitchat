@@ -17,7 +17,13 @@ const UIS = { highcard, snack, poker, property }
 const Table3D = lazy(() => import('./Table3D'))
 const HOUSE = {
   snack: [['stack', 'Stack draw cards'], ['drawUntil', 'Draw until you can play']],
-  property: [['full', 'Full game: play until one player is left (otherwise 20 rounds, richest wins)']],
+  property: [
+    ['quick', 'Quick game: 20 rounds, richest wins (off: play until one player is left)'],
+    ['noAuction', 'No auctions: streets nobody buys stay for sale'],
+    ['picnicPot', 'Picnic jackpot: taxes and fees pile up on the Picnic Blanket for whoever lands there'],
+    ['startDouble', 'Land right on Start: collect 400 instead of 200'],
+    ['napNoRent', 'No rent while napping: owners in the Nap Nook collect nothing'],
+  ],
 }
 
 // WebGL, unless ?flat is in the address (forces the 2D table for testing).
