@@ -1,6 +1,7 @@
 // Dev only (#/table?g=property&n=4&steps=200&seed=3): a game played locally, no server. You sit in seat 0 against
 // Chitbots; `steps` fast-forwards bot play to get a mid-game board. For checking boards and controls by eye.
 // `opts=quick,friendly` sets house rules; `lab=…` hands the game's UI module a named test situation (UI.lab).
+// Starchat: `mini=catch|bun|count` plays only that minigame (`lab=mini` jumps to it, `lab=results` to its reveal).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { GAMES } from './registry.js'
 import GameScreen, { UIS } from './GameScreen'
@@ -16,7 +17,7 @@ export default function GameLab() {
   const R = GAMES[G]
   const [s, setS] = useState(() => {
     const opts = Object.fromEntries((q.get('opts') || '').split(',').filter(Boolean).map(k => [k, true]))
-    let st = R.setup(players, seed, { full: q.has('full'), ...opts, ...(RT ? { now: Date.now() } : {}) })
+    let st = R.setup(players, seed, { full: q.has('full'), ...opts, ...(q.get('mini') ? { mini: q.get('mini') } : {}), ...(RT ? { now: Date.now() } : {}) })
     for (let k = 0; k < steps && !R.over(st); k++) {
       const who = R.turn(st)
       const a = R.bot(R.view(st, who), who, who === ME ? 'hard' : levels[players.indexOf(who)], Math.random)
@@ -41,7 +42,7 @@ export default function GameLab() {
       return () => clearTimeout(t)
     }
     if (!who || who === ME) return
-    const t = setTimeout(() => apply(who, R.bot(R.view(s, who), who, levels[players.indexOf(who)], Math.random) ?? R.timeout(s)), 900)
+    const t = setTimeout(() => apply(who, R.bot(R.view(s, who), who, levels[players.indexOf(who)], Math.random) ?? R.timeout(s)), Math.min(15000, Math.max(300, R.delay?.(s) ?? 900))) // the rules pace bots when they say (delay)
     return () => clearTimeout(t)
   }, [s]) // eslint-disable-line react-hooks/exhaustive-deps
   const seats = useMemo(() => players.map((p, i) => ({ seat: i, user_id: p === ME ? ME : null, bot: p === ME ? null : levels[i] })), [])

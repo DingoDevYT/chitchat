@@ -1,8 +1,12 @@
 // Starchat placeholder UI (milestone 1 is the rules only): plain text and buttons so GameScreen and GameLab can run
-// a whole game (#/table?g=starchat&n=4). The board scene, HUD trays and minigame Stage come in the visual milestone.
+// a whole game (#/table?g=starchat&n=4). The board scene and HUD trays come in the visual milestone; the minigame
+// Stage (minis/Stage.jsx) is mounted over the whole game screen from Controls.
 // ownScene: GameScreen skips the shared 3D table during play (it has no Starchat layout yet).
 import { BRIDGE, BOARD_NAME, ITEMS, KINDS, MINIGAMES, SPACES } from './data.js'
-import { legal, lastLanterns, starPrice, turn } from './rules.js'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { bot, legal, lastLanterns, move, starPrice, timeout, turn } from './rules.js'
+import MiniStage from './minis/Stage.jsx'
 
 export const ownScene = true
 const spaceName = sp => SPACES[sp]?.name || KINDS[SPACES[sp]?.k]?.name || `Space ${sp}`
@@ -44,18 +48,21 @@ function label(m, v, nm) {
   return m.type
 }
 
-export function Controls({ v, me, act, nm, busy }) {
+// The minigame Stage covers the whole game screen (it draws itself only during a minigame and its results).
+function StageMount(props) {
+  const at = useRef(null), [host, setHost] = useState(null)
+  useEffect(() => setHost(at.current?.closest('.gs') || null), [])
+  return <span ref={at} hidden>{host && createPortal(<MiniStage {...props} />, host)}</span>
+}
+
+export function Controls(props) {
+  return <><StageMount {...props} /><BoardControls {...props} /></>
+}
+
+function BoardControls({ v, me, act, nm, busy }) {
   const moves = legal(v, me)
   if (!moves.length) return <div className="gc-row muted small">{v.satchel?.[me]?.length ? `Satchel: ${v.satchel[me].map(i => ITEMS[i].name).join(', ')}` : ''}</div>
-  if (v.phase === 'mini') { // the placeholder minigame: one guess inside the hint window
-    const [a, b] = v.mini.state.hint
-    return (
-      <div className="gc-row">
-        <span className="small">How many fireflies? ({a}-{b})</span>
-        {Array.from({ length: b - a + 1 }, (_, i) => a + i).map(g => <button key={g} className="btn ghost" disabled={busy} onClick={() => act('move', { move: { type: 'mini', guess: g } })}>{g}</button>)}
-      </div>
-    )
-  }
+  if (v.phase === 'mini') return null // the Stage has the controls
   return (
     <div className="gc-row">
       {moves.map((m, i) => <button key={i} className={`btn ${i ? 'ghost' : 'primary'}`} disabled={busy} onClick={() => act('move', { move: m })}>{label(m, v, nm)}</button>)}
@@ -69,4 +76,13 @@ export function Flat({ v }) {
       <b>{BOARD_NAME}</b> round {v.round}/{v.maxRounds}. Star at {spaceName(v.star)}.
     </div>
   )
+}
+
+// Dev lab only: #/table?g=starchat&mini=bun&lab=mini jumps to the first minigame (timeouts on the board), lab=results
+// plays it out with bots (you as a hard one) to show the results reveal.
+export function lab(s, me, what) {
+  let k = 0
+  while (s.pub.phase !== 'mini' && k++ < 500) s = move(s, turn(s), timeout(s))
+  if (what === 'results') while (s.pub.phase === 'mini' && k++ < 2000) { const w = turn(s); s = move(s, w, bot({ ...s.pub }, w, w === me ? 'hard' : 'normal', Math.random) ?? timeout(s)) }
+  return s
 }

@@ -189,7 +189,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, channelN
 
       {playing && inRound && !hud && (
         <div className="gs-hand" aria-label="Your controls">
-          <UI.Controls v={v} me={meId} act={doAct} nm={nm} busy={busy} pending={pending} />
+          <UI.Controls v={v} me={meId} act={doAct} nm={nm} busy={busy} pending={pending} seats={seats} />
         </div>
       )}
 
