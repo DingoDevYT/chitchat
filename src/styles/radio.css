@@ -7,7 +7,7 @@ body .radio-card {
   box-shadow: var(--shadow), inset 0 0 0 2px var(--line); color: var(--text);
   animation: rise .35s var(--ease);
 }
-/* Tucked away: a little spinning record (the same art slot, so a playing YouTube frame isn't reloaded) */
+/* Tucked away: a little spinning record */
 body .radio-card.min { width: auto; padding: 0; background: none; box-shadow: none; backdrop-filter: none; display: flex; align-items: center; gap: 8px; }
 body .radio-card.min .radio-top { display: block; }
 body .radio-card.min .radio-art { width: 52px; height: 52px; border-radius: 50%; box-shadow: var(--shadow), 0 0 0 3px var(--bg-3); }
@@ -24,23 +24,11 @@ body .radio-art {
 body .radio-art img { width: 100%; height: 100%; object-fit: cover; }
 body .radio-art .radio-vinyl { color: var(--accent); display: grid; place-items: center; }
 body .radio-art.sm { width: 40px; height: 40px; border-radius: 10px; }
-/* The YouTube / SoundCloud frame (RadioPlayer): one per call, in <body>, so it survives leaving the stadium page.
-   It floats over the card's art (placed by script) and waits off-screen otherwise. YouTube wants its player at least
-   200×200 and not display:none, so the frame is laid out at 356×200 and scaled down into the art, centred and cropped;
-   transforms don't change the size the frame sees. z-index: over the stage (and a page-full stadium, 40), under the
-   phone chat sheet (45), the sidebar (50), the queue drawer (90) and popups. */
-body .radio-float { position: fixed; z-index: 42; overflow: hidden; pointer-events: none; }
-body .radio-float.off { left: -10000px; top: 0; width: 356px; height: 200px; --k: 1; }
-body .radio-float .radio-host { position: absolute; inset: 0; }
-body .radio-float .radio-host > iframe, body .radio-float .radio-host > div {
-  position: absolute; top: 0; left: 50%; width: 356px; height: 200px; border: 0; display: block; max-width: none;
-  transform-origin: 50% 0; transform: translateX(-50%) scale(var(--k, 1));
-}
-body .radio-float.video { pointer-events: auto; }
-body .radio-float.video .radio-host > iframe, body .radio-float.video .radio-host > div { left: 0; width: 100%; height: 100%; transform: none; }
-/* Bigger player: the art spot takes the card's width, at full size, and the frame follows it */
-body .radio-card.video .radio-top { grid-template-columns: minmax(0, 1fr) auto; }
-body .radio-card.video .radio-art { grid-column: 1 / -1; grid-row: 1; width: 100%; height: auto; aspect-ratio: 16 / 9; min-height: 200px; }
+/* The hidden players (RadioPlayer's deck): one host per call, in <body>, so it survives leaving the stadium page. Never
+   shown (the card shows artwork), but YouTube holds back players under 200×200 or display:none, so they sit off-screen
+   at 356×200, stacked. */
+body .radio-host { position: fixed; left: -10000px; top: 0; width: 356px; height: 200px; overflow: hidden; pointer-events: none; }
+body .radio-host > iframe, body .radio-host > div { position: absolute; inset: 0; width: 356px; height: 200px; border: 0; display: block; max-width: none; }
 
 /* the sidebar call panel's now-playing line (RadioMini) */
 body .radio-mini { display: flex; align-items: center; gap: 4px; margin: 6px 0 2px; padding: 4px 4px 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); min-width: 0; }

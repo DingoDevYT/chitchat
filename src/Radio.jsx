@@ -5,7 +5,7 @@ import { createStore, online, prefs, setPref, toast, voiceLevels } from './lib/s
 import {
   AUDIO_EXT, LOOP_LABEL, MAX_QUEUE, MAX_UPLOAD, RADIO_OFF, anyoneTalking, duckStep, fmtTime, glide, isOver, isPaused, loopOf,
   mergeOffset, musicGain, nextLoop, parseMusicCommand, parseTrackUrl, pickOffset, position, radioGone, radioMode, rowFrom,
-  skipStatus, sourceUrl, syncMem, syncStep, titleFromFile, titleFromSc, ytThumb, canSkipNow,
+  skipStatus, sourceUrl, syncMem, syncStep, titleFromFile, titleFromSc, ytThumb, canSkipNow, nextUp, RADIO_ORIGINS, ytPlayerVars, deckPlan, DEFAULT_MUSIC_VOL, outputVolume,
 } from './lib/music'
 import { uploadFile } from './lib/upload'
 import { app } from './menus'
@@ -24,17 +24,18 @@ export const radioUi = createStore({ open: null }) // which stadium's queue draw
 // RadioLab swaps these for a local simulation (no database, silent players).
 export const radioApi = { mock: false, act: null }
 // The persistent player (RadioPlayer, mounted with the voice connection) and the stage card talk through these:
-//   radioPlay  { blocked }: the browser wants a tap before it plays sound (the card shows "Tap to listen")
-//   radioSlot  { el, video, round }: the card's art spot; the player's frame floats over it while it's on screen
-const radioPlay = createStore({ blocked: false })
-const radioSlot = createStore({ el: null, video: false, round: false })
+//   radioPlay     { blocked, starting }: the browser wants a tap before it plays sound (the card shows "Tap to
+//                 listen") · the song has been handed to the player but isn't sounding yet ("starting…")
+//   radioPending  { [cid]: track-ish }: a song being added (title still on its way), shown at once
+const radioPlay = createStore({ blocked: false, starting: false })
+const radioPending = createStore({})
 
 // Server clock: the quickest of a few round trips, refreshed every 10 minutes (and kept unless the new one is about as
-// precise, so the target never jumps by a slow trip's error). serverNow() is "now" on the database's clock.
-let clock = null, clockAt = 0, clockBusy = null, clockDone
-const clockReady = new Promise(r => { clockDone = r })
+// precise, so the target never jumps by a slow trip's error). serverNow() is "now" on the database's clock. Songs
+// don't wait for it: they start on our own clock and the sync loop corrects once it's known.
+let clock = null, clockAt = 0, clockBusy = null
 function syncClock() {
-  if (radioApi.mock) return clockDone()
+  if (radioApi.mock) return
   if (clockBusy || Date.now() - clockAt < 600_000) return
   clockBusy = (async () => {
     const samples = []
@@ -46,7 +47,7 @@ function syncClock() {
     }
     const next = pickOffset(samples)
     if (next) { clock = mergeOffset(clock, next); clockAt = Date.now() }
-  })().catch(() => {}).finally(() => { clockBusy = null; clockDone() })
+  })().catch(() => {}).finally(() => { clockBusy = null })
 }
 export const serverNow = () => Date.now() + (clock?.offset || 0)
 
@@ -107,9 +108,10 @@ function watchRow(cid) {
 }
 
 // ── adding songs ──
+// The title lookup is the only wait before a song is added, so it gets 2.5 s; after that the song goes in with a stand-in.
 async function oembed(url) {
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(4000) })
+    const r = await fetch(url, { signal: AbortSignal.timeout(2500) })
     return r.ok ? await r.json() : null
   } catch { return null }
 }
@@ -128,7 +130,11 @@ async function trackFor(p) {
 export async function addLink(cid, text) {
   const p = parseTrackUrl(text)
   if (p.error) { toast(p.error); return false }
-  return act(cid, 'add', { track: await trackFor(p) })
+  warmRadio()
+  // shown straight away (art for YouTube is just a URL); the title fills in when the lookup answers
+  radioPending.set(s => ({ ...s, [cid]: { ...p, id: 'pending', by: meId(), title: 'Getting the title…', art: p.kind === 'yt' ? ytThumb(p.src) : null } }))
+  try { return await act(cid, 'add', { track: await trackFor(p) }) }
+  finally { radioPending.set(s => { const { [cid]: _, ...rest } = s; return rest }) }
 }
 const durationOf = file => new Promise(res => {
   const a = new Audio(), url = URL.createObjectURL(file)
@@ -174,7 +180,13 @@ export function musicCommand(cid, text) {
 }
 
 // ── players: one shape for YouTube, SoundCloud and plain audio ──
-// { canRate, time() s, seek(s), play() → Promise, pause(), playing(), buffering(), vol(0..1), rate(r), dur() s | NaN, destroy() }
+// { autoStart, canRate, time() s, seek(s), play() → Promise, pause(), playing(), buffering(), vol(0..1), rate(r), dur() s | NaN, destroy() }
+// Sound only, as fast as the official players allow. We can't pull an audio-only stream out of YouTube (that means
+// ripping or proxying its video servers, against its terms), so the official IFrame player stays, just never shown:
+//   · the API script and connections are warmed when you open or join a stadium, not when a song starts
+//   · one deck per call: two hidden YouTube players, one SoundCloud widget and one <audio>, made once and reused
+//     (loadVideoById / widget.load / a new src) instead of building a fresh iframe for every song
+//   · the standby YouTube player cues the next song, so when the track moves on it just starts
 let ytLoad = null, scLoad = null
 function script(src, ready) {
   return new Promise((res, rej) => {
@@ -191,82 +203,190 @@ const loadYT = () => window.YT?.Player ? Promise.resolve() : (ytLoad ||= script(
 }).catch(e => { ytLoad = null; throw e }))
 const loadSC = () => window.SC?.Widget ? Promise.resolve() : (scLoad ||= script('https://w.soundcloud.com/player/api.js').catch(e => { scLoad = null; throw e }))
 
-function audioEngine(src, ev) {
-  const el = new Audio()
-  let waiting = false
-  el.preload = 'auto'
-  el.src = src
-  el.onended = ev.onEnd
-  el.onerror = () => ev.onError("Couldn't load that song.")
-  el.onloadedmetadata = ev.onReady
-  el.onwaiting = () => { waiting = true }
-  el.onplaying = () => { waiting = false }
-  el.onseeking = () => { waiting = true }
-  el.onseeked = () => { waiting = false }
-  return {
-    canRate: true, el,
-    time: () => el.currentTime, seek: s => { el.currentTime = s }, play: () => el.play(), pause: () => el.pause(),
-    playing: () => !el.paused, buffering: () => waiting || el.readyState < 3,
-    vol: v => { el.volume = v }, rate: r => { if (el.playbackRate !== r) el.playbackRate = r },
-    dur: () => el.duration, destroy() { el.pause(); el.removeAttribute('src'); el.load() },
+// Preconnect to the players' hosts and fetch the YouTube API now, so the first song doesn't pay for it. Once per page.
+let warmed = false
+export function warmRadio() {
+  if (warmed || radioApi.mock || typeof document === 'undefined') return
+  warmed = true
+  for (const href of RADIO_ORIGINS) {
+    const l = document.createElement('link')
+    l.rel = 'preconnect'; l.href = href
+    document.head.appendChild(l)
   }
+  loadYT().catch(() => { warmed = false })
 }
 
-async function ytEngine(id, host, start, ev) {
-  await loadYT()
-  const div = document.createElement('div')
-  host.appendChild(div)
-  let ready = false, state = -1, lastVol = -1, muted = null
-  const p = new window.YT.Player(div, {
-    videoId: id, width: '100%', height: '100%',
-    playerVars: { autoplay: 1, controls: 0, disablekb: 1, playsinline: 1, rel: 0, iv_load_policy: 3, fs: 0, start: Math.floor(start) },
-    events: {
-      onReady: () => { ready = true; ev.onReady() },
-      onStateChange: e => { state = e.data; if (e.data === 0) ev.onEnd() },
-      onError: e => ev.onError(e.data === 101 || e.data === 150 ? "That video can't be played outside YouTube." : "Couldn't play that video."),
-      onAutoplayBlocked: () => ev.onBlocked(),
-    },
-  })
-  return {
-    canRate: false,
-    time: () => ready ? p.getCurrentTime() : 0, seek: s => ready && p.seekTo(s, true),
-    play: () => { ready && p.playVideo(); return Promise.resolve() }, pause: () => ready && p.pauseVideo(),
-    playing: () => state === 1, buffering: () => state === 3,
-    vol: v => {
-      if (!ready) return
-      const n = Math.round(v * 100)
-      if (n !== lastVol) { lastVol = n; p.setVolume(n) }
-      if ((n === 0) !== muted) { muted = n === 0; muted ? p.mute() : p.unMute() }
-    },
-    rate: () => {}, dur: () => ready ? p.getDuration() : NaN,
-    destroy() { try { p.destroy() } catch {} host.replaceChildren() },
-  }
-}
+const YT_HOST = 'https://www.youtube-nocookie.com'
+const ytError = code => code === 101 || code === 150 ? "That video can't be played outside YouTube." : "Couldn't play that video."
 
-async function scEngine(url, host, ev) {
-  await loadSC()
-  const f = document.createElement('iframe')
-  f.allow = 'autoplay'
-  f.title = 'SoundCloud player'
-  f.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&auto_play=false&buying=false&sharing=false&download=false&show_comments=false&visual=true&single_active=false`
-  host.appendChild(f)
-  const w = window.SC.Widget(f), E = window.SC.Widget.Events
-  // PLAY_PROGRESS comes in bursts (and slower in a background tab), so time() runs on from the last report instead of
-  // reading a stale number that would look like drift.
-  let pos = 0, posAt = Date.now(), playing = false, dur = NaN, lastVol = -1
-  const now = () => playing ? pos + (Date.now() - posAt) / 1000 : pos
-  w.bind(E.READY, () => { w.getDuration(d => { dur = d / 1000 }); ev.onReady() })
-  w.bind(E.PLAY_PROGRESS, e => { pos = e.currentPosition / 1000; posAt = Date.now() })
-  w.bind(E.PLAY, () => { posAt = Date.now(); playing = true })
-  w.bind(E.PAUSE, () => { pos = now(); playing = false })
-  w.bind(E.FINISH, () => { playing = false; ev.onEnd() })
-  w.bind(E.ERROR, () => ev.onError("Couldn't play that SoundCloud track."))
+// The deck: RadioPlayer owns one for as long as you're in the call. Each player slot has an `owner` (the ev handlers of
+// the track using it right now); events only reach the owner, and a track that has moved on can't pause or load the
+// slot the next one took over.
+function makeDeck(host) {
+  const yts = [] // up to two: [active, standby] after the first swap; see deckPlan
+  let active = null
+  function ytSlot() {
+    const div = document.createElement('div')
+    host.appendChild(div)
+    const s = { p: null, ok: false, vid: null, owner: null, state: -1, loadAt: 0, lastVol: -1, muted: null }
+    s.ready = loadYT().then(() => new Promise(res => {
+      s.p = new window.YT.Player(div, {
+        host: YT_HOST, width: 356, height: 200, playerVars: ytPlayerVars(location.origin),
+        events: {
+          onReady: () => { s.ok = true; res(s) },
+          onStateChange: e => {
+            s.state = e.data
+            if (e.data === 0 || e.data === 1 || e.data === 2 || e.data === 5) s.loadAt = 0
+            if (e.data !== 0 || !s.owner) return
+            // an "ended" from the song before (after loadVideoById) is not this song ending
+            const now = s.p.getVideoData?.()?.video_id
+            if (!now || now === s.vid) s.owner.onEnd()
+          },
+          onError: e => s.owner?.onError(ytError(e.data)),
+          onAutoplayBlocked: () => s.owner?.onBlocked(),
+        },
+      })
+    }))
+    yts.push(s)
+    return s
+  }
+  const firstYt = () => active || (active = yts[0] || ytSlot())
+  const standbyYt = () => yts.find(s => s !== active) || null
+  const ensureStandby = () => standbyYt() || ytSlot()
+
+  async function yt(id, ev, at) {
+    await firstYt().ready
+    if (!ev.alive()) return null
+    const standby = standbyYt() // used only if it's ready already: never wait on it
+    const { start, paused } = at()
+    const plan = deckPlan(active, standby, id, paused)
+    if (plan === 'swap') active = standby
+    const s = active
+    for (const o of yts) if (o !== s) { o.owner = null; if (o.ok && (o.state === 1 || o.state === 3)) try { o.p.pauseVideo() } catch {} }
+    s.owner = ev
+    s.loadAt = Date.now()
+    if (plan === 'load') {
+      s.vid = id; s.state = -1
+      if (paused) s.p.cueVideoById({ videoId: id, startSeconds: start })
+      else s.p.loadVideoById({ videoId: id, startSeconds: start }) // starts by itself
+    } else {
+      s.p.seekTo(start, true) // a cued or finished video plays from here
+      s.p.playVideo()
+    }
+    try { s.p.setPlaybackQuality('small') } catch {} // usually ignored nowadays; harmless
+    ev.onReady()
+    const mine = () => s.owner === ev
+    return {
+      autoStart: !paused, canRate: false,
+      time: () => s.p.getCurrentTime() || 0, seek: t => mine() && s.p.seekTo(t, true),
+      play: () => { mine() && s.p.playVideo(); return Promise.resolve() }, pause: () => mine() && s.p.pauseVideo(),
+      playing: () => mine() && s.state === 1,
+      // just handed a song: loading until it plays, pauses or is cued (5 s at most, then the usual "Tap to listen" logic)
+      buffering: () => s.state === 3 || (!!s.loadAt && Date.now() - s.loadAt < 5000),
+      vol: v => {
+        if (!mine()) return
+        const n = Math.round(v * 100)
+        if (n !== s.lastVol) { s.lastVol = n; s.p.setVolume(n) }
+        if ((n === 0) !== s.muted) { s.muted = n === 0; s.muted ? s.p.mute() : s.p.unMute() }
+      },
+      rate: () => {}, dur: () => mine() ? s.p.getDuration() : NaN,
+      destroy() { if (mine()) { s.owner = null; try { s.p.pauseVideo() } catch {} } },
+    }
+  }
+  // Get the next YouTube song ready on the standby player (it fetches the video's details, not the stream).
+  async function cue(id) {
+    if (active?.vid === id) return // a looped song: the active player still has it
+    const s = await ensureStandby().ready
+    if (s === active || s.owner || s.vid === id) return
+    s.vid = id
+    try { s.p.cueVideoById({ videoId: id }) } catch {}
+  }
+
+  let sc = null
+  async function scPlay(url, ev, at) {
+    await loadSC()
+    if (!ev.alive()) return null
+    const { start, paused } = at()
+    const opts = { auto_play: !paused, buying: false, sharing: false, download: false, show_comments: false, visual: false, single_active: false }
+    if (!sc) {
+      const f = document.createElement('iframe')
+      f.allow = 'autoplay'
+      f.title = 'SoundCloud player'
+      f.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&${new URLSearchParams(opts)}`
+      host.appendChild(f)
+      const w = window.SC.Widget(f), E = window.SC.Widget.Events
+      // PLAY_PROGRESS comes in bursts (and slower in a background tab), so time() runs on from the last report instead
+      // of reading a stale number that would look like drift.
+      sc = { w, owner: null, pos: 0, posAt: Date.now(), playing: false, dur: NaN, lastVol: -1, onLoad: null }
+      sc.now = () => sc.playing ? sc.pos + (Date.now() - sc.posAt) / 1000 : sc.pos
+      w.bind(E.READY, () => sc.onLoad?.())
+      w.bind(E.PLAY_PROGRESS, e => { sc.pos = e.currentPosition / 1000; sc.posAt = Date.now() })
+      w.bind(E.PLAY, () => { sc.posAt = Date.now(); sc.playing = true })
+      w.bind(E.PAUSE, () => { sc.pos = sc.now(); sc.playing = false })
+      w.bind(E.FINISH, () => { sc.playing = false; sc.owner?.onEnd() })
+      w.bind(E.ERROR, () => sc.owner?.onError("Couldn't play that SoundCloud track."))
+    } else {
+      sc.w.load(url, { ...opts, callback: () => sc.onLoad?.() })
+    }
+    sc.owner = ev
+    sc.pos = 0; sc.posAt = Date.now(); sc.playing = false; sc.dur = NaN; sc.lastVol = -1
+    const s = sc, mine = () => s.owner === ev
+    s.onLoad = () => {
+      if (!mine()) return
+      s.onLoad = null
+      s.w.getDuration(d => { if (mine()) s.dur = d / 1000 })
+      const t = at().start
+      if (t > 1.5) { s.pos = t; s.posAt = Date.now(); s.w.seekTo(t * 1000) }
+      ev.onReady()
+    }
+    return {
+      autoStart: !paused, canRate: false,
+      time: s.now, seek: t => { if (mine()) { s.pos = t; s.posAt = Date.now(); s.w.seekTo(t * 1000) } },
+      play: () => { mine() && s.w.play(); return Promise.resolve() }, pause: () => mine() && s.w.pause(),
+      playing: () => mine() && s.playing,
+      vol: v => { const n = Math.round(v * 100); if (mine() && n !== s.lastVol) { s.lastVol = n; s.w.setVolume(n) } }, rate: () => {}, dur: () => s.dur,
+      destroy() { if (mine()) { s.owner = null; s.onLoad = null; try { s.w.pause() } catch {} } },
+    }
+  }
+
+  let au = null
+  function audio(src, ev, at) {
+    if (!au) {
+      const el = new Audio()
+      el.preload = 'auto'
+      au = { el, owner: null, waiting: false }
+      el.onended = () => au.owner?.onEnd()
+      el.onerror = () => el.getAttribute('src') && au.owner?.onError("Couldn't load that song.")
+      el.onloadedmetadata = () => au.owner?.onReady()
+      el.onwaiting = el.onseeking = () => { au.waiting = true }
+      el.onplaying = el.onseeked = () => { au.waiting = false }
+    }
+    const a = au, el = a.el, mine = () => a.owner === ev
+    a.owner = ev
+    el.src = src
+    try { el.currentTime = at().start } catch {} // applied as soon as the file's header is in
+    return {
+      autoStart: false, canRate: true, el,
+      time: () => el.currentTime, seek: s => { if (mine()) el.currentTime = s },
+      play: () => mine() ? el.play() : Promise.resolve(), pause: () => mine() && el.pause(),
+      playing: () => mine() && !el.paused, buffering: () => a.waiting || el.readyState < 3,
+      vol: v => { if (mine()) el.volume = v }, rate: r => { if (mine() && el.playbackRate !== r) el.playbackRate = r },
+      dur: () => el.duration,
+      destroy() { if (mine()) { a.owner = null; el.pause(); el.playbackRate = 1 } },
+    }
+  }
+
   return {
-    canRate: false,
-    time: now, seek: s => { pos = s; posAt = Date.now(); w.seekTo(s * 1000) }, play: () => { w.play(); return Promise.resolve() }, pause: () => w.pause(),
-    playing: () => playing,
-    vol: v => { const n = Math.round(v * 100); if (n !== lastVol) { lastVol = n; w.setVolume(n) } }, rate: () => {}, dur: () => dur,
-    destroy() { try { w.unbind(E.PLAY_PROGRESS) } catch {} host.replaceChildren() },
+    // → Promise<engine>. at() is read when the player is actually ready, so a slow first load starts at the right spot.
+    engine: (t, ev, at) => t.kind === 'yt' ? yt(t.src, ev, at) : t.kind === 'sc' ? scPlay(t.src, ev, at) : Promise.resolve(audio(t.src, ev, at)),
+    cue: id => cue(id).catch(() => {}),
+    warm: () => firstYt().ready.catch(() => {}), // make the first YouTube player now, before anyone presses play
+    destroy() {
+      for (const s of yts) { s.owner = null; try { s.p?.destroy() } catch {} }
+      if (sc) { sc.owner = null; try { sc.w.unbind(window.SC.Widget.Events.PLAY_PROGRESS) } catch {} }
+      if (au) { au.owner = null; au.el.pause(); au.el.removeAttribute('src'); au.el.load() }
+      host.replaceChildren()
+    },
   }
 }
 
@@ -275,18 +395,19 @@ function fakeEngine(ev) {
   let t = 0, at = null
   setTimeout(ev.onReady, 0)
   return {
-    canRate: false, time: () => at ? t + (Date.now() - at) / 1000 : t, seek: s => { t = s; if (at) at = Date.now() },
+    autoStart: false, canRate: false, time: () => at ? t + (Date.now() - at) / 1000 : t, seek: s => { t = s; if (at) at = Date.now() },
     play: () => { if (!at) at = Date.now(); return Promise.resolve() }, pause: () => { if (at) { t += (Date.now() - at) / 1000; at = null } },
     playing: () => !!at, vol: () => {}, rate: () => {}, dur: () => NaN, destroy() {},
   }
 }
 
 // Plays the current track in step with everyone else while you're in the stadium's call, whatever page you look at.
-// YouTube and SoundCloud draw into RadioPlayer's floating host. One player per play of a track (key = track id; a looped
-// or re-queued song gets a fresh id), kept in refs: refetches, ticks and volume changes never rebuild or reload it.
-const onBlocked = b => { if (radioPlay.get().blocked !== b) radioPlay.set({ blocked: b }) }
+// One Player per play of a track (key = track id; a looped or re-queued song gets a fresh id), on the call's deck:
+// refetches, ticks and volume changes never rebuild or reload anything.
+const onBlocked = b => { if (radioPlay.get().blocked !== b) radioPlay.set(s => ({ ...s, blocked: b })) }
+const onStarting = b => { if (radioPlay.get().starting !== b) radioPlay.set(s => ({ ...s, starting: b })) }
 const blockedRef = { get current() { return radioPlay.get().blocked } }
-function Player({ cid, state, deafened, host }) {
+function Player({ cid, state, deafened, deck }) {
   const stRef = useRef(state)
   stRef.current = state
   const deafRef = useRef(deafened)
@@ -296,7 +417,8 @@ function Player({ cid, state, deafened, host }) {
     let eng = null, dead = false, ready = false, triedAt = 0, endAsked = 0, durSent = false, aligned = false
     let steadySince = 0, mem = syncMem(), gain = -1, duck = { amount: 0, lastLoud: -Infinity }, volAt = Date.now()
     const ev = {
-      onReady: () => { ready = true },
+      alive: () => !dead,
+      onReady: () => { ready = true; if (eng) step() },
       onEnd: () => askEnd(),
       onBlocked: () => { if (!dead) onBlocked(true) },
       onError: msg => {
@@ -312,30 +434,39 @@ function Player({ cid, state, deafened, host }) {
       // everyone's browser notices at once; a little jitter so the first one wins and the rest find it already moved on
       setTimeout(() => !dead && stRef.current.track?.id === t.id && act(cid, 'ended', { id: t.id }), Math.random() * 900)
     }
-    // Start once the server clock is known (or 1.5 s at most), so the first position isn't off by our clock's skew.
-    Promise.race([clockReady, new Promise(r => setTimeout(r, 1500))]).then(() => {
-      if (dead || !host.current) return
-      const start = position(stRef.current, serverNow()) || 0
-      const make = radioApi.mock ? Promise.resolve(fakeEngine(ev))
-        : t.kind === 'yt' ? ytEngine(t.src, host.current, start, ev)
-        : t.kind === 'sc' ? scEngine(t.src, host.current, ev)
-        : Promise.resolve(audioEngine(t.src, ev))
-      make.then(e => { if (dead) e.destroy(); else eng = e }, () => ev.onError("Couldn't load the player (is something blocking YouTube or SoundCloud?)."))
-    })
-
+    const volTarget = () => {
+      const p = prefs.get()
+      return musicGain({ vol: p.musicVol ?? DEFAULT_MUSIC_VOL, muted: !!p.musicMuted, deafened: deafRef.current, duck: p.musicDuck ?? true, amount: duck.amount })
+    }
     const tryPlay = () => {
       triedAt = Date.now()
       eng.play().then(() => onBlocked(false), err => { if (err?.name === 'NotAllowedError') onBlocked(true) })
     }
+    // Start at once, at the spot the song should be at right now (on our clock if the server's isn't known yet); the
+    // sync loop corrects afterwards.
+    onStarting(!isPaused(state))
+    const at = () => ({ start: position(stRef.current, serverNow()) || 0, paused: isPaused(stRef.current) })
+    const attach = e => {
+      if (!e) return
+      if (dead) return e.destroy()
+      eng = e
+      gain = volTarget(); eng.vol(outputVolume(gain)) // the right loudness from the first note, not a fade up from full
+      if (!at().paused && !eng.autoStart) { aligned = true; tryPlay() } // <audio>: play() now, it starts when it can
+      if (ready) step()
+    }
+    if (radioApi.mock) attach(fakeEngine(ev))
+    else deck.engine(t, ev, at).then(attach, () => ev.onError("Couldn't load the player (is something blocking YouTube or SoundCloud?)."))
+
     const seekTo = s => { eng.seek(s); steadySince = 0 }
-    // Sync: once a second, see where the song should be. Gentle by design (see syncStep in lib/music.js).
-    const sync = setInterval(() => {
-      if (!eng || !ready) return
+    // Sync: once a second (and right away when the player is ready), see where the song should be. Gentle by design
+    // (see syncStep in lib/music.js): never seek while loading, and only after drift shows up twice.
+    function step() {
+      if (dead || !eng || !ready) return
       const now = Date.now(), st = stRef.current, sNow = serverNow(), target = position(st, sNow)
       if (target == null) return
       if (!durSent && !st.track.dur && eng.dur() > 1 && Number.isFinite(eng.dur())) { durSent = true; act(cid, 'dur', { id: t.id, dur: Math.round(eng.dur() * 10) / 10 }) }
       if (isOver(st, sNow)) return askEnd()
-      if (isPaused(st)) { triedAt = 0; steadySince = 0; if (eng.playing()) eng.pause(); return }
+      if (isPaused(st)) { triedAt = 0; steadySince = 0; onStarting(false); if (eng.playing()) eng.pause(); return }
       if (!eng.playing()) {
         steadySince = 0
         if (blockedRef.current || eng.buffering?.()) return // never seek or poke a player that's still loading
@@ -348,9 +479,10 @@ function Player({ cid, state, deafened, host }) {
         else if (now - triedAt > 4000 && !radioApi.mock) onBlocked(true)
         return
       }
+      onStarting(false)
       triedAt = 0 // playing: if it stalls later it gets a fresh try before we ask for a tap
       if (eng.buffering?.()) { steadySince = 0; return }
-      if (!aligned) { // autoplay got going on its own: line up once, right away
+      if (!aligned) { // autoplay got going on its own: line up once, right away (usually inside what's buffered)
         aligned = true
         if (!(Math.abs(eng.time() - target) <= 1.5)) { seekTo(target); mem = { ...mem, lastSeekAt: now }; return }
       }
@@ -359,17 +491,17 @@ function Player({ cid, state, deafened, host }) {
       mem = r.mem
       if (r.seek != null) seekTo(r.seek)
       if (r.rate != null) eng.rate(r.rate)
-    }, 1000)
+    }
+    const sync = setInterval(step, 1000)
     // Volume: your slider, mute, deafen, and ducking while anyone talks. The duck envelope holds through pauses between
     // words and eases in and out; 10 updates a second at most, and only when the level actually moves.
     const vol = setInterval(() => {
-      if (!eng || !ready) return
-      const now = Date.now(), p = prefs.get()
+      if (!eng) return
+      const now = Date.now()
       duck = duckStep(duck, { loud: anyoneTalking(voiceLevels), now, dt: now - volAt })
       volAt = now
-      const target = musicGain({ vol: p.musicVol ?? 0.6, muted: !!p.musicMuted, deafened: deafRef.current, duck: p.musicDuck ?? true, amount: duck.amount })
-      const next = glide(Math.max(0, gain), target, 0.5)
-      if (Math.abs(next - gain) >= 0.004) { gain = next; eng.vol(gain) }
+      const next = glide(Math.max(0, gain), volTarget(), 0.5)
+      if (Math.abs(next - gain) >= 0.004) { gain = next; eng.vol(outputVolume(gain)) }
     }, 100)
     // Tap to listen: the card fires this inside the tap, so play() still counts as the user's gesture.
     const onTap = () => {
@@ -382,68 +514,42 @@ function Player({ cid, state, deafened, host }) {
       }
     }
     addEventListener('radio-tap', onTap)
-    return () => { dead = true; clearInterval(sync); clearInterval(vol); removeEventListener('radio-tap', onTap); eng?.destroy(); onBlocked(false) }
+    return () => { dead = true; clearInterval(sync); clearInterval(vol); removeEventListener('radio-tap', onTap); eng?.destroy(); onBlocked(false); onStarting(false) }
   }, [state.track.id]) // eslint-disable-line react-hooks/exhaustive-deps
   return null
 }
 
-// Artwork. While you listen to YouTube / SoundCloud, the real player (owned by RadioPlayer, so it never reloads when
-// you come and go) floats over this spot.
-function ArtSlot({ track, plays, onOpen, label, video, round }) {
-  const el = useRef(null)
-  const live = plays && track.kind !== 'audio' && !radioApi.mock
-  useLayoutEffect(() => {
-    if (!live) return
-    const me = el.current
-    radioSlot.set({ el: me, video: !!video, round: !!round })
-    return () => { if (radioSlot.get().el === me) radioSlot.set({ el: null, video: false, round: false }) }
-  }, [live, video, round])
-  return (
-    <span className="radio-art" ref={el}>
-      <Art track={track} />
-      {onOpen && <button className="radio-disc" onClick={onOpen} title={label} aria-label="Show Chit Radio" />}
-    </span>
-  )
-}
-
 // The listening half of Chit Radio, mounted with the voice connection (Voice.jsx) for as long as you're in a stadium's
-// call: watches the row, keeps the player going, and owns the floating frame YouTube / SoundCloud draw into. The frame
-// sits over the card's art while the stadium is on screen and waits off-screen (still full size: YouTube holds back
-// players under 200×200 or display:none) while you're elsewhere.
+// call: watches the row, keeps the player going, and owns the deck's hidden host. The host sits off-screen at full size
+// (YouTube holds back players under 200×200 or display:none); nothing of the video is ever shown, the card shows art.
 export function RadioPlayer({ cid, deafened }) {
   useRadioRow(cid)
   const row = radio.use(s => s[cid])
-  const slot = radioSlot.use(s => s)
-  const drawerOpen = radioUi.use(s => s.open === cid) // the drawer covers the card: the frame steps aside, the art shows
-  const host = useRef(null), float = useRef(null)
-  const track = radioMode(row, false) === 'on' ? row.state?.track : null
+  const host = useRef(null)
+  const [deck, setDeck] = useState(null)
+  const on = radioMode(row, false) === 'on'
+  const track = on ? row.state?.track : null
+  const next = on ? nextUp(row.state, row.queue) : null
+  const busy = on && !!(track || row.queue.length) // the radio is in use here: worth making the YouTube player now
+  useLayoutEffect(() => {
+    if (radioApi.mock) return
+    warmRadio()
+    const d = makeDeck(host.current)
+    setDeck(d)
+    return () => { d.destroy(); setDeck(null) }
+  }, [])
+  useEffect(() => { if (deck && busy) deck.warm() }, [deck, busy])
+  // Cue the next YouTube song on the standby player a few seconds into this one (not competing with its start).
+  const nextYt = next?.kind === 'yt' ? next.src : null
   useEffect(() => {
-    const f = float.current
-    if (!f) return
-    const off = () => { f.className = 'radio-float off'; f.removeAttribute('style') }
-    if (!slot.el || drawerOpen) return off()
-    let raf = 0, last = ''
-    const place = () => {
-      const r = slot.el.isConnected ? slot.el.getBoundingClientRect() : null
-      const on = r && r.width > 0 && r.height > 0
-      const key = on ? `${r.left}|${r.top}|${r.width}|${r.height}` : 'off'
-      if (key !== last) {
-        last = key
-        if (!on) off()
-        else {
-          f.className = `radio-float${slot.video ? ' video' : ''}`
-          f.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;--k:${r.height / 200};border-radius:${slot.round ? '50%' : slot.video ? '14px' : '12px'}`
-        }
-      }
-      raf = requestAnimationFrame(place)
-    }
-    place()
-    return () => { cancelAnimationFrame(raf); off() }
-  }, [slot, drawerOpen])
-  useEffect(() => () => onBlocked(false), [])
+    if (!deck || !nextYt) return
+    const t = setTimeout(() => deck.cue(nextYt), 4000)
+    return () => clearTimeout(t)
+  }, [deck, nextYt, track?.id])
+  useEffect(() => () => { onBlocked(false); onStarting(false) }, [])
   return <>
-    {createPortal(<div className="radio-float off" ref={float}><div className="radio-host" ref={host} /></div>, document.body)}
-    {track && <Player key={track.id} cid={cid} state={row.state} deafened={deafened} host={host} />}
+    {createPortal(<div className="radio-host" ref={host} aria-hidden="true" />, document.body)}
+    {track && (deck || radioApi.mock) && <Player key={track.id} cid={cid} state={row.state} deafened={deafened} deck={deck} />}
   </>
 }
 
@@ -516,10 +622,12 @@ export function RadioCard({ channel, meId: me, joined, deafened, listeners }) {
   const min = prefs.use(s => !!s.radioMin)
   const muted = prefs.use(s => !!s.musicMuted)
   const blocked = radioPlay.use(s => s.blocked)
-  const [video, setVideo] = useState(false)
+  const starting = radioPlay.use(s => s.starting)
+  const pending = radioPending.use(s => s[cid])
   useTick(!!track && !min && !isPaused(st))
   const mod = isMod()
   const mode = radioMode(row, mod)
+  useEffect(() => { if (mode === 'on') warmRadio() }, [mode]) // looking at the stadium: get YouTube's script in early
   if (mode === 'none') return null
   if (mode === 'off') {
     return (
@@ -541,20 +649,25 @@ export function RadioCard({ channel, meId: me, joined, deafened, listeners }) {
     dispatchEvent(new Event('radio-tap')) // synchronous, so the player's play() runs inside this tap
   }
   const openQueue = () => radioUi.set({ open: cid })
-  const cls = `radio-card${min ? ' min' : ''}${min && track && !isPaused(st) ? ' spinning' : ''}${!min && video && track?.kind !== 'audio' ? ' video' : ''}`
+  const cls = `radio-card${min ? ' min' : ''}${min && track && !isPaused(st) ? ' spinning' : ''}`
+  // "starting…": a song just went in (title on its way), or the player hasn't made a sound yet
+  const shown = track || pending
+  const isStarting = (!track && !!pending) || (plays && starting && !isPaused(st) && !blocked)
 
   return (
     <section className={cls} aria-label="Chit Radio">
       <div className="radio-top">
-        <ArtSlot track={track} plays={plays} onOpen={min ? () => setPref('radioMin', false) : null} label={track ? `Chit Radio: ${track.title}` : 'Chit Radio'}
-          video={!min && video} round={min} />
+        <span className="radio-art">
+          <Art track={shown} />
+          {min && <button className="radio-disc" onClick={() => setPref('radioMin', false)} title={track ? `Chit Radio: ${track.title}` : 'Chit Radio'} aria-label="Show Chit Radio" />}
+        </span>
         {!min && <>
           <div className="radio-meta">
             <span className="radio-eyebrow">
               <span className={`radio-eq${track && !isPaused(st) ? ' on' : ''}`} aria-hidden="true"><i /><i /><i /></span>
-              Chit Radio{track && isPaused(st) ? ' · paused' : ''}
+              Chit Radio{track && isPaused(st) ? ' · paused' : isStarting ? ' · starting…' : ''}
             </span>
-            {track ? <>
+            {!track && pending ? <span className="radio-title">{pending.title}</span> : track ? <>
               <a className="radio-title" href={sourceUrl(track)} target="_blank" rel="noreferrer noopener" title={track.title}>{track.title}</a>
               <span className="radio-by"><Avatar id={track.by} size={16} /> <Name id={track.by} /></span>
             </> : <span className="radio-title idle">Nothing playing yet</span>}
@@ -584,10 +697,6 @@ export function RadioCard({ channel, meId: me, joined, deafened, listeners }) {
             </button>
           )}
           {track && (owner || loop !== 'off') && <LoopButton cid={cid} loop={loop} can={owner} />}
-          {track && track.kind !== 'audio' && plays && (
-            <button className={`icon-btn${video ? ' on' : ''}`} onClick={() => setVideo(v => !v)} title={video ? 'Smaller player' : 'Bigger player'}
-              aria-label={video ? 'Smaller player' : 'Bigger player'} aria-pressed={video}><Icon name="fullscreen" size={17} /></button>
-          )}
           {joined && (
             <button className={`icon-btn${muted ? ' on' : ''}`} onClick={() => setPref('musicMuted', !muted)} aria-pressed={muted}
               title={muted ? 'Unmute music' : 'Mute music (just for you)'} aria-label={muted ? 'Unmute music' : 'Mute music'}><Icon name={muted ? 'volume-mute' : 'volume'} size={18} /></button>
@@ -612,13 +721,14 @@ export function RadioDrawer({ channel, meId: me }) {
   const cid = channel.id
   const open = radioUi.use(s => s.open === cid)
   const row = radio.use(s => s[cid])
+  const pending = radioPending.use(s => s[cid])
   const [link, setLink] = useState('')
   const [busy, setBusy] = useState(false)
   const [up, setUp] = useState(null) // upload progress 0..1
   const file = useRef(null)
   const anchor = useRef(null), drawer = useRef(null)
   const [dock, setDock] = useState(null)
-  const vol = prefs.use(s => s.musicVol ?? 0.6), muted = prefs.use(s => !!s.musicMuted), duck = prefs.use(s => s.musicDuck ?? true)
+  const vol = prefs.use(s => s.musicVol ?? DEFAULT_MUSIC_VOL), muted = prefs.use(s => !!s.musicMuted), duck = prefs.use(s => s.musicDuck ?? true)
   const mod = isMod()
   const shown = open && radioMode(row, mod) === 'on'
   useLayoutEffect(() => { if (shown) setDock(anchor.current?.closest('.stadium-split') || null) }, [shown])
@@ -683,7 +793,7 @@ export function RadioDrawer({ channel, meId: me }) {
         </div>
         <div className="radio-list">
           <h4>Now playing</h4>
-          {track ? <QueueRow t={track} now /> : <p className="muted small">Nothing yet. Paste a link and it starts right away.</p>}
+          {track ? <QueueRow t={track} now /> : pending ? <QueueRow t={pending} now /> : <p className="muted small">Nothing yet. Paste a link and it starts right away.</p>}
           {(track || mod || loop !== 'off') && <LoopButton cid={cid} loop={loop} can={canSkipNow(track, me, mod) || mod} wide />}
           <h4>Up next <span className="muted">{row.queue.length}/{MAX_QUEUE}</span></h4>
           {row.queue.length === 0 && <p className="muted small">The queue is empty.</p>}
@@ -691,6 +801,7 @@ export function RadioDrawer({ channel, meId: me }) {
             {row.queue.map((t, i) => (
               <li key={t.id}><QueueRow t={t} n={i + 1} onRemove={(mod || t.by === me) ? () => act(cid, 'remove', { id: t.id }) : null} /></li>
             ))}
+            {track && pending && <li><QueueRow t={pending} n={row.queue.length + 1} /></li>}
           </ol>
         </div>
         <footer>

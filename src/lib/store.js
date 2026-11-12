@@ -123,7 +123,7 @@ const defaults = {
   uiSounds: true, uiVolume: 0.5, // quiet blips for menus, dialogs, sends, toggles
   gotShown: {}, // "You got…" pop-ups already shown: 'userId:kind' -> 1
   // Chit Radio (Radio.jsx): your music volume 0..1 and mute, separate from voices; duck = quieter while people talk; radioMin = card tucked away
-  musicVol: 0.6, musicMuted: false, musicDuck: true, radioMin: false,
+  musicVol: 0.2, musicMuted: false, musicDuck: true, radioMin: false,
 }
 function loadPrefs() {
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(PREFS_KEY)) } } catch { return defaults }
