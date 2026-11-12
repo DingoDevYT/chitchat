@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { step, overlap, hear, makeTrack, shouldSend, canSeeAt, BEHIND_MS } from './space.js'
+import { step, overlap, hear, makeTrack, shouldSend, canSeeAt, visionOf, sightPolygon, BEHIND_MS } from './space.js'
+import { SIGHT } from './map.js'
 
 test('walking: free in a room, slides along walls, goes through doors, can walk out when a door jams shut on you', () => {
   let p = [6, 6]
@@ -28,15 +29,15 @@ test('walking: free in a room, slides along walls, goes through doors, can walk 
   assert.ok(p[0] >= 0.35 && p[1] >= 0.35)
 })
 
-test('proximity voice: distance fades, walls muffle, flour storm halves range, nappers hear only nappers', () => {
+test('proximity voice: distance fades, walls muffle, flour storm halves range, the living never hear ghosts', () => {
   const v = { phase: 'play', status: { a: 'awake', b: 'awake', c: 'nap', d: 'nap', e: 'home' }, mischief: null }
   const pos = { a: [5, 5], b: [6, 5], c: [6, 6], d: [7, 6], e: [5, 6] }
   assert.equal(hear(v, 'a', 'b', pos).gain, 1)
-  assert.equal(hear(v, 'a', 'c', pos).gain, 0, 'awake people never hear nappers')
-  assert.equal(hear(v, 'c', 'a', pos).gain, 0, 'nappers hear only nappers')
-  assert.equal(hear(v, 'c', 'd', pos).gain, 1)
-  assert.equal(hear(v, 'a', 'e', pos).gain, 0, 'nobody in the game hears someone gone home')
-  assert.equal(hear(v, 'e', 'a', pos).gain, 1, 'people gone home hear everything')
+  assert.equal(hear(v, 'a', 'c', pos).gain, 0, 'the living never hear a smashed ghost')
+  assert.equal(hear(v, 'a', 'e', pos).gain, 0, 'or an ejected one')
+  assert.equal(hear(v, 'c', 'a', pos).gain, 1, 'ghosts hear the living')
+  assert.equal(hear(v, 'c', 'd', pos).gain, 1, 'and each other')
+  assert.equal(hear(v, 'e', 'c', pos).gain, 1)
   assert.equal(hear(v, 'a', 'stranger', pos).gain, 0, 'the crowd is hushed during the shift')
   assert.equal(hear({ ...v, phase: 'talk' }, 'a', 'stranger', pos).gain, 1)
   const far = { ...pos, b: [11, 5] } // 6 away, same room
@@ -49,17 +50,33 @@ test('proximity voice: distance fades, walls muffle, flour storm halves range, n
   assert.ok(w.gain < hear(v, 'a', 'b', { ...pos, b: [6.5, 12.5] }).gain || w.gain === 0)
   const near = hear(v, 'a', 'b', { ...pos, a: [10, 9], b: [10, 12] }) // 3 apart through the wall
   assert.ok(near.gain > 0 && near.gain < 0.5 && near.lp < 2000)
-  // the Tea Break: everyone at the table hears everyone, nobody hears the nappers upstairs
-  assert.equal(hear({ ...v, phase: 'talk' }, 'a', 'b', { a: [0, 0], b: [30, 20] }).gain, 1)
-  assert.equal(hear({ ...v, phase: 'vote' }, 'a', 'c', pos).gain, 0)
-  // someone watching (not playing) hears the game unchanged
+  // meetings: everyone alive hears everyone; ghosts stay silent to them, but hear the meeting
+  for (const phase of ['apron', 'talk', 'vote', 'reveal']) {
+    assert.equal(hear({ ...v, phase }, 'a', 'b', { a: [0, 0], b: [30, 20] }).gain, 1)
+    assert.equal(hear({ ...v, phase }, 'a', 'c', pos).gain, 0, phase)
+    assert.equal(hear({ ...v, phase }, 'c', 'a', pos).gain, 1, phase)
+  }
+  // once it's over everyone can talk again; someone watching hears the game unchanged
+  assert.equal(hear({ ...v, phase: 'end' }, 'a', 'c', pos).gain, 1)
   assert.equal(hear(v, 'watcher', 'a', pos).gain, 1)
 })
 
-test('sight: lamplight radius, walls block, candles out shrinks it', () => {
-  assert.ok(canSeeAt([5, 5], [10, 5], false, false))
-  assert.ok(!canSeeAt([5, 5], [10, 5], true, false))
-  assert.ok(!canSeeAt([3, 9], [3, 13], false, false))
+test('sight: vision radius by role, walls block, candles out shrinks bakers only, ghosts see everything', () => {
+  assert.ok(canSeeAt([5, 5], [10, 5], 5.5, false))
+  assert.ok(!canSeeAt([5, 5], [10, 5], 2.4, false))
+  assert.ok(!canSeeAt([3, 9], [3, 13], 5.5, false))
+  assert.ok(canSeeAt([3, 9], [30, 13], Infinity, false))
+  const v = (role, status = 'awake', kind = null) => ({ status: { me: status }, me: { role }, mischief: kind && { kind } })
+  assert.equal(visionOf(v('baker'), 'me'), SIGHT.baker)
+  assert.ok(visionOf(v('nibbler'), 'me') > SIGHT.baker, 'Nibblers see a little further')
+  assert.equal(visionOf(v('baker', 'awake', 'candles'), 'me'), SIGHT.dark)
+  assert.equal(visionOf(v('nibbler', 'awake', 'candles'), 'me'), SIGHT.nibbler)
+  assert.equal(visionOf(v('baker', 'nap'), 'me'), Infinity)
+  assert.equal(visionOf(v('baker'), 'watcher'), Infinity)
+  // the fog polygon stops at walls: from the pantry, looking straight down hits the y=11 wall
+  const poly = sightPolygon([3, 8], 6, false, 4)
+  assert.ok(Math.abs(poly[1][1] - 11.2) < 1e-6, JSON.stringify(poly))
+  assert.ok(Math.abs(poly[0][0] - 9) < 1e-6, 'open floor reaches the full radius')
 })
 
 test('walking together: interpolation runs ~120 ms behind, the send throttle is ~10 Hz plus a heartbeat', () => {

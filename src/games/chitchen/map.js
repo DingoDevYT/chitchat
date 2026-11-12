@@ -47,6 +47,23 @@ export const FIX = {
 }
 export const TABLE = { x: 18, y: 18, r: 2.6 } // everyone sits round it at a Tea Break and starts there after one
 
+// Crumb chutes (vents): only Nibblers can hop in, and only to another chute in the same group.
+export const VENTS = [
+  { id: 'v-pantry', room: 'pantry', x: 6.5, y: 5, group: 1 },
+  { id: 'v-shop', room: 'shop', x: 3, y: 19.5, group: 1 },
+  { id: 'v-kitchen', room: 'kitchen', x: 14, y: 21.5, group: 1 },
+  { id: 'v-loft', room: 'loft', x: 21.5, y: 8.5, group: 2 },
+  { id: 'v-cellar', room: 'cellar', x: 30, y: 7.5, group: 2 },
+  { id: 'v-garden', room: 'garden', x: 27, y: 14.5, group: 2 },
+]
+export const vent = id => VENTS.find(v => v.id === id)
+export const ventLinks = id => { const v = vent(id); return v ? VENTS.filter(o => o.group === v.group && o.id !== id).map(o => o.id) : [] }
+
+// How far you can see (map units, walls block it): Nibblers see a little further, and candles-out (the lights
+// sabotage) cuts bakers' vision right down. Shared by the client's fog of war and the Chitbots' eyes.
+export const SIGHT = { baker: 5.5, nibbler: 7, dark: 2.4 }
+export const sightOf = (role, dark) => (role === 'nibbler' ? SIGHT.nibbler : dark ? SIGHT.dark : SIGHT.baker)
+
 export const spot = id => SPOTS.find(s => s.id === id)
 export const room = id => ROOMS.find(r => r.id === id)
 export const roomAt = (x, y) => ROOMS.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h)?.id ?? null
