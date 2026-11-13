@@ -670,7 +670,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
           {g ? (
             <>
               <Boundary key={g.id}><Suspense fallback={<div className="gs-loading gs-setup" role="status"><span className="dots"><i /><i /><i /></span>Setting up the table…</div>}>
-                <GameScreen table={table} meId={meId} joined={joined} full={gameFull} onFull={toggleFull} onHide={() => setHiddenGame(g.id)} />
+                <GameScreen key={g.game} table={table} meId={meId} joined={joined} full={gameFull} onFull={toggleFull} onHide={() => setHiddenGame(g.id)} />
               </Suspense></Boundary>
               {shown.length > 0 && !gameFull && <div className="stage-thumbs game-thumbs">{shown.map(id => <div key={id} className="stage-thumb" onContextMenu={streamMenu(id)} title="Live"><Screen stream={all[id]} /></div>)}</div>}
             </>

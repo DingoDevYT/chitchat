@@ -3,6 +3,8 @@
 // `opts=quick,friendly` sets house rules; `lab=…` hands the game's UI module a named test situation (UI.lab).
 // `cam=1` / `cam=all` turns on a webcam for you / every seat.
 // Star Party: `mini=catch|bun|count` plays only that minigame (`lab=mini` jumps to it, `lab=results` to its reveal).
+// Between rounds: `night=1` adds a sample game night, `ready=1` runs the ready-up countdown once it's over, `watch=1`
+// leaves your seat empty (you watch, so you get Join next round).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { GAMES } from './registry.js'
 import GameScreen, { UIS } from './GameScreen'
@@ -61,9 +63,12 @@ export default function GameLab() {
     const t = setTimeout(() => apply(who, R.bot(R.view(s, who), who, levels[players.indexOf(who)], Math.random) ?? R.timeout(s)), Math.min(15000, Math.max(300, R.delay?.(s) ?? 900))) // the rules pace bots when they say (delay)
     return () => clearTimeout(t)
   }, [s]) // eslint-disable-line react-hooks/exhaustive-deps
-  const seats = useMemo(() => players.map((p, i) => ({ seat: i, user_id: p === ME ? ME : null, bot: p === ME ? null : levels[i] })), [])
+  const seats = useMemo(() => players.map((p, i) => ({ seat: i, user_id: p === ME ? ME : null, bot: p === ME ? null : levels[i] })).filter(x => !(q.has('watch') && x.user_id === ME)), [])
   const deadline = useMemo(() => new Date(Date.now() + (who === ME ? 45000 : 900)).toISOString(), [v, who]) // looks like the real timer
-  const game = { id: 'lab', game: G, status: R.over(s) ? 'done' : 'playing', pub: s.pub, version: v, deadline, host_id: ME, opts: {} }
+  const over = !!R.over(s)
+  const ready = useMemo(() => new Date(Date.now() + 20000).toISOString(), [over])
+  const night = useMemo(() => q.has('night') ? { list: [G, 'pillow', 'starchat'], at: 0, scores: { [ME]: 3, 'bot:1': 5, 'bot:2': 2, 'bot:3': 1 }, who: {}, votes: { 'bot:1': 'next' }, played: [] } : null, [])
+  const game = { id: 'lab', game: G, status: over ? 'done' : 'playing', pub: s.pub, version: v, deadline: over ? (q.has('ready') ? ready : null) : deadline, host_id: ME, opts: {}, night }
   const table = { game, seats, hand: s.priv[ME] ?? null, act: async (action, extra) => { if (action === 'move') apply(ME, extra.move) } }
   return <div style={{ position: 'fixed', inset: 0, display: 'flex' }}><GameScreen table={table} meId={ME} joined full onFull={() => {}} channelName="Lab" /></div>
 }

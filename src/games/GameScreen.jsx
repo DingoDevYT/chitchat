@@ -11,6 +11,8 @@ import { Card } from './Card'
 import { LEVEL_NAMES, Person, nameOf, seatList } from './People'
 import { botChar, botUrl } from './bots.js'
 import { awayOf } from './away.js'
+import { queueOf } from './night.js'
+import { Countdown, JoinButton, NightPanel, SeatDots, useCountdown } from './Between.jsx'
 import * as highcard from './highcard/ui.jsx'
 import * as snack from './snack/ui.jsx'
 import * as poker from './poker/ui.jsx'
@@ -119,6 +121,8 @@ export default function GameScreen({ table, meId, joined, full, onFull, onHide, 
   const seated = seats.some(s => s.user_id === meId) && !away.includes(meId)
   const inRound = !!v?.players?.includes(meId) && !lobby && seated
   const host = game.host_id === meId
+  // "Join next round": a watcher who asked mid-round sits down when it ends (src/games/night.js).
+  const queued = queueOf(game.opts).includes(meId)
   const turnPid = playing && v && !R.meta.realtime ? R.turn({ pub: v }) : null // real-time games have no "your turn"
   const winners = done && v ? R.over({ pub: v }) : null
   const nm = pid => nameOf(pid, seats)
@@ -131,6 +135,15 @@ export default function GameScreen({ table, meId, joined, full, onFull, onHide, 
   const [pending, setPending] = useState(null)
   useEffect(() => setPending(null), [game.version])
   const doAct = async (action, extra) => { if (action === 'move') setPending(extra.move); if (!(await run(action, extra))) setPending(null) }
+
+  // The ready-up countdown ran out: seated people ask the referee to start (host first, then by seat), quietly.
+  const enough = seats.length >= R.meta.min
+  useEffect(() => {
+    if (playing || !game.deadline || !seated || !enough) return
+    const rank = seats.filter(s => s.user_id).findIndex(s => s.user_id === meId)
+    const tm = setTimeout(() => act('start', {}, true), Math.max(0, Date.parse(game.deadline) - Date.now() + (host ? 150 : 700 + rank * 450)))
+    return () => clearTimeout(tm)
+  }, [playing, game.deadline, game.version, seated, enough, host]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keyboard: game shortcuts on your turn (K / S, F, R / E…), unless you're typing somewhere.
   useEffect(() => {
@@ -174,6 +187,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, onHide, 
   const tools = (
     <span className="gs-tools">
       <button className="icon-btn gs-btn" onClick={onFull} aria-pressed={full} title={full ? 'Exit fullscreen (Esc)' : 'Fullscreen'} aria-label={full ? 'Exit fullscreen' : 'Fullscreen'}><Icon name={full ? 'minus' : 'fullscreen'} size={18} /></button>
+      {playing && !seated && joined && <JoinButton compact queued={queued} busy={busy} run={run} playing />}
       {!seated && onHide && <button className="icon-btn gs-btn" onClick={onHide} title="Back to stadium" aria-label="Back to stadium"><Icon name="stadium" size={18} /></button>}
       {seated && <button className="icon-btn gs-btn" onClick={quit} disabled={busy} title="Leave game" aria-label="Leave game"><Icon name="leave" size={18} /></button>}
       {canClose && <button className="icon-btn gs-btn" onClick={close} title="Close game" aria-label="Close game"><Icon name="close" size={18} /></button>}
@@ -238,14 +252,27 @@ export default function GameScreen({ table, meId, joined, full, onFull, onHide, 
 function LobbyButtons({ again, seated, joined, busy, run, seats, R, level, setLevel, host, game, meId }) {
   const full = seats.length >= R.meta.max
   const house = HOUSE[game.game] || []
+  // Play again (src/games/night.js): seats fill while the ready-up countdown runs; during a game night the vote decides
+  // what comes next, so the host's Play again waits for it (the host can still decide in the night panel).
+  const s = useCountdown(game)
+  const night = game.night?.list ? game.night : null
+  const voting = again && !!night && !night.ended
+  const enough = seats.length >= R.meta.min
+  const between = again || s != null
   return (
     <>
+      {between && <SeatDots seats={seats} max={R.meta.max} min={R.meta.min} />}
+      <Countdown s={s} starting={enough} />
       <div className="gs-row">
-        {!seated && joined && <button className="btn primary" disabled={busy || full} onClick={() => run('sit')}>Sit down</button>}
+        {!seated && joined && (between
+          ? <JoinButton full={full} busy={busy} run={run} />
+          : <button className="btn primary" disabled={busy || full} onClick={() => run('sit')}>Sit down</button>)}
         {!seated && !joined && <span className="muted small">Join the stadium to take a seat.</span>}
         {seated && !(host && again) && <button className="btn ghost" disabled={busy} onClick={() => run('stand')}>Stand up</button>}
-        {host && <button className="btn primary" disabled={busy || seats.length < R.meta.min} onClick={() => run('start')}>{again ? 'Again?' : 'Start'}</button>}
-        {!host && again && <span className="muted small">Waiting for the host to go again.</span>}
+        {host && (!again || s != null) && <button className="btn primary" disabled={busy || !enough} onClick={() => run('start')}>{s != null ? 'Start now' : 'Start'}</button>}
+        {host && again && s == null && !voting && <button className="btn primary gn-again" disabled={busy} onClick={() => run('ready')}><Icon name="rotate" size={18} /> Play again</button>}
+        {host && s != null && <button className="chip" disabled={busy} onClick={() => run('ready', { cancel: true })}>Stop countdown</button>}
+        {!host && again && s == null && !voting && <span className="muted small">Waiting for the host to play again.</span>}
       </div>
       {seated && !full && !R.meta.noBots && (
         <div className="gs-row gs-bots">
@@ -266,6 +293,7 @@ function LobbyButtons({ again, seated, joined, busy, run, seats, R, level, setLe
             onChange={e => run('opts', { opts: { ...game.opts, [k]: e.target.checked } })} /> <span>{l}</span></label>)}
         </div>
       )}
+      <NightPanel game={game} seats={seats} meId={meId} host={host} busy={busy} run={run} />
     </>
   )
 }

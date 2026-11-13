@@ -5,8 +5,9 @@
 // away seats are given up and the list cleared, so they can sit again next round.
 
 export const awayOf = opts => (Array.isArray(opts?.away) ? opts.away.filter(x => typeof x === 'string') : [])
+// The house rules alone: without the away list or the "Join next round" queue (src/games/night.js).
 export function withoutAway(opts) {
-  const { away, ...rest } = opts || {} // eslint-disable-line no-unused-vars
+  const { away, queue, ...rest } = opts || {} // eslint-disable-line no-unused-vars
   return rest
 }
 
