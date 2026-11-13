@@ -1,5 +1,5 @@
 -- 044 Stadium soundboard (src/Soundboard.jsx, src/lib/sfx.js): short clips anyone in a stadium call fires for everyone
--- in that call. NOT APPLIED YET. Until it is, the soundboard button simply doesn't show (stadium_sfx is missing).
+-- in that call. (Without this migration the soundboard button simply doesn't show: stadium_sfx is missing.)
 --   stadium_sfx     one row per stadium that a mod has touched: the off switch. No row = on.
 --   sfx_clips       custom clips per server: a short audio file in the media bucket (<uploader>/<uuid>/<name>), named.
 --   sfx_last        when each person last fired a clip (the server-side rate limit). Nobody reads it directly.
@@ -153,8 +153,8 @@ end $$;
 revoke execute on function public.sfx_do(uuid, text, jsonb) from public, anon;
 grant execute on function public.sfx_do(uuid, text, jsonb) to authenticated;
 
--- 037_flyer_ghosts' can_use_topic plus 'sfx:'. (037 isn't applied yet either; this carries its 'fly:' branch so
--- whichever goes in last keeps both. If another migration also redefines can_use_topic, merge the branches.)
+-- The live can_use_topic (online, chan/chat, call, and 037_flyer_ghosts' fly:) plus 'sfx:'. If another migration
+-- also redefines can_use_topic, merge the branches.
 create or replace function public.can_use_topic(t text) returns boolean
 language sql stable security definer set search_path = '' as $$
   select case

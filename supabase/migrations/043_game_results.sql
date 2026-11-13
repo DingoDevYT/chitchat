@@ -11,7 +11,7 @@ create table if not exists public.game_results (
   round int not null,     -- the version the round's done save landed on: (game_id, round) names the round
   game text not null check (game ~ '^[a-z0-9-]{1,32}$'),
   user_id uuid not null references auth.users(id) on delete cascade,
-  placing smallint not null check (placing between 1 and 10),
+  "placing" smallint not null check ("placing" between 1 and 10), -- quoted: PLACING is a reserved word
   won boolean not null default false,
   score numeric,
   stats jsonb not null default '{}',

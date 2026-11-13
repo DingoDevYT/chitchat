@@ -1,7 +1,6 @@
 -- Chatterflies ghosts: flyers broadcast their height and distance ~12 times a second on a private realtime topic
 -- 'fly:<stadium channel id>' (its own topic: supabase-js shares one channel object per topic, and 'chan:'/'chat:' are
 -- taken). Same access rule as the stadium chat. Everything else about 033_dm_calls' can_use_topic is unchanged.
--- NOT APPLIED YET: apply with the Chatterflies launch (until then ghosts just don't appear; the game still works).
 create or replace function public.can_use_topic(t text) returns boolean
 language sql stable security definer set search_path = '' as $$
   select case

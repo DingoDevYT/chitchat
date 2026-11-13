@@ -100,7 +100,7 @@ async function handle(req: Request, body: any) {
   const between = g.status !== 'playing'
   // Away people (left mid-round, src/games/away.js): their seats stay until the round ends; `auto` are the ones a Chitbot plays.
   const away = awayOf(g.opts), auto = standIns(R.meta, g.opts)
-  // A game night (games.night; absent until migration 046 is applied, so its actions refuse until then).
+  // A game night (games.night, migration 046).
   const night = g.night?.list ? g.night : null
   const save = (p: Record<string, unknown>) => {
     if (p.status === 'done') {
