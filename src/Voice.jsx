@@ -28,6 +28,7 @@ import { RadioCard, RadioDrawer, RadioPlayer } from './Radio'
 import { micHeld, onMicHold } from './lib/micHold'
 
 const GameScreen = lazy(() => import('./games/GameScreen')) // games (and three.js) load only when a table opens
+const DuelHall = lazy(() => import('./games/pillow/Hall.jsx')) // the Drawing Duel Hall of Fame
 
 // shortcut: STUN only, no TURN relay. ~10-20% of strict NAT / mobile networks won't connect; add a TURN server (e.g. Cloudflare Calls TURN) when someone reports it.
 const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }]
@@ -657,6 +658,8 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   useEffect(() => { setSweep(true); const t = setTimeout(() => setSweep(false), 5000); return () => clearTimeout(t) }, [ids])
   const [picking, setPicking] = useState(false) // the Games panel (a grid of game cards with gameplay banners)
   const pickGame = id => { setPicking(false); createGame(channel.id, id).then(r => r && table.refresh()) }
+  const [hall, setHall] = useState(false)
+  const openHall = () => { setPicking(false); setHall(true) }
 
   return (
     <div className={`stage view-${view === 'list' ? 'list' : 'crowd'}${gameFull ? ' game-full' : ''}`} onContextMenu={e => openMenu(e, viewItems)}>
@@ -745,7 +748,9 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
         )}
         {shelved && <button className="btn primary" onClick={() => setHiddenGame(null)}><Icon name="cards" size={18} /> Show the game</button>}
         {joined && gamesOn && !g && !shelved && <button className="btn primary" onClick={() => setPicking(true)}><Icon name="cards" size={18} /> Games</button>}
-        {picking && <GamePicker onPick={pickGame} onClose={() => setPicking(false)} />}
+        {gamesOn && channel.server_id && !g && <button className="btn ghost" onClick={openHall} title="Drawing Duel Hall of Fame"><Icon name="crown" size={18} /> Hall of Fame</button>}
+        {picking && <GamePicker onPick={pickGame} onClose={() => setPicking(false)} onHall={channel.server_id ? openHall : undefined} />}
+        {hall && <Suspense fallback={null}><DuelHall serverId={channel.server_id} onClose={() => setHall(false)} /></Suspense>}
       </div>
       <RadioDrawer channel={channel} meId={meId} />
     </div>

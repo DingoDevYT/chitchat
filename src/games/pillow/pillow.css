@@ -315,3 +315,7 @@ body .pcf-ribbon small { color: var(--ink2); font-weight: 700; }
   body .pcf-fighter.won { transform: scale(1.1); }
   body .pcf-confetti { display: none; }
 }
+
+body .pcf-hall-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; }
+body .pcf-optout { font-weight: 700; font-size: 14px; color: var(--ink); }
+body .pcf-hall-btn { background: var(--card); color: var(--ink); border: 2px solid var(--line); }

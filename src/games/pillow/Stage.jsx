@@ -1,7 +1,7 @@
 // Drawing Duel takes over the whole game screen: lobby, drawing pad, voice booth, the battles, the round recap and
 // the podium. GameScreen hands us the lobby buttons, so seats, Chitbots, house rules and "Again?" work as in every
 // other stadium game.
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { toast } from '../../lib/store'
 import { callGame } from '../useGame'
 import { boutOf, champOf, sidesOf, standings } from './rules.js'
@@ -12,7 +12,11 @@ import Booth from './Booth.jsx'
 import Arena, { HouseIcon } from './Arena.jsx'
 import { Face, champName } from './bits.jsx'
 import Icon from '../../icons/Icon'
+import { myWinner } from './hall.js'
+import { saveChampion, serverOf, setOptOut, useOptOut } from './hallApi.js'
 import './pillow.css'
+
+const Hall = lazy(() => import('./Hall.jsx'))
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 function useNow(ms = 250) {
@@ -54,6 +58,16 @@ export function Stage({ v, game, people, me, nm, act, refresh, buttons, tools, t
   const roster = pid => people.find(p => p.pid === pid) || (pid && { pid, user_id: pid.startsWith('bot:') ? null : pid, bot: 'normal', seat: +pid.slice(4) || 0 })
   const boutKey = v ? `${v.round}:${v.bi}:${v.phase}` : ''
   useEffect(() => setMyVote(undefined), [boutKey])
+  const [hall, setHall] = useState(false)
+  const serverId = lab ? null : serverOf(game.channel_id)
+  const hallBtn = serverId ? <button className="btn ghost pcf-hall-btn" onClick={() => setHall(true)}><Icon name="crown" size={16} /> Hall of Fame</button> : null
+  const hallModal = hall && serverId ? <Suspense fallback={null}><Hall serverId={serverId} onClose={() => setHall(false)} /></Suspense> : null
+  // My champion just won its bout: my browser saves it to the Hall of Fame (thumbnail, clip copy, then the checked RPC).
+  const won = v && !lab ? myWinner(v, me) : null
+  useEffect(() => {
+    if (!won) return
+    saveChampion(gRef.current, v, won, me).then(r => r && toast('Your champion is in the Drawing Duel Hall of Fame.'))
+  }, [won, v?.round, v?.bi]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (v?.phase === 'draw') setMine(m => (m?.round === v.round ? m : null)) }, [v?.round, v?.phase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Real-time moves: the referee may be busy with someone else's write, so retry quietly a few times.
@@ -69,7 +83,7 @@ export function Stage({ v, game, people, me, nm, act, refresh, buttons, tools, t
     return false
   }
 
-  if (lobby) return <div className="pcf"><Lobby people={people} me={me} nm={nm} buttons={buttons} title={title} again={game.status === 'done'} /><div className="pcf-tools-slot">{tools}</div></div>
+  if (lobby) return <div className="pcf"><Lobby people={people} me={me} nm={nm} buttons={buttons} title={title} again={game.status === 'done'} hallBtn={hallBtn} saving={!!serverId} /><div className="pcf-tools-slot">{tools}</div>{hallModal}</div>
 
   const isPlayer = v.players.includes(me)
   const left = Math.max(0, Math.ceil(((v.epoch ?? 0) + v.until - now) / 1000))
@@ -94,7 +108,7 @@ export function Stage({ v, game, people, me, nm, act, refresh, buttons, tools, t
   const vote = side => { setMyVote(side); send({ type: 'vote', side }, 3) }
 
   let body
-  if (done) body = <Podium v={v} me={me} nm={nm} roster={roster} buttons={buttons} />
+  if (done) body = <Podium v={v} me={me} nm={nm} roster={roster} buttons={buttons} hallBtn={hallBtn} />
   else if (v.phase === 'draw' && maker && !v.drawn[me] && !mine) body = <DrawPad key={v.round} prompt={myBout?.prompt} left={left} onSubmit={drawSubmit} sending={sending} />
   else if (v.phase === 'voice' && maker && !myChamp?.cry) body = <Booth key={v.round} champ={myChamp} prompt={myBout?.prompt} left={left} onSend={crySend} onNone={text => send({ type: 'cry', none: true, ...(text?.trim() ? { text: text.trim() } : {}) })} />
   else if (v.phase === 'draw' || v.phase === 'voice') body = <Waiting v={v} me={me} nm={nm} roster={roster} mine={mine} isPlayer={isPlayer} />
@@ -111,11 +125,12 @@ export function Stage({ v, game, people, me, nm, act, refresh, buttons, tools, t
         <span className="pcf-tools-slot">{tools}</span>
       </header>
       <main className="pcf-body">{body}</main>
+      {hallModal}
     </div>
   )
 }
 
-function Lobby({ people, me, nm, buttons, title, again }) {
+function Lobby({ people, me, nm, buttons, title, again, hallBtn, saving }) {
   return (
     <div className="pcf-lobby">
       <div className="pcf-title"><Logo size={72} /><div><h2>{title}</h2><p>Draw a champion, give it a battle cry, and let the call decide who gets bonked.</p></div></div>
@@ -128,8 +143,9 @@ function Lobby({ people, me, nm, buttons, title, again }) {
         {people.map(p => <span key={p.pid} className={`pcf-seat${p.pid === me ? ' me' : ''}`}><Face p={p} size={52} /><small>{nm(p.pid)}{p.bot ? ' · bot' : ''}</small></span>)}
       </div>
       <div className="pcf-dock">{buttons(again)}</div>
+      {saving && <div className="pcf-hall-row"><OptOut />{hallBtn}</div>}
       {people.length === 2 && !people.some(p => p.bot) && <p className="pcf-hint" role="status">Just the two of you? You battle head to head every round.</p>}
-      <p className="pcf-small">2 to 8 players, any number. Odd one out? One bout becomes a three-way brawl, and later an old champion comes back to fight. Chitbots only join if the host adds them. Your battle cry stays with this table and is deleted when it closes.</p>
+      <p className="pcf-small">2 to 8 players, any number. Odd one out? One bout becomes a three-way brawl, and later an old champion comes back to fight. Chitbots only join if the host adds them. Your battle cry stays with this table and is deleted when it closes, unless your champion wins a bout: then it goes to this server's Hall of Fame with its drawing (tick "Don't save my champions" to opt out).</p>
     </div>
   )
 }
@@ -191,7 +207,7 @@ function Scores({ order, v, me, nm, roster, from = 0 }) {
   )
 }
 
-function Podium({ v, me, nm, roster, buttons }) {
+function Podium({ v, me, nm, roster, buttons, hallBtn }) {
   const order = standings(v)
   const top = [order[1], order[0], order[2]].filter(Boolean)
   const champs = Object.entries(v.champs)
@@ -224,8 +240,16 @@ function Podium({ v, me, nm, roster, buttons }) {
         </div>
         {order.length > 3 && <Scores order={order} v={v} me={me} nm={nm} roster={roster} from={3} />}
         <div className="pcf-dock">{buttons(true)}</div>
+        {hallBtn && <div className="pcf-hall-row">{hallBtn}</div>}
       </div>
     </div>
   )
+}
+
+// "Don't save my champions": winners go to the server's Hall of Fame unless you tick this (it follows your account).
+function OptOut() {
+  const off = useOptOut()
+  const set = on => setOptOut(on).catch(e => toast(e.message || "Couldn't save that."))
+  return <label className="toggle pcf-optout"><input type="checkbox" checked={!!off} disabled={off === null} onChange={e => set(e.target.checked)} /> <span>Don't save my champions</span></label>
 }
 

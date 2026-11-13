@@ -22,7 +22,7 @@ addEventListener('change', e => e.target.type === 'checkbox' && uiSound('toggle'
 addEventListener('click', e => e.target.closest?.('.tabs button:not(.on)') && uiSound('toggle'), true) // capture: before React marks it .on
 
 // Dev-only review sheets: icons, theme redos, the game lab, avatar setups, join/leave animations, Chitchen bakers, the radio lab (dropped from production builds).
-const devPages = import.meta.env.DEV ? { '#/icons': () => import('./icons/IconGallery'), '#/themes': () => import('./themes/ThemeLab'), '#/table': () => import('./games/GameLab'), '#/avatars': () => import('./AvatarLab'), '#/entrances': () => import('./EntranceLab'), '#/bakers': () => import('./games/chitchen/kit/Preview'), '#/radio': () => import('./RadioLab'), '#/leaders': () => import('./games/LeadersLab') } : {}
+const devPages = import.meta.env.DEV ? { '#/icons': () => import('./icons/IconGallery'), '#/themes': () => import('./themes/ThemeLab'), '#/table': () => import('./games/GameLab'), '#/avatars': () => import('./AvatarLab'), '#/entrances': () => import('./EntranceLab'), '#/bakers': () => import('./games/chitchen/kit/Preview'), '#/radio': () => import('./RadioLab'), '#/leaders': () => import('./games/LeadersLab'), '#/hall': () => import('./games/pillow/HallLab') } : {}
 const devKey = () => devPages[location.hash.split('?')[0]] ? location.hash.split('?')[0] : null
 const dev = devKey()
 const DevPage = dev && lazy(devPages[dev])

@@ -13,3 +13,5 @@ body .gpk-blurb { font-size: 13px; line-height: 1.35; color: var(--text); opacit
 body .gpk-tabs { max-width: 360px; }
 @media (max-width: 560px) { body .gpk-tabs { max-width: none; } }
 @media (prefers-reduced-motion: reduce) { body .gpk-card, body .gpk-banner img { transition: none; } }
+/* the Drawing Duel Hall of Fame link under the cards */
+.gpk-hall { display: flex; justify-content: center; margin-top: 14px; }
