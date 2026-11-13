@@ -1,7 +1,7 @@
 // Wishfall Catch (SIM, 30 s, free-for-all): slide a jam-jar basket left and right under a falling sky. Big stars +3,
 // stardust +1, dud clouds knock 2 off (never below 0). Everyone plays the same sky (one public seed) at once.
 //
-// The Chatterflies pattern: the sky and the basket are a pure, integer-only sim (+ - * and floor, no Math.sin or
+// The Jetpack Dash pattern: the sky and the basket are a pure, integer-only sim (+ - * and floor, no Math.sin or
 // floats deciding anything), stepped at 30 ticks a second from the shared start. A run's input is a log of
 // [tick, target x] changes; the basket glides toward its target at a fixed speed. A player posts
 // { type: 'mini', log, score }; the referee replays the log and keeps the replayed score, so a claimed score never

@@ -1,4 +1,4 @@
-// Pillow Chit Fight: pairing, odd counts, voting, champions defending, scoring, timeouts, Chitbots, the stroke codec,
+// Drawing Duel: pairing, odd counts, voting, champions defending, scoring, timeouts, Chitbots, the stroke codec,
 // the doodle stash and the voice-filter rack and chain.
 import test from 'node:test'
 import assert from 'node:assert/strict'

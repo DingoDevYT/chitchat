@@ -40,7 +40,7 @@ export function lastText(v, nm) {
 }
 
 export const banner = (v, nm, me) => {
-  if (v.winner) return `${nm(v.winner)} is the toast of Teacup Town with ${fmt(worth(v, v.winner))}!`
+  if (v.winner) return `${nm(v.winner)} wins Property Tycoon with ${fmt(worth(v, v.winner))}!`
   const t = turn({ pub: v })
   if (v.phase === 'auction') return `Auction: ${nameOf(v.auction.sp)} · ${v.auction.high ? `${fmt(v.auction.bid)} by ${nm(v.auction.high)}` : 'no bids yet'} · ${t === me ? 'your bid' : `${nm(t)} bids`}`
   if (v.phase === 'trade') return `${nm(v.offer.from)} offers ${t === me ? 'you' : nm(t)} a trade`
@@ -68,7 +68,7 @@ function PaintedBoard() {
 
 export function Flat({ v, people }) {
   return (
-    <div className="gf-board-grid" role="img" aria-label="Teacup Town board">
+    <div className="gf-board-grid" role="img" aria-label="Property Tycoon board">
       <PaintedBoard />
       {BOARD.map((b, i) => {
         const [c, r] = cell(i)

@@ -1,8 +1,8 @@
-// The Starchat minigame Stage: one overlay the board UI mounts all game long (it draws nothing outside a minigame).
+// The Star Party minigame Stage: one overlay the board UI mounts all game long (it draws nothing outside a minigame).
 //
 //   <MiniStage v={view} me={myPid} nm={pid => name} act={act} seats={seats} busy={busy} />
 //
-// v: the Starchat view (pub). act: GameScreen's act ('move', { move }). seats: the table's seats (a bot seat's
+// v: the Star Party view (pub). act: GameScreen's act ('move', { move }). seats: the table's seats (a bot seat's
 // `bot` level lets Wishfall Catch draw the same bot ghosts the referee flies). It walks through:
 //   intro card (title, one-line how-to, mouse / touch / keys) -> 3-2-1 synced to pub.mini.startAt -> the play area
 //   -> "waiting for others" (pick and sim games, once you've posted) -> the results reveal (placings and coins, from

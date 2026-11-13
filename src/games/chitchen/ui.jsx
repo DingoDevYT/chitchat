@@ -1,4 +1,4 @@
-// Midnight Chitchen in the stadium: the game draws its own 3D world and HUD (Game.jsx, its own lazy chunk), so the
+// Impostor in the stadium: the game draws its own 3D world and HUD (Game.jsx, its own lazy chunk), so the
 // shared table isn't used (ownScene). The rest is the small text GameScreen asks every game for.
 import { Suspense, lazy } from 'react'
 import * as R from './rules.js'

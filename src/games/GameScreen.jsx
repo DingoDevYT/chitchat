@@ -107,7 +107,7 @@ function Confetti() {
 export default function GameScreen({ table, meId, joined, full, onFull, onHide, channelName }) {
   const { game, seats, hand, act } = table
   const R = GAMES[game.game], UI = UIS[game.game]
-  const title = gameName(game.game, R.meta.name) // the picker name (Chomp Chat, Chatterton…) wins over the rules module name
+  const title = gameName(game.game, R.meta.name) // the picker name (Card Rush, Property Tycoon…) wins over the rules module name
   const [busy, setBusy] = useState(false)
   const [level, setLevel] = useState('normal')
   useProfiles(seats)
@@ -123,7 +123,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, onHide, 
   const winners = done && v ? R.over({ pub: v }) : null
   const nm = pid => nameOf(pid, seats)
   const meIdx = Math.max(0, people.findIndex(p => p.pid === meId))
-  // A game with its own HUD (Teacup Town) draws the top bar, last move and dock itself, and shows coins on its own signs.
+  // A game with its own HUD (Property Tycoon) draws the top bar, last move and dock itself, and shows coins on its own signs.
   const hud = !!(UI.Hud && v && !lobby)
   const info = pid => (v && !lobby && !UI.Hud ? UI.info(v, pid) : null)
   const run = async (action, extra) => { setBusy(true); const r = await act(action, extra); setBusy(false); return r }
@@ -180,7 +180,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, onHide, 
     </span>
   )
 
-  // A game with its own full-screen stage (Chatterflies' canvas runner) skips the table, banner and hand.
+  // A game with its own full-screen stage (Jetpack Dash's canvas runner) skips the table, banner and hand.
   if (UI.Stage) return (
     <div className={`gs g-${game.game}${full ? ' full' : ''}`}>
       <UI.Stage v={lobby ? null : v} game={game} seats={seats} people={people} me={meId} nm={nm} act={doAct} refresh={table.refresh} tools={tools} title={title}
@@ -191,7 +191,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, onHide, 
 
   return (
     <div className={`gs g-${game.game}${full ? ' full' : ''}`}>
-      {UI.ownScene && !lobby ? null : canGL // a game with its own world (Midnight Chitchen) draws it in its Hud
+      {UI.ownScene && !lobby ? null : canGL // a game with its own world (Impostor) draws it in its Hud
         ? <Suspense fallback={<div className="gs-loading">Setting the table…</div>}>
           <Table3D game={UI.ownScene ? 'highcard' : game.game}v={lobby ? null : v} people={people} meIdx={meIdx} me={meId} turnPid={turnPid} info={info} winners={winners} version={game.version} pending={pending} />
         </Suspense>

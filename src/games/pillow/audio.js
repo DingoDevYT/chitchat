@@ -1,4 +1,4 @@
-// Pillow Chit Fight in the browser: recording a battle cry, previewing the filter rack, baking it into a small WAV
+// Drawing Duel in the browser: recording a battle cry, previewing the filter rack, baking it into a small WAV
 // with an OfflineAudioContext, and the `battle-cries` storage bucket (<game id>/<owner>/<round>.<ext>, see
 // supabase/migrations/040_pillow_cries.sql). Clips are fetched once and cached; your own clip (and every clip in the
 // GameLab) is played from memory. Anything that fails falls back to the champion's canned squeak.

@@ -1,4 +1,4 @@
-/* Teacup Town HUD: "Tea Tray & Postcards". Warm wooden trays around cream insets. `body` prefix: styles.css loads later.
+/* Property Tycoon HUD: "Tea Tray & Postcards". Warm wooden trays around cream insets. `body` prefix: styles.css loads later.
    Phones (the stage is a size container; the property table is one too so the dev lab matches) get the phone layout below. */
 body .gs.g-property { container-type: inline-size; }
 body .tt {

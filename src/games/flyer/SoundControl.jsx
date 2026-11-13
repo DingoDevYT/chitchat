@@ -1,4 +1,4 @@
-// Chatterflies volume: a speaker button (tap to mute / unmute) with a slider beside it. Saved per browser.
+// Jetpack Dash volume: a speaker button (tap to mute / unmute) with a slider beside it. Saved per browser.
 import { useEffect, useState } from 'react'
 import { audioPrefs, flyerAudio } from './sound.js'
 

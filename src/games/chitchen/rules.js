@@ -1,4 +1,4 @@
-// Midnight Chitchen: a social-deduction night in a bakery, played exactly like the classic "crew vs hidden impostor"
+// Impostor: a social-deduction night in a bakery, played exactly like the classic "crew vs hidden impostor"
 // game. TV-head Bakers do tasks to fill the Morning Bake; one or two hidden Nibblers (the impostors) smash bakers'
 // TVs, sabotage and hop through crumb chutes (vents). Find a smashed TV and report it, or ring the tea bell for an
 // emergency meeting; then talk, vote, and someone rides the night tram (ejected). Pure JS, refereed by the `game`
@@ -23,7 +23,7 @@ import { rng, shuffle } from '../rng.js'
 import { FIX, SPOTS, along, arrival, canSee, dist, roomAt, route, seatPos, spot, sightOf, vent, ventLinks, VENTS } from './map.js'
 
 export const meta = {
-  id: 'chitchen', name: 'Midnight Chitchen', min: 4, max: 8, turnMs: 30000, realtime: true,
+  id: 'chitchen', name: 'Impostor', min: 4, max: 8, turnMs: 30000, realtime: true,
   blurb: 'Bakers do tasks; hidden Nibblers (the impostors) smash TVs, sabotage and vent. Report bodies, call meetings, vote someone onto the night tram.',
 }
 
@@ -41,7 +41,7 @@ const awake = (p, pid) => p.status[pid] === 'awake'
 export const isGhost = s => s === 'nap' || s === 'home'
 
 export function setup(list, seed, opts = {}) {
-  if (list.length < 2 || list.length > meta.max) throw new Error(`Midnight Chitchen needs ${meta.min} to ${meta.max} players.`)
+  if (list.length < 2 || list.length > meta.max) throw new Error(`Impostor needs ${meta.min} to ${meta.max} players.`)
   const rand = rng(seed), n = list.length
   const nib = n >= 6 ? 2 : 1
   const order = shuffle(list, rand)

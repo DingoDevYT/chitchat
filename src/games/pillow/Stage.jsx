@@ -1,4 +1,4 @@
-// Pillow Chit Fight takes over the whole game screen: lobby, drawing pad, voice booth, the battles, the round recap and
+// Drawing Duel takes over the whole game screen: lobby, drawing pad, voice booth, the battles, the round recap and
 // the podium. GameScreen hands us the lobby buttons, so seats, Chitbots, house rules and "Again?" work as in every
 // other stadium game.
 import { Fragment, useEffect, useRef, useState } from 'react'

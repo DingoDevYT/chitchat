@@ -27,7 +27,7 @@ const streak = (f, seed, a, b) => [
 ]
 
 // The five filters: [suffix, region x y w h, rough [frequency, push, octaves, seed+], streak [frequency, seed+, a, b] | null, blur].
-// brush, fine, haze, glow, sky. Shared with paintFilterSvg so canvas-rasterised art (the Teacup Town board) uses the same brush.
+// brush, fine, haze, glow, sky. Shared with paintFilterSvg so canvas-rasterised art (the Property Tycoon board) uses the same brush.
 const FILTERS = [
   ['b', ['-3%', '-8%', '106%', '116%'], ['.013 .032', 15, 3, 0], ['.0035 .07', 7, 1.25, .32], .7],
   ['f', ['-20%', '-20%', '140%', '140%'], ['.05', 5, 2, 1], null, .5],

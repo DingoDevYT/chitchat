@@ -1,4 +1,4 @@
-/* Chatterflies HUD extras: brew tokens, the Flock total, missions, rescue and Second Brew callouts. */
+/* Jetpack Dash HUD extras: brew tokens, the Flock total, missions, rescue and Second Brew callouts. */
 body .fly-tok, body .fly-flock { font-size: 17px; padding: 6px 12px; }
 body .fly-flock { background: #e6f1fa; color: #2f5a7a; white-space: nowrap; }
 body .fly-missions { position: absolute; left: 10px; top: 72px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }

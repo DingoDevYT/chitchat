@@ -1,4 +1,4 @@
-/* Midnight Chitchen HUD: the classic hidden-impostor game layout (task bar top left, big round action buttons bottom
+/* Impostor HUD: the classic hidden-impostor game layout (task bar top left, big round action buttons bottom
    right, full-screen role reveal / meeting / ejection / end screens) in cozy bakery colours, over the 3D view. */
 .cc { position: absolute; inset: 0; overflow: hidden; color: #3a2a2f; font-weight: 600; user-select: none; -webkit-user-select: none; --cream: #fff6e8; --brown: #c98d5a; }
 .cc-view { position: absolute; inset: 0; }

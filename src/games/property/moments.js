@@ -1,4 +1,4 @@
-// Teacup Town HUD moments, worked out from two consecutive public views (like sfx.js), so everyone watching sees them:
+// Property Tycoon HUD moments, worked out from two consecutive public views (like sfx.js), so everyone watching sees them:
 // ticker lines, money changes (who paid whom, and a receipt), and the card that was just drawn. Pure: tested in moments.test.js.
 import { BAIL, BOARD, DECKS, GROUPS, SALARY } from './rules.js'
 

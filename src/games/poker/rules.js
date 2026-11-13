@@ -1,9 +1,9 @@
-// Acorn Hold'em: Texas hold'em with pretend acorns. Never real money, nothing to buy (GAMES.md).
+// Poker: Texas hold'em with pretend acorns. Never real money, nothing to buy (GAMES.md).
 // Quick night: everyone starts with 1,000 acorns, blinds double every 6 hands, and after 40 hands the biggest pile wins.
 // Plain JS: runs in the browser and in the `game` edge function.
 import { rng, shuffle } from '../rng.js'
 
-export const meta = { id: 'poker', name: "Acorn Hold'em", min: 2, max: 8, turnMs: 30000, blurb: "Texas hold'em with pretend acorns." }
+export const meta = { id: 'poker', name: 'Poker', min: 2, max: 8, turnMs: 30000, blurb: "Texas hold'em with pretend acorns." }
 export { card } from '../highcard/rules.js'
 
 const START = 1000, BLIND = 10, LEVEL_EVERY = 6, MAX_HANDS = 40, SHOW_MS = 5000
@@ -78,7 +78,7 @@ function deal(pub, secret) {
 }
 
 export function setup(players, seed) {
-  if (players.length < meta.min || players.length > meta.max) throw new Error(`Acorn Hold'em needs ${meta.min} to ${meta.max} players.`)
+  if (players.length < meta.min || players.length > meta.max) throw new Error(`Poker needs ${meta.min} to ${meta.max} players.`)
   const pub = { players: [...players], stacks: Object.fromEntries(players.map(p => [p, START])), out: {}, hand: 0, button: 0, winner: null, maxHands: MAX_HANDS }
   return deal(pub, { rs: seed >>> 0 })
 }

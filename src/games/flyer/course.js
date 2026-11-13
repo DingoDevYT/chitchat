@@ -1,4 +1,4 @@
-// Chatterflies: the Long Burrow and the flight physics. Pure and deterministic, shared by the browser, the referee
+// Jetpack Dash: the Long Burrow and the flight physics. Pure and deterministic, shared by the browser, the referee
 // (src/games/flyer/rules.js, bundled into the `game` edge function) and the Chitbot pilots.
 //
 // - course(seed, k): chunk k of the tunnel (400 m): static/spinning yarn, strand gates, sprinkles, gift parcels, brew

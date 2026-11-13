@@ -1,4 +1,4 @@
-// Chatterflies art: the Long Burrow and its props, drawn once into offscreen canvases (sprites and repeating tiles)
+// Jetpack Dash art: the Long Burrow and its props, drawn once into offscreen canvases (sprites and repeating tiles)
 // so a frame is mostly drawImage calls. All original: lantern-lit burrow under Teacup Town, yarn, paper cranes,
 // kettle vents, teapots, brollies and bathtubs. Sizes are in logical px (the 1280 x 720 view); `k` is the pixel scale.
 import { CEIL, FLOOR, VIEW_W } from './course.js'

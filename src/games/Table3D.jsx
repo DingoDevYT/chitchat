@@ -26,7 +26,7 @@ const LAYOUT = {
   poker: { shape: 'round', R: 2.5, felt: '#2f6b4f', seatR: 3.3, cam: [0, 5.6, 7.6], look: [0, -0.1, 0.4], H: 2.1 },
   property: { follow: true, shape: 'square', R: 3.1, felt: '#d9c7a3', seatR: 4.0, cam: [0, 8.4, 6.6], look: [0, 0.5, 0.2], H: 2.3 },
   isle: { shape: 'round', R: 3.6, felt: '#5fa8bf', seatR: 4.55, cam: [0, 8.5, 6.7], look: [0, -0.15, 0.45], H: 2.2 }, // the felt is the sea
-  // Starchat is outdoors: no room, table or chairs, everyone walks the board. `fit` (w × d world units) pulls the
+  // Star Party is outdoors: no room, table or chairs, everyone walks the board. `fit` (w × d world units) pulls the
   // camera back until the board fits the width; portrait phones look along the board from the side (camP) instead.
   starchat: { outdoor: true, follow: true, bg: '#1b1838', seatR: 4, cam: [0, 8.6, 8.4], camP: [10.5, 12.5, 0.4], followK: 1, followY: 0.5, look: [0, -0.4, -0.25], lookP: [1.2, -0.4, 0], fit: { w: 11.6, d: 7.6 } },
 }
@@ -337,7 +337,7 @@ function Chair({ x, z, a }) {
   )
 }
 
-// ── Snack Stack ──
+// ── Card Rush ──
 const hashRot = id => (((id * 2654435761) >>> 0) % 1000) / 1000 - 0.5
 // A hand of face-down cards held up in a fan at the table edge in front of someone (backs to the table).
 function HandFan({ s, n, kind, R }) {
@@ -406,7 +406,7 @@ function HighScene({ v, seats, meId }) {
   )
 }
 
-// ── Acorn Hold'em ──
+// ── Poker ──
 const CHIP = ['#c8414f', '#fbf3e4', '#5b8de0', '#2f2a35', '#e8b86b']
 const chipGeo = new THREE.CylinderGeometry(0.11, 0.11, 0.04, 20)
 function Chips({ amount, pos, from }) {
@@ -457,7 +457,7 @@ function PokerScene({ v, seats, meId }) {
   )
 }
 
-// ── Teacup Town ──
+// ── Property Tycoon ──
 // 40 spaces on an 11×11 ring with wide corners (see property/ui.jsx). U = one edge tile's width in world units.
 const BOARD_SIZE = 5.6, U = BOARD_SIZE / SIDE
 const tilePos = i => { const [c, r] = cell(i); return [(along(c) - SIDE / 2) * U, (along(r) - SIDE / 2) * U] }
@@ -630,7 +630,7 @@ function PropertyScene({ v, seats }) {
   )
 }
 
-// ════════ Chitter Cove (isle): its own section, everything below until the end marker ════════
+// ════════ Island Builders (isle): its own section, everything below until the end marker ════════
 // A hex island filling a sea-blue table: low hex tiles with little props and a resource badge per kind, big number
 // tokens (6 and 8 in red), a sandy rim, docks with ratio signs, plank paths and cozy cottages and lodges in the owner's
 // colour, the raccoon, the dice on the far side. Tapping glowing spots goes through isle/pick.js (the HUD decides what).
@@ -884,9 +884,9 @@ function IsleScene({ v, seats }) {
     </group>
   )
 }
-// ════════ end of Chitter Cove (isle) ════════
+// ════════ end of Island Builders (isle) ════════
 
-// ════════ Starchat (Lantern Hollow): its own section, everything below until the end marker ════════
+// ════════ Star Party (Lantern Hollow): its own section, everything below until the end marker ════════
 // A night meadow round a moonlit pond: the painted ground (starchat/boardArt.js), chunky lantern-path tiles with kind
 // icons, the Firefly Bridge across the water, lantern poles strung with fairy lights, the six Wishing Posts with the
 // star hovering over the lit one and Chit beside it, Marzipan's stalls, Juniper's Tea House, fireflies. Everyone walks
@@ -1448,12 +1448,12 @@ function StarchatScene({ v, seats }) {
     </group>
   )
 }
-// ════════ end of Starchat ════════
+// ════════ end of Star Party ════════
 
 const SCENES = { snack: SnackScene, highcard: HighScene, poker: PokerScene, property: PropertyScene, isle: IsleScene, starchat: StarchatScene }
 
 // Puts the camera where this game looks best, pulled back on narrow (phone) screens.
-// Teacup Town tokens report where they are while they walk; the camera leans in and follows for everyone watching.
+// Property Tycoon tokens report where they are while they walk; the camera leans in and follows for everyone watching.
 const camFocus = { x: 0, z: 0, t: -9 }
 function Rig({ layout }) {
   const { camera, size } = useThree()
@@ -1547,7 +1547,7 @@ export default function Table3D({ game, v, people, meIdx, me, turnPid, info, win
         </>}
       </Canvas>
       {/* you: your live PNGtuber in the bottom-left corner (like your corner in the stadium crowd), no name.
-          Outdoor games (Starchat) walk everyone, you included, on the board and name them in their HUD. */}
+          Outdoor games (Star Party) walk everyone, you included, on the board and name them in their HUD. */}
       {!layout.outdoor && seats.some(s => s.pid === me) && (
         <div className="g-me" aria-hidden="true">
           <CamAvatar id={me} size={innerWidth < 700 ? 64 : 112} full mode="stage" vbadge />

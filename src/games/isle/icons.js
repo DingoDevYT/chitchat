@@ -1,4 +1,4 @@
-// Chitter Cove's little filled icons (24x24 SVG bodies), shared by the HUD sprite and the 3D island's tile badges and dock signs.
+// Island Builders's little filled icons (24x24 SVG bodies), shared by the HUD sprite and the 3D island's tile badges and dock signs.
 export const SYMBOLS = {
   twig: '<path d="M3 21 19 5" stroke="#8a5a34" stroke-width="3.2" stroke-linecap="round"/><path d="M10 14l6 1.5M7.5 16.5 6.5 10" stroke="#8a5a34" stroke-width="2.2" stroke-linecap="round"/><path d="M18 6c1-3 4-3.5 4-3.5s.5 3.5-2.5 4.5c-1.2.4-1.8-.2-1.5-1z" fill="#6fb06a"/>',
   wool: '<g fill="#fbf6ea" stroke="#b8ad94" stroke-width="1.6"><circle cx="8" cy="13" r="5"/><circle cx="16" cy="13" r="5"/><circle cx="12" cy="9" r="5"/><circle cx="12" cy="15.5" r="4.5"/></g><path d="M9 11.5c1.5-1 4.5-1 6 0" stroke="#d8cdb4" stroke-width="1.4" fill="none" stroke-linecap="round"/>',

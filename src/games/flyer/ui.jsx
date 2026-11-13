@@ -1,4 +1,4 @@
-// Chatterflies in the stadium-game screen: it brings its own full-screen Stage (line-up, canvas run, podium), so the
+// Jetpack Dash in the stadium-game screen: it brings its own full-screen Stage (line-up, canvas run, podium), so the
 // generic 3D table, banner and hand aren't used. These exports keep GameScreen's screen-reader line working.
 import { ranking } from './rules.js'
 

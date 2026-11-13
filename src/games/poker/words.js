@@ -1,4 +1,4 @@
-// Acorn Hold'em in plain words for beginners: hands, moves, stages and showdown results. Pure, so it has a node test.
+// Poker in plain words for beginners: hands, moves, stages and showdown results. Pure, so it has a node test.
 import { HANDS, best, cmp } from './rules.js'
 
 const NAMES = ['Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King', 'Ace']

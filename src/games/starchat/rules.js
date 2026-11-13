@@ -1,4 +1,4 @@
-// Starchat: the referee for a cozy party board game. Roll and walk the lantern loop, buy the star at whichever
+// Star Party: the referee for a cozy party board game. Roll and walk the lantern loop, buy the star at whichever
 // Wishing Post it sits on (then it drifts on), shop, use items, and play a minigame after every round. Most stars
 // after the last round wins (bonus stars included); coins, then minigame coins, break ties.
 // Mechanics only: every name and number comes from data.js. Plain JS, shared by the browser and the `game` edge
@@ -13,7 +13,7 @@
 // The minigame phase: pub.mini = { id, kind, state (the module's public part), posted, startAt }. startAt is the
 // referee's clock plus the intro and 3-2-1 (D.MINI_LEAD_MS), so every client counts down to the same moment.
 // 'pick' and 'sim' games: everyone posts one { type: 'mini', ... } entry, in any order, kept in the secret until the
-// last one is in (bots first in turn(), like Chatterflies). 'turn' games: turn() names whoever decides next and only
+// last one is in (bots first in turn(), like Jetpack Dash). 'turn' games: turn() names whoever decides next and only
 // they may move. delay() paces it all: bots just after the start, people at the end of the play window.
 import { rng, shuffle } from '../rng.js'
 import * as D from './data.js'

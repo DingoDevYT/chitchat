@@ -1,4 +1,4 @@
-// Pillow Chit Fight drawings as compact stroke data, shared by the canvas, the replay and the referee.
+// Drawing Duel drawings as compact stroke data, shared by the canvas, the replay and the referee.
 // A drawing is an array of strokes { c, w, p }: c a crayon index (COLORS), w a size index (SIZES) and p the points
 // on a 256×256 grid, packed two bytes per point (x, y) into URL-safe base64 with no padding. The referee caps the
 // stroke and point counts, so a drawing stays a few KB and fits in the public game state.

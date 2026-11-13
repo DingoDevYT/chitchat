@@ -1,4 +1,4 @@
-// Midnight Chitchen sounds, synthesised with Web Audio (no files). Quiet by default; muting is remembered in
+// Impostor sounds, synthesised with Web Audio (no files). Quiet by default; muting is remembered in
 // localStorage ('chitchen:sfx'). Browsers only start audio after a tap or key press: call unlockSfx() from one
 // (or just play(): the first call from a gesture unlocks it).
 //

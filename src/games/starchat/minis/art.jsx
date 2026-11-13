@@ -1,4 +1,4 @@
-// Starchat minigame art: small inline SVG pieces (no emoji, no image files). Each draws centred on (0, 0) in its
+// Star Party minigame art: small inline SVG pieces (no emoji, no image files). Each draws centred on (0, 0) in its
 // own units so it can sit inside any <svg> with a transform, or stand alone through <Ico>.
 
 const STAR = 'M0 -10 L2.9 -3.9 L9.5 -3.1 L4.6 1.5 L5.9 8.1 L0 4.8 L-5.9 8.1 L-4.6 1.5 L-9.5 -3.1 L-2.9 -3.9 Z'

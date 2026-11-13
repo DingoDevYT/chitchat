@@ -1,4 +1,4 @@
-// Midnight Chitchen, the client: the classic hidden-impostor party game in a cozy 3D bakery, everyone a TV-head whose
+// Impostor, the client: the classic hidden-impostor party game in a cozy 3D bakery, everyone a TV-head whose
 // screen is their live PNGtuber. Bakers (the crew) do tasks; Nibblers (the impostors) smash TVs, sabotage and vent.
 // You walk yourself (keys or the touch joystick, with wall collisions) and broadcast where you are (net.js);
 // everyone else is interpolated, Chitbots follow the referee's walk plans. A fog of war hides whatever your TV-head
@@ -721,7 +721,7 @@ function EndScreen({ v, me, nm, who }) {
 function HowTo({ nib, onClose }) {
   return (
     <div className="cc-howto" role="dialog" aria-label="How to play">
-      <h3>How to play Midnight Chitchen</h3>
+      <h3>How to play Impostor</h3>
       <ol>
         <li><b>Bakers</b> (the crew): do the tasks on your list (walk to the gold sparkles, press <kbd>E</kbd>). Fill the task bar to win.</li>
         <li><b>Nibblers</b> (the impostors): smash bakers' TVs (<kbd>Q</kbd>) when nobody's looking, sabotage (<kbd>F</kbd>), hop through chutes (<kbd>V</kbd>).</li>

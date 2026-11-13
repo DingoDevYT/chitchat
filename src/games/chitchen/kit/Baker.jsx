@@ -1,4 +1,4 @@
-// <Baker>: the Midnight Chitchen character for @react-three/fiber. A thin wrapper round createBaker() (baker3d.js),
+// <Baker>: the Impostor character for @react-three/fiber. A thin wrapper round createBaker() (baker3d.js),
 // which plain three.js code can use directly.
 //
 //   <Baker texture={tex} color="#86b6e8" state="walk" facing={yaw} speed={2.4} talking position={[x, 0, z]} />

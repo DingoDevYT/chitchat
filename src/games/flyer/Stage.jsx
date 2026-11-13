@@ -1,4 +1,4 @@
-// Chatterflies takes over the whole game screen (no 3D table): the chimney-pot line-up and countdown, the run, and
+// Jetpack Dash takes over the whole game screen (no 3D table): the chimney-pot line-up and countdown, the run, and
 // the cake podium. GameScreen hands us the lobby buttons, so seats, Chitbots, house rules and "Again?" work as in
 // every other stadium game.
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -30,7 +30,7 @@ function RotateHint() {
           <circle cx="32" cy="46" r="2" fill="#4a3324" />
         </svg>
         <b>Turn your phone sideways</b>
-        <small>Chatterflies flies best in landscape</small>
+        <small>Jetpack Dash plays best in landscape</small>
         <button type="button" className="btn" onClick={dismiss}>Play upright</button>
       </div>
     </div>

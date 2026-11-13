@@ -2,7 +2,7 @@ import { BOARD, GROUPS } from './rules.js'
 import { CORNER, SIDE, along, cell } from './geom.js'
 import { paintFilterSvg, WASH_LAYERS } from '../../themes/paint.jsx'
 
-// Teacup Town's board, "Storybook Town Map": crisp shop-plot tiles (awning in the street's colour, name, price, icon)
+// Property Tycoon's board, "Storybook Town Map": crisp shop-plot tiles (awning in the street's colour, name, price, icon)
 // round a hand-painted village green — a stream rising at a rocky spring, winding under a plank bridge into a lily pond,
 // a teacup fountain on the town square, trees, signposts and a ribbon title. The art is built as SVG markup (the green
 // with the room backgrounds' gouache filters from themes/paint.jsx), rasterised once into a 2048 px canvas, then the
@@ -292,7 +292,7 @@ function green() {
   for (const sx of [-1, 1]) s += wash(`M${-250 * sx} -10l${-34 * sx} -6l${18 * sx} 26l${-18 * sx} 26l${50 * sx} -4z`, ['#d9774f', '#e0855c', '#cf6c46'], 'f', 1, ['#a9573a', 0, 2], 1)
   s += wash('M-230 -36Q0 -60 230 -36L230 34Q0 10 -230 34Z', ['#fff4dc', '#fbecd0', '#fff8e8'], 'f', 1, ['#d9b98a', 0, 3], 1)
   s += `<path d="M-218 -26Q0 -48 218 -26M-218 24Q0 0 218 24" fill="none" stroke="#e6c99c" stroke-width="2" stroke-dasharray="6 5" filter="${F('f')}"/>`
-  s += txt(0, 14, 'Teacup Town', 58, '#c96f45', 'hd') + '</g>'
+  s += txt(0, 14, 'Property Tycoon', 46, '#c96f45', 'hd') + '</g>'
 
   // signposts naming the neighbourhoods, each facing its own side of the board
   for (const [g, x, y, r] of SIGNS) {

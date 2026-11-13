@@ -1,4 +1,4 @@
-// Chitter Cove's HUD, in the Teacup Town "Tea Tray" style (it reuses that HUD's tt-* trays, plank, signs and dock):
+// Island Builders's HUD, in the Property Tycoon "Tea Tray" style (it reuses that HUD's tt-* trays, plank, signs and dock):
 // whose turn + timer on the plank, everyone's points and baskets on hanging signs, your basket above a round-button dock
 // (Roll / Build / Trade / Cards / End turn), the build menu, trade builder, offer, put-back and steal pickers, a move log
 // in the bottom-right corner, and resource chips flying from tiles to baskets. Taps on the island go through pick.js.
@@ -103,7 +103,7 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
   return (
     <div className="tt ci" ref={root}>
       <Sprite />
-      <div className="tt-gtitle"><I n="leaf" />Chitter Cove</div>
+      <div className="tt-gtitle"><I n="leaf" />Island Builders</div>
       <div className="tt-plank">
         <div className="tt-who"><b>{plank}</b><small>{ph === 'place' ? 'Settling in' : `Round ${v.round}`} · first to {v.target}</small></div>
         {!v.winner && v.rolls > 0 && <span className="ci-dice" aria-label={`Last roll ${v.dice[0]} and ${v.dice[1]}`}><b>{v.dice[0]}</b><b>{v.dice[1]}</b></span>}

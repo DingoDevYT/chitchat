@@ -1,4 +1,4 @@
-// Pillow Chit Fight voice filters: the three-slot rack and the Web Audio chain it builds. The same buildChain runs
+// Drawing Duel voice filters: the three-slot rack and the Web Audio chain it builds. The same buildChain runs
 // on a live AudioContext (preview) and an OfflineAudioContext (the bake), so what you preview is what everyone hears.
 // Nothing here touches the DOM or the microphone, so the rack logic and the graph can be unit-tested with a fake
 // context (pillow.test.js).

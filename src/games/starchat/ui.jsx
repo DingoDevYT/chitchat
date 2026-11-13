@@ -1,4 +1,4 @@
-// Starchat's UI module for GameScreen: the board is Table3D's StarchatScene, the HUD is starchat/hud.jsx (it replaces
+// Star Party's UI module for GameScreen: the board is Table3D's StarchatScene, the HUD is starchat/hud.jsx (it replaces
 // the shared top bar and dock), and Flat is the no-WebGL board. banner/lastText feed the screen reader.
 import { BOARD_NAME, ITEMS, KINDS, MINIGAMES, SPACES } from './data.js'
 import { bot, lastLanterns, legal, move, starPrice, timeout, turn } from './rules.js'

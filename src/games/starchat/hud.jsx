@@ -1,4 +1,4 @@
-// Starchat's HUD, matching the Lantern Hollow mockups: cream cards on wooden trays. A plank with whose turn, the round
+// Star Party's HUD, matching the Lantern Hollow mockups: cream cards on wooden trays. A plank with whose turn, the round
 // lanterns (Last Lanterns glow warm) and the turn timer; player cards with coins, stars and satchel; the star card;
 // the Lantern Hollow news ticker; your satchel and moves (roll, items, the fork, the star offer, Marzipan's stall);
 // big moments (a star caught, the star drifting, an item used, Last Lanterns); and the bonus-star ceremony at the end.
@@ -70,7 +70,7 @@ export function Hud({ v, me, nm, act, busy, pending, people, deadline, version, 
 
   return (
     <div className={`sc${ll ? ' sc-ll' : ''}`}>
-      <div className="sc-title"><Ic n="star" /><b>Starchat</b><small>Lantern Hollow</small></div>
+      <div className="sc-title"><Ic n="star" /><b>Star Party</b><small>Lantern Hollow</small></div>
       <div className="sc-plank">
         <div className="sc-who"><b>{plank}</b><small>{sub}</small></div>
         <Lanterns v={v} />

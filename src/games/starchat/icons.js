@@ -1,4 +1,4 @@
-// Starchat's icons: 24×24 inline SVG bodies (no emoji anywhere), in the mockups' chunky hand-drawn style. Used by the
+// Star Party's icons: 24×24 inline SVG bodies (no emoji anywhere), in the mockups' chunky hand-drawn style. Used by the
 // HUD (as inline <svg>) and the 3D scene (as images drawn into canvas textures).
 const INK = '#3a2a3f'
 export function starPts(cx, cy, R, r, rot = -90, n = 5) {

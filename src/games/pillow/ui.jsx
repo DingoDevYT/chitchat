@@ -1,4 +1,4 @@
-// Pillow Chit Fight in the stadium-game screen: it brings its own full-screen Stage (lobby, drawing pad, voice booth,
+// Drawing Duel in the stadium-game screen: it brings its own full-screen Stage (lobby, drawing pad, voice booth,
 // battles, recap, podium), so the 3D table, banner and hand aren't used. These exports keep GameScreen's screen-reader
 // line working, and `lab` jumps the GameLab to any phase.
 import * as R from './rules.js'
@@ -8,7 +8,7 @@ import { champName } from './bits.jsx'
 export { Stage } from './Stage.jsx'
 
 export const banner = (v, nm, me) => {
-  if (v.phase === 'end') { const w = R.over({ pub: v }) || []; return `${w.includes(me) ? 'You win' : `${w.map(nm).join(' & ')} wins`} Pillow Chit Fight!` }
+  if (v.phase === 'end') { const w = R.over({ pub: v }) || []; return `${w.includes(me) ? 'You win' : `${w.map(nm).join(' & ')} wins`} Drawing Duel!` }
   if (v.phase === 'draw') return `Round ${v.round}: drawing champions`
   if (v.phase === 'voice') return `Round ${v.round}: recording battle cries`
   if (v.phase === 'recap') return `Round ${v.round} results`

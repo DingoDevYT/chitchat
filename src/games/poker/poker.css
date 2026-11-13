@@ -1,4 +1,4 @@
-/* Acorn Hold'em: the teaching dock, nameplate badges, showdown card and How to play. `body` prefix: styles.css loads later. */
+/* Poker: the teaching dock, nameplate badges, showdown card and How to play. `body` prefix: styles.css loads later. */
 body .pk-dock { width: 100%; container-type: inline-size; }
 body .pk-in { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 

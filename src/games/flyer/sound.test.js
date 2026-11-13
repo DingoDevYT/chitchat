@@ -1,4 +1,4 @@
-// Chatterflies sound: every cue, the held sounds, ducking and the music bed run on a stub AudioContext.
+// Jetpack Dash sound: every cue, the held sounds, ducking and the music bed run on a stub AudioContext.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { audioPrefs, makeAudio, streakHz } from './sound.js'

@@ -168,7 +168,7 @@ function Results({ v, who }) {
 
 function Help({ dlg }) {
   return (
-    <dialog ref={dlg} className="pk-help" onClick={e => { if (e.target === dlg.current) dlg.current.close() }} aria-label="How to play Acorn Hold'em">
+    <dialog ref={dlg} className="pk-help" onClick={e => { if (e.target === dlg.current) dlg.current.close() }} aria-label="How to play Poker">
       <button className="icon-btn pk-close" onClick={() => dlg.current.close()} aria-label="Close"><Icon name="close" size={18} /></button>
       <h2>How to play</h2>
       <p>Acorns are pretend, so relax and have fun. <b>The goal:</b> win acorns from the pot, either by having the best hand at the end, or by being the last one still in when everyone else gives up.</p>

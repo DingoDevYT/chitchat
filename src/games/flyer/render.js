@@ -1,4 +1,4 @@
-// Chatterflies: one frame of the Long Burrow on a 2D canvas, in the logical px of course.js (the caller sets the
+// Jetpack Dash: one frame of the Long Burrow on a 2D canvas, in the logical px of course.js (the caller sets the
 // transform). Side-on camera: nothing moves vertically; the world scrolls left past the flyer pinned at PX.
 //
 // The sim's view is 1280 x 720, but the camera may show more than that (S.view): a wider, zoomed-out window with the

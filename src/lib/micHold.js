@@ -1,4 +1,4 @@
-// Holding the mic back from the call: while something private records your voice (a Pillow Chit Fight battle cry),
+// Holding the mic back from the call: while something private records your voice (a Drawing Duel battle cry),
 // VoiceConnection stops sending your mic to the call. Your own mute/deafen state is never touched, so releasing the
 // hold puts things back exactly as they were. holdMic() returns its release (safe to call more than once).
 const holds = new Set(), subs = new Set()

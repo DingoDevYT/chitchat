@@ -1,4 +1,4 @@
-// Teacup Town's own HUD ("Tea Tray & Postcards"): a wooden plank with whose turn and a steeping-tea timer, players' coins
+// Property Tycoon's own HUD ("Tea Tray & Postcards"): a wooden plank with whose turn and a steeping-tea timer, players' coins
 // as hanging price signs, a ticker of recent moves, a round-button tray dock, postcard deeds, the auction and trade panels,
 // the card-draw moment and coin moments. GameScreen renders this instead of its shared top bar / toast / dock.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -85,7 +85,7 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
   return (
     <div className={`tt${panel === 'streets' ? ' tt-album-open' : ''}`} ref={root}>
       <Sprite />
-      <div className="tt-gtitle"><I n="cup" />Chatterton</div>
+      <div className="tt-gtitle"><I n="cup" />Property Tycoon</div>
       <div className="tt-plank">
         <div className="tt-who"><b>{plank}</b><small>Round {v.round}{v.maxRounds ? `/${v.maxRounds}` : ''}</small></div>
         {deadline && !v.winner && <Steep deadline={deadline} version={version} />}

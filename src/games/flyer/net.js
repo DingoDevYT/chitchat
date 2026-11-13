@@ -1,4 +1,4 @@
-// Chatterflies ghosts over Supabase Realtime: each flyer broadcasts { y, d, v (vehicle), f (flip), a (alive),
+// Jetpack Dash ghosts over Supabase Realtime: each flyer broadcasts { y, d, v (vehicle), f (flip), a (alive),
 // b (rescue bubble [n0, d0, y0] while in one), k (spinning the Second Brew) } about 12 times a second on the private
 // 'fly:<stadium id>' topic (supabase/migrations/037_flyer_ghosts.sql). Ghosts are drawn ~100 ms behind, interpolated
 // between the last two samples. Players never collide, so lag only makes a ghost a little late.

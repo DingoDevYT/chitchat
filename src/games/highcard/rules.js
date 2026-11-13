@@ -3,7 +3,7 @@
 // Then all cards flip; the highest wins. Plain JS: runs in the browser and in the `game` edge function.
 import { rng, shuffle } from '../rng.js'
 
-export const meta = { id: 'highcard', name: 'High card', min: 2, max: 10, turnMs: 20000 }
+export const meta = { id: 'highcard', name: 'High Card', min: 2, max: 10, turnMs: 20000 }
 
 // Cards are 0..51: rank = c >> 2 (0 = two … 12 = ace), suit = c & 3 (clubs < diamonds < hearts < spades).
 // So a bigger number is simply a better card, and equal ranks are broken by suit.

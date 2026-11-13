@@ -7,18 +7,18 @@ export const GAMES_ON = true
 // The Games picker: display name, a one-line "what is it", player count, and a real gameplay banner (public/games/<id>.jpg).
 // Kept here so the picker doesn't load the rules; these names win over each rules module's meta.name on screen.
 export const GAME_INFO = [
-  { id: 'snack', name: 'Chomp Chat', blurb: 'Match snack flavours and numbers, dodge the Feast, and empty your hand first. Say "Last bite!" on your last card.', players: '2–10', kind: 'Card game' },
-  { id: 'property', name: 'Chatterton', blurb: 'Roll around a cozy town, buy streets, trade, build cottages and inns, and charge rent until everyone else is broke.', players: '2–6', kind: 'Board game' },
-  { id: 'poker', name: 'Chips & Chatter', blurb: "Texas hold'em with pretend acorns: bet, bluff and read your friends. Tips for newcomers built in.", players: '2–8', kind: 'Card game' },
-  { id: 'isle', name: 'Chitter Cove', blurb: 'Gather twigs, wool, clay, berries and tea on a cozy island, build paths, cottages and lodges, trade, and shoo the raccoon. First to 10 points.', players: '2–4', kind: 'Board game' },
-  { id: 'chitchen', name: 'Midnight Chitchen', blurb: 'Bake through the night as a little TV-head, but a Nibbler or two is tucking bakers in for naps. Talk it out over tea, then spoon your suspect.', players: '4–8', kind: 'Party game' },
-  { id: 'flyer', name: 'Chatterflies', blurb: 'Hold to thrust, let go to fall: fly the lantern-lit Long Burrow as your own PNGtuber, dodge yarn, paper cranes and steam, and ride teapots.', players: '1–8', kind: 'Flying game' },
-  { id: 'pillow', name: 'Pillow Chit Fight', blurb: 'Draw a champion for a silly title, record its battle cry through silly filters, and let the call vote on the pillow fight. Winners defend their title.', players: '2–8', kind: 'Party game' },
-  { id: 'starchat', name: 'Starchat', blurb: 'Roll round Lantern Hollow at the Wishfall Festival, buy the falling star wherever it lands, and play a minigame every round. Most stars wins.', players: '2–8', kind: 'Party board game' },
+  { id: 'snack', name: 'Card Rush', blurb: 'Like Uno: match the flavour (colour) or number, dodge the Feast, and empty your hand first. Say "Last bite!" on your last card.', players: '2–10', kind: 'Card game' },
+  { id: 'property', name: 'Property Tycoon', blurb: 'Monopoly-style property trading: roll round the board, buy streets, trade, build cottages and inns, and charge rent until everyone else is broke.', players: '2–6', kind: 'Board game' },
+  { id: 'poker', name: 'Poker', blurb: "Texas hold'em poker with pretend acorns: bet, bluff and read your friends. Tips for newcomers built in.", players: '2–8', kind: 'Card game' },
+  { id: 'isle', name: 'Island Builders', blurb: 'Catan-style island building: gather twigs, wool, clay, berries and tea, build paths, cottages and lodges, trade, and shoo the raccoon. First to 10 points.', players: '2–4', kind: 'Board game' },
+  { id: 'chitchen', name: 'Impostor', blurb: 'Among Us-style impostor game in a cozy bakery: do your chores, but a Nibbler (impostor) or two is secretly tucking bakers in for naps. Talk it out, then vote your suspect out.', players: '4–8', kind: 'Party game' },
+  { id: 'flyer', name: 'Jetpack Dash', blurb: 'Jetpack Joyride-style endless flyer: hold to fly up, let go to fall. Fly as your own PNGtuber, dodge yarn, paper cranes and steam, and go furthest.', players: '1–8', kind: 'Flying game' },
+  { id: 'pillow', name: 'Drawing Duel', blurb: "Champ'd Up-style drawing battles: draw a champion for a silly title, record its battle cry, and everyone votes on each fight. Winners defend their title.", players: '2–8', kind: 'Party game' },
+  { id: 'starchat', name: 'Star Party', blurb: 'Mario Party-style board game: roll round Lantern Hollow, buy the falling star wherever it lands, and play a minigame every round. Most stars wins.', players: '2–8', kind: 'Party board game' },
 ]
 export const GAME_LIST = GAME_INFO.map(g => [g.id, g.name])
-// Chit Flip (highcard) is no longer listed, but its rules and UI stay registered so a table already open still works.
-const UNLISTED = { highcard: 'Chit Flip' }
+// High Card (highcard) is no longer listed, but its rules and UI stay registered so a table already open still works.
+const UNLISTED = { highcard: 'High Card' }
 export const gameName = (id, fallback) => GAME_INFO.find(g => g.id === id)?.name || UNLISTED[id] || fallback
 
 // Calls the referee: one edge function per game, `game-<id>` (`game`, the all-games fallback, if the id is unknown).

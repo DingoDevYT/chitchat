@@ -1,4 +1,4 @@
-// Chatterflies sound: every effect and the music bed are synthesised with Web Audio (no audio files). One engine per
+// Jetpack Dash sound: every effect and the music bed are synthesised with Web Audio (no audio files). One engine per
 // page, created on the first tap or key (browsers only start audio from a gesture). Quiet by default, because players
 // are in voice: a master volume and mute (saved in localStorage), and the whole mix ducks while anyone talks.
 //

@@ -1,4 +1,4 @@
-// The Midnight Chitchen baker, in plain three.js (no React), so both the R3F <Baker> and the plain-three game loop
+// The Impostor baker, in plain three.js (no React), so both the R3F <Baker> and the plain-three game loop
 // can use it. A stubby little baker with a rounded TV for a head: the screen shows the player's avatar, the body wears
 // their colour, an apron and a baker's hat with a coloured band. Toon shading plus an ink outline (inverted hull) keep
 // it readable from the tilted top-down camera.

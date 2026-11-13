@@ -44,7 +44,7 @@ export function Flat({ v, people }) {
   const hex = t => VERTS.length && TILES[t].v.map(i => `${VERTS[i].x * S},${VERTS[i].y * S}`).join(' ')
   const on = pick.onPick
   return (
-    <svg className="gf-board-grid" viewBox="-200 -180 400 360" role="img" aria-label="Chitter Cove island" style={{ position: 'absolute', inset: '12% 10%', width: '80%', height: '76%' }}>
+    <svg className="gf-board-grid" viewBox="-200 -180 400 360" role="img" aria-label="Island Builders island" style={{ position: 'absolute', inset: '12% 10%', width: '80%', height: '76%' }}>
       {TILES.map((tile, t) => (
         <g key={t} onClick={pick.kind === 'raccoon' && pick.spots.includes(t) ? () => on(t) : undefined} style={{ cursor: pick.kind === 'raccoon' && pick.spots.includes(t) ? 'pointer' : undefined }}>
           <polygon points={hex(t)} fill={KINDS[v.tiles[t].k].color} stroke="#f2e2b8" strokeWidth="3" />

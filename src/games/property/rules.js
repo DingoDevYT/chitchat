@@ -1,11 +1,11 @@
-// Teacup Town: the classic property-trading board game, cozy. 40 spaces, 8 street groups, 4 trolleys, 2 works,
+// Property Tycoon: the classic property-trading board game, cozy. 40 spaces, 8 street groups, 4 trolleys, 2 works,
 // two card decks, the Nap Nook (jail), cottages and inns (houses and hotels, with a limited bank), mortgages,
 // auctions and trades. The full game (default) plays until everyone but one is broke; Quick mode ends after 20
 // rounds and the richest wins. House rules (opts): quick, noAuction, picnicPot, startDouble, napNoRent.
 // Can't pay? Your coins go negative: sell, mortgage or trade before your turn ends, or declare bankruptcy. Plain JS: runs in the browser and in the `game` edge function.
 import { rng, shuffle } from '../rng.js'
 
-export const meta = { id: 'property', name: 'Teacup Town', min: 2, max: 6, turnMs: 45000, blurb: 'The classic property game: buy streets, trade, build cottages and inns, and bankrupt your friends.' }
+export const meta = { id: 'property', name: 'Property Tycoon', min: 2, max: 6, turnMs: 45000, blurb: 'The classic property game: buy streets, trade, build cottages and inns, and bankrupt your friends.' }
 
 // `house` = price of one cottage (an inn costs one more on top of 4 cottages).
 export const GROUPS = [
@@ -162,7 +162,7 @@ export const canMortgage = (pub, pid, sp) => ownable(sp) && pub.owner[sp] === pi
 export const canUnmortgage = (pub, pid, sp) => pub.owner[sp] === pid && !!pub.mortgaged[sp] && pub.cash[pid] >= unmortgageCost(sp)
 
 export function setup(players, seed, opts = {}) {
-  if (players.length < meta.min || players.length > meta.max) throw new Error(`Teacup Town needs ${meta.min} to ${meta.max} players.`)
+  if (players.length < meta.min || players.length > meta.max) throw new Error(`Property Tycoon needs ${meta.min} to ${meta.max} players.`)
   const r = rng(seed)
   return {
     pub: {

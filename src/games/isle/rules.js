@@ -1,4 +1,4 @@
-// Chitter Cove (working title: the name lives only in meta.name): a cozy hex-island trade-and-build game, our own.
+// Island Builders (working title: the name lives only in meta.name): a cozy hex-island trade-and-build game, our own.
 // 19 hex tiles (woods, meadow, clay pit, berry patch, tea terrace, two lily ponds) make twigs, wool, clay, berries and tea
 // when their number is rolled. Build paths, cottages (1 point) and lodges (2 points), trade with friends or at the
 // harbour (4:1, or 3:1 / 2:1 at a dock), buy cozy cards, and keep the raccoon off your tiles. First to 10 points wins.
@@ -6,7 +6,7 @@
 // in the `game` edge function, deterministic for a seed.
 import { rng, shuffle } from '../rng.js'
 
-export const meta = { id: 'isle', name: 'Chitter Cove', min: 2, max: 4, turnMs: 60000, blurb: 'Gather twigs, wool, clay, berries and tea on a cozy island. Build paths, cottages and lodges, trade, and shoo the raccoon. First to 10 points wins.' }
+export const meta = { id: 'isle', name: 'Island Builders', min: 2, max: 4, turnMs: 60000, blurb: 'Gather twigs, wool, clay, berries and tea on a cozy island. Build paths, cottages and lodges, trade, and shoo the raccoon. First to 10 points wins.' }
 
 export const RES = ['twig', 'wool', 'clay', 'berry', 'tea']
 export const RES_NAME = { twig: 'Twigs', wool: 'Wool', clay: 'Clay', berry: 'Berries', tea: 'Tea' }

@@ -1,4 +1,4 @@
-// Pillow Chit Fight: draw a champion for a silly title, give it a battle cry, and let everyone else vote on the pillow
+// Drawing Duel: draw a champion for a silly title, give it a battle cry, and let everyone else vote on the pillow
 // fight. Winners defend their title next round against a new challenger on a new prompt. Pure JS, refereed by the
 // `game` edge function like every other game (see ../README.md).
 //
@@ -6,7 +6,7 @@
 // matchup: lines (the champions say their cries in turn), vote (the pillow fight; everyone not in the bout votes, live
 // and changeable), win (winner up front) → recap → next round. The last round ends on the podium.
 //
-// A real-time game in the turn-based contract, like Midnight Chitchen: game time is `pub.clock` (ms since setup) and
+// A real-time game in the turn-based contract, like Impostor: game time is `pub.clock` (ms since setup) and
 // follows the wall clock when the referee stamps moves with `now` (setup with opts.now sets `pub.epoch`). Without it
 // (tests) a tick jumps straight to the next scheduled event. `turn()` is the Chitbot whose vote is due next, else a
 // clock keeper who may only send the tick; everyone may draw, record and vote at any time their phase allows.
@@ -32,7 +32,7 @@ export const BACK = 0.5 // a returning old champion earns its artist this share 
 export const CRY_MIN = 200, CRY_MAX = 6500, SQUEAK_MS = 1300, SQUEAKS = 6
 export const EXTS = ['wav', 'webm', 'ogg', 'mp4']
 export const meta = {
-  id: 'pillow', name: 'Pillow Chit Fight', min: 2, max: 8, turnMs: 30000, realtime: true,
+  id: 'pillow', name: 'Drawing Duel', min: 2, max: 8, turnMs: 30000, realtime: true,
   blurb: 'Draw a champion for a silly title, give it a battle cry, and let the call vote on the pillow fight. Winners defend their title.',
 }
 
@@ -54,7 +54,7 @@ export const linesMs = (p, b) => { const last = sidesOf(b).at(-1); return cryAt(
 export const roundsOf = opts => (opts.long ? 5 : opts.quick ? 2 : 3)
 
 export function setup(players, seed, opts = {}) {
-  if (players.length < 2 || players.length > meta.max) fail(`Pillow Chit Fight needs ${meta.min} to ${meta.max} players.`)
+  if (players.length < 2 || players.length > meta.max) fail(`Drawing Duel needs ${meta.min} to ${meta.max} players.`)
   const s = seed >>> 0
   const pub = {
     players: [...players], seed: s, opts: { rounds: roundsOf(opts), longDraw: !!opts.longDraw, longVoice: !!(opts.long || opts.longDraw) },

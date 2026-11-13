@@ -1,4 +1,4 @@
-// Proximity voice: a game (Midnight Chitchen) can shape how loud each person in the call sounds to you.
+// Proximity voice: a game (Impostor) can shape how loud each person in the call sounds to you.
 // Off unless a game sets a rule, so normal voice is untouched: no filter in the chain, no timer running.
 // The rule: id → { gain: 0..1, lp: low-pass Hz }. Voice.jsx calls attach() once per connection.
 let rule = null

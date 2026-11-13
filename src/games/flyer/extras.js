@@ -1,4 +1,4 @@
-// Chatterflies, the second wave of things to draw (kept out of render.js / art.js so those stay small): the Bouncy
+// Jetpack Dash, the second wave of things to draw (kept out of render.js / art.js so those stay small): the Bouncy
 // Castle Teacup, the Rocket Kettle and the Sprinkle Sponge, brew tokens, yarn looms, clearer crane warnings, Flock
 // rescue bubbles and the Second Brew spin. All original art in the burrow's cozy style; drawn in logical 1280 x 720 px.
 import {

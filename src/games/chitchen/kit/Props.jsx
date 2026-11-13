@@ -1,4 +1,4 @@
-// Cozy bakery props for Midnight Chitchen, procedural and cheap: shared geometries, shared toon materials (the same
+// Cozy bakery props for Impostor, procedural and cheap: shared geometries, shared toon materials (the same
 // look as the bakers), 3 to 12 meshes each, no textures. Each prop has a plain three.js factory (for the game's own
 // loop) and an R3F component.
 //

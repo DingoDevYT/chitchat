@@ -1,4 +1,4 @@
-// Starchat minigames: Wishfall Catch's replay contract, Hot Bun's hidden timer and edge cases, Firefly Count's jar,
+// Star Party minigames: Wishfall Catch's replay contract, Hot Bun's hidden timer and edge cases, Firefly Count's jar,
 // bots finishing every minigame through the rules, and the rotation.
 import test from 'node:test'
 import assert from 'node:assert/strict'

@@ -1,4 +1,4 @@
-# Midnight Chitchen kit
+# Impostor kit
 
 A drop-in kit for the characters, props and sounds. Nothing here imports the game, and the game doesn't import it yet.
 Look at it in dev at `#/bakers` (also `?shot=lineup`, `?shot=walk`, `?shot=death`, `?shot=vent`).

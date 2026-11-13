@@ -1,4 +1,4 @@
-// Chatterflies: the run itself. One canvas, one requestAnimationFrame loop, a fixed 60 Hz sim (course.js) fed by
+// Jetpack Dash: the run itself. One canvas, one requestAnimationFrame loop, a fixed 60 Hz sim (course.js) fed by
 // "hold anywhere" (touch / mouse / Space / W / Up), friends as ghosts, Chitbots flown locally from the seed, and a
 // light DOM HUD on top that updates ~8 times a second (never per frame).
 //

@@ -5,7 +5,7 @@ These are original games with our own names and art: card game mechanics are fre
 
 ## Decided (owner, 2026-11-12)
 - **Table:** 3D with three.js. Avatars stand around it as flat standees (Paper Mario style). The 3D code loads only when a game opens.
-- **First game:** an Uno-style card game, **Snack Stack** (rules below).
+- **First game:** an Uno-style card game, **Card Rush** (formerly Snack Stack; rules below).
 - **Placement:** the game shows in the stage's big screen by default, with a button to switch to full view (per game, remembered per person).
 - **Who starts:** anyone in the stadium. Admins can turn games off for a stadium in the room settings.
 
@@ -62,7 +62,7 @@ The functions are deterministic (seeded shuffle) and unit-tested with `node --te
   - Reduced motion turns off camera moves and fancy tweens.
   - Without WebGL, the same game falls back to a flat DOM table.
 
-## Game 1: Snack Stack (Uno-style, 2–10 players)
+## Game 1: Card Rush (Uno-style, 2–10 players)
 - **Deck:** 108 snack cards in 4 flavours: Berry, Lime, Blueberry and Honey. Each flavour has numbers 0–9, with two of each number from 1 to 9.
 - **Action cards:**
 
@@ -85,12 +85,12 @@ The functions are deterministic (seeded shuffle) and unit-tested with `node --te
    - Lobby, seats, sit/stand, start, spectators, the screen/full-view toggle, the edge function, RLS tests.
    - A tiny test game, High card, proves hidden hands and turns.
    - Done when two test accounts can play High card in a stadium, and a third account can't see their hands.
-2. **Snack Stack, playable from start to finish.**
+2. **Card Rush, playable from start to finish.**
    - The rules with full unit tests, timers, rejoining, Last bite!, the results screen and Again?.
 3. **Polish.**
    - Card animations, game sounds (with the existing UI-sound toggle), expressions at the table (thinking on your turn, a win/lose face), a per-server leaderboard.
 4. **More games,** each the same kind of rules module:
-   - **Acorn Hold'em:** poker with pretend acorns. There will never be real money or anything purchasable.
+   - **Poker:** poker with pretend acorns. There will never be real money or anything purchasable.
    - A Werewolf-style party game.
    - Doodle guess.
    - Last, a Monopoly-style game. It's a long game with heavy rules, so it needs save-and-resume across nights.

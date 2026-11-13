@@ -1,4 +1,4 @@
-// Chatterflies look-ahead: a small search over button presses (the tests use it to prove every chunk can be flown)
+// Jetpack Dash look-ahead: a small search over button presses (the tests use it to prove every chunk can be flown)
 // and the Chitbot pilots built on it. Pure and seeded: a bot's whole run follows from (seed, seat, level), so the
 // referee, the browser drawing its ghost and the tests all see the same flight.
 import { rng } from '../rng.js'

@@ -1,4 +1,4 @@
-// Pillow Chit Fight: battle-cry lines for champions without a recording (Chitbots, House champions, and anyone with no
+// Drawing Duel: battle-cry lines for champions without a recording (Chitbots, House champions, and anyone with no
 // microphone). The browser reads them aloud with speechSynthesis (audio.js); the referee only stores the text. All
 // original, all nonsense. Shared by the referee, so keep it plain data.
 export const CRIES = [

@@ -2,7 +2,7 @@
 // Chitbots; `steps` fast-forwards bot play to get a mid-game board. For checking boards and controls by eye.
 // `opts=quick,friendly` sets house rules; `lab=…` hands the game's UI module a named test situation (UI.lab).
 // `cam=1` / `cam=all` turns on a webcam for you / every seat.
-// Starchat: `mini=catch|bun|count` plays only that minigame (`lab=mini` jumps to it, `lab=results` to its reveal).
+// Star Party: `mini=catch|bun|count` plays only that minigame (`lab=mini` jumps to it, `lab=results` to its reveal).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { GAMES } from './registry.js'
 import GameScreen, { UIS } from './GameScreen'
@@ -23,7 +23,7 @@ export default function GameLab() {
     for (let k = 0; k < steps && !R.over(st); k++) {
       const who = R.turn(st)
       const a = R.bot(R.view(st, who), who, who === ME ? 'hard' : levels[players.indexOf(who)], Math.random)
-      // A Starchat minigame refuses a run posted before its play window ends, so fast-forward the clock to the deadline.
+      // A Star Party minigame refuses a run posted before its play window ends, so fast-forward the clock to the deadline.
       const t = Date.now(), at = !RT && st.pub?.phase === 'mini' && R.delay ? t + (R.delay(st, t) ?? 0) : t
       st = R.move(st, who, a ?? R.timeout(st), at)
     }
@@ -44,7 +44,7 @@ export default function GameLab() {
     return () => { off = true; s?.getTracks().forEach(t => t.stop()); cams.set({}) }
   }, [])
   const [v, setV] = useState(0)
-  // Real-time games (Midnight Chitchen) get the referee's clock stamp, like the edge function adds.
+  // Real-time games (Impostor) get the referee's clock stamp, like the edge function adds.
   // Moves run against the latest state right away (a refused move shows its reason instead of breaking the page).
   const cur = useRef(s)
   cur.current = s

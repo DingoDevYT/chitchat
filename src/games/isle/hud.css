@@ -1,4 +1,4 @@
-/* Chitter Cove HUD: the Teacup Town tray look (property/hud.css, tt-*) plus the island's own bits (ci-*). */
+/* Island Builders HUD: the Property Tycoon tray look (property/hud.css, tt-*) plus the island's own bits (ci-*). */
 body .gs.g-isle { container-type: inline-size; }
 body .g-isle .g-me-info:empty { display: none; }
 body .ci .tt-plank { gap: 10px; }

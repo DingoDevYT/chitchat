@@ -1,9 +1,9 @@
-// Snack Stack: an Uno-style shedding game (GAMES.md). 108 snack cards in four flavours, plus wilds.
+// Card Rush: an Uno-style shedding game (GAMES.md). 108 snack cards in four flavours, plus wilds.
 // Match the top card's flavour or number, or play a wild. First to empty their hand wins.
 // Plain JS: runs in the browser and in the `game` edge function.
 import { rng, shuffle } from '../rng.js'
 
-export const meta = { id: 'snack', name: 'Snack Stack', min: 2, max: 10, turnMs: 30000, blurb: 'Match flavours, dodge the Feast, shout Last bite!' }
+export const meta = { id: 'snack', name: 'Card Rush', min: 2, max: 10, turnMs: 30000, blurb: 'Match flavours, dodge the Feast, shout Last bite!' }
 
 export const FLAVOURS = [
   { name: 'Berry', color: '#e0607e' },
@@ -36,7 +36,7 @@ const HAND = 7
 const nextRand = secret => { const r = rng(secret.rs); return [r, Math.floor(r() * 2 ** 32)] }
 
 export function setup(players, seed, opts = {}) {
-  if (players.length < meta.min || players.length > meta.max) throw new Error(`Snack Stack needs ${meta.min} to ${meta.max} players.`)
+  if (players.length < meta.min || players.length > meta.max) throw new Error(`Card Rush needs ${meta.min} to ${meta.max} players.`)
   const r = rng(seed)
   let deck = shuffle([...CARDS.keys()], r)
   const priv = {}

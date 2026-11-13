@@ -238,7 +238,7 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError, onCal
     const send = (to, data) => ch?.send({ type: 'broadcast', event: 'signal', payload: { from: me.id, to, ...data } })
     // Per-person call volume (profile popover) and unplugged devices, live.
     stops.push(prefs.subscribe(() => { for (const [id, p] of peers) peerGains(id, p) }))
-    // Proximity voice while a Midnight Chitchen game runs (off otherwise: lib/proximity.js).
+    // Proximity voice while a Impostor game runs (off otherwise: lib/proximity.js).
     stops.push(attachProximity(audioCtx, peers, out.master, id => { const P = prefs.get(); return P.callMuted[id] ? 0 : P.peerVol[id] ?? 1 }))
     const onDevices = () => navigator.mediaDevices.enumerateDevices().then(checkDevices, () => {})
     navigator.mediaDevices.addEventListener?.('devicechange', onDevices)

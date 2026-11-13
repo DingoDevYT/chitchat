@@ -1,4 +1,4 @@
-/* Starchat HUD: cream cards on wooden trays over a night festival (the Lantern Hollow mockups). `body` prefix: styles.css
+/* Star Party HUD: cream cards on wooden trays over a night festival (the Lantern Hollow mockups). `body` prefix: styles.css
    loads later. Phones (the stage is a size container) get the ticket strip and bottom sheet below. */
 body .gs.g-starchat { container-type: inline-size; background: #1b1838; }
 body .sc {

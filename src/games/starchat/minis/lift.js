@@ -3,7 +3,7 @@
 // line scores most); float above the band and the lantern bursts for nothing; fall short and it scores a little for
 // the height it reached. Every lantern has its own gold line and its own burner (some fill faster than others).
 //
-// The Chatterflies pattern, like Wishfall Catch: an integer-only sim (+ - * and floor), 30 ticks a second from the
+// The Jetpack Dash pattern, like Wishfall Catch: an integer-only sim (+ - * and floor), 30 ticks a second from the
 // shared start. A run's input is a log of [tick, 1 = pressed | 0 = let go] changes; only the first press and the
 // first let-go of each lantern count. A player posts { type: 'mini', log, score }; the referee replays the log and
 // keeps its own score. Bots' runs follow from (seed, seat, level) alone (botLog), so every client draws the same ghosts.

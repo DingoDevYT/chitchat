@@ -1,4 +1,4 @@
-// Pillow Chit Fight title prompts: each pair draws a champion for one of these. Silly, kind, and open enough to draw.
+// Drawing Duel title prompts: each pair draws a champion for one of these. Silly, kind, and open enough to draw.
 // Original, PG, no real people or brands. A table deals them from a shuffled deck (rules.js), so a game never repeats
 // one (a long night of 8 uses at most 20).
 export const PROMPTS = [

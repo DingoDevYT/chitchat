@@ -1,10 +1,10 @@
-// Starchat: every name, number and bit of flavour lives here, so the festival can be renamed or rebalanced without
+// Star Party: every name, number and bit of flavour lives here, so the festival can be renamed or rebalanced without
 // touching the mechanics in rules.js. Plain data only (no imports): the `game` edge function bundles this file.
 //
 // Lantern Hollow during the Wishfall Festival: a 36-space loop round a moonlit pond, walked one way, plus the
 // one-way Firefly Bridge straight across the pond from the west bank to the Tea House on the east bank.
 
-export const NAME = 'Starchat'
+export const NAME = 'Star Party'
 export const BOARD_NAME = 'Lantern Hollow'
 
 // Space kinds. `k` is what rules.js switches on; the rest is for the UI and the news log.
