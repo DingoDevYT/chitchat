@@ -19,7 +19,7 @@ export const card = c => ({ rank: RANKS[c >> 2], suit: SUITS[c & 3], name: `${RA
 
 // players: user ids in seat order.
 export function setup(players, seed) {
-  if (players.length < meta.min || players.length > meta.max) throw new Error(`High card needs ${meta.min} to ${meta.max} players.`)
+  if (players.length < meta.min || players.length > meta.max) throw new Error(`High Card needs ${meta.min} to ${meta.max} players.`)
   const deck = shuffle([...Array(52).keys()], rng(seed))
   const priv = {}
   for (const p of players) priv[p] = { card: deck.pop() }
