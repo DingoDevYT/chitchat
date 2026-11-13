@@ -20,6 +20,7 @@ body .ms-btn small { font: 800 11px var(--body); opacity: .8; }
 body .ms-btn:disabled { opacity: .5; cursor: default; }
 body .ms-btn:not(:disabled):active { transform: translateY(3px); }
 body .ms-btn.honey { background: linear-gradient(#ffd877, #f2b13e); box-shadow: 0 5px 0 #c27f22, 0 10px 18px rgba(0, 0, 0, .3); }
+body .ms-btn.locked:disabled { opacity: 1; background: linear-gradient(#cfeeb8, #9fd27e); box-shadow: 0 2px 0 #6f9e54, inset 0 0 0 3px #fff8; transform: translateY(3px); }
 body .ms-btn.sage { background: linear-gradient(#a9dc95, #79b866); color: #24451e; box-shadow: 0 5px 0 #4f8a42, 0 10px 18px rgba(0, 0, 0, .3); }
 body .ms-btn.plain { background: #efe0c2; color: #6b4a33; box-shadow: 0 5px 0 #c9a77f; }
 body .ms-btn.round { width: 56px; height: 56px; padding: 0; border-radius: 50%; font-size: 30px; }

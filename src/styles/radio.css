@@ -11,6 +11,12 @@ body .radio-card {
 body .radio-card.min { width: auto; padding: 0; background: none; box-shadow: none; backdrop-filter: none; display: flex; align-items: center; gap: 8px; }
 body .radio-card.min .radio-top { display: block; }
 body .radio-card.min .radio-art { width: 52px; height: 52px; border-radius: 50%; box-shadow: var(--shadow), 0 0 0 3px var(--bg-3); }
+/* Docked (a game is on screen): in the call-controls row under the game, at its left end, never over the game. The
+   record is the size of the call buttons; opened, the card floats up from the row (only because you asked for it). */
+body .radio-card.docked { position: absolute; left: 16px; right: auto; top: auto; bottom: 20px; z-index: 5; animation: none; }
+body .radio-card.docked.min .radio-art { width: 46px; height: 46px; }
+body .radio-card.docked:not(.min):not(.radio-off) { bottom: calc(100% + 8px); width: min(340px, calc(100vw - 32px)); z-index: 80; animation: rise .25s var(--ease); }
+body .radio-card.docked .radio-tap { padding: 6px 9px; }
 /* turned off by a mod: just a chip for mods to turn it back on */
 body .radio-card.radio-off { width: auto; padding: 0; background: none; box-shadow: none; backdrop-filter: none; }
 body .radio-card.radio-off .btn { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-2); box-shadow: var(--shadow), inset 0 0 0 1px var(--line); }
@@ -147,7 +153,9 @@ body .radio-drawer footer .btn { justify-self: start; display: inline-flex; alig
 }
 @media (max-width: 720px) {
   /* chat sheet open: the stage's bottom is under it, so the card moves up to the stage's top-left */
-  body .stadium-split.chat-open .radio-card { bottom: auto; top: 8px; }
+  body .stadium-split.chat-open .radio-card:not(.docked) { bottom: auto; top: 8px; }
+  /* docked in the slim call bar under the chat sheet */
+  body .stadium-split.chat-open .radio-card.docked.min, body .stadium-split.chat-open .radio-card.docked.radio-off { bottom: calc(7px + env(safe-area-inset-bottom)); left: 12px; }
   /* the queue is a bottom sheet over everything (chat sheet and call bar included), with a dimmed backdrop */
   body .radio-scrim { display: block; position: fixed; inset: 0; z-index: 89; background: #0006; animation: radio-fade .2s ease both; }
   @keyframes radio-fade { from { opacity: 0; } }

@@ -124,7 +124,7 @@ export default function Arena({ v, gameId, me, roster, nm, vote, myVote, now }) 
   }, [key, stage]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const left = Math.max(0, Math.ceil((wall(v, v.until) - now) / 1000))
-  const head = stage === 'lines' ? (three ? 'Three-way battle cries!' : 'Battle cries!') : stage === 'vote' ? (canVote ? 'Tap who wins the pillow fight' : iFight ? 'Pillow fight! The crowd is voting' : 'Pillow fight!') : won ? `${C[won].name || 'The champion'} wins!` : ''
+  const head = stage === 'lines' ? (three ? 'Three-way battle cries!' : 'Battle cries!') : stage === 'vote' ? (canVote ? 'Battle: tap who wins' : iFight ? 'Battle! The others are voting' : 'Battle!') : won ? `${C[won].name || 'The champion'} wins!` : ''
   const stateOf = side => stage === 'win' ? (won === side ? 'won' : 'lost') : stage === 'lines' ? 'enter' : 'fight'
   const roundPts = b.res ? b.res.pts : null
   const winnerChamp = won ? C[won] : null

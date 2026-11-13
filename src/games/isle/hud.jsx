@@ -4,9 +4,9 @@
 // in the bottom-right corner, and resource chips flying from tiles to baskets. Taps on the island go through pick.js.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Icon from '../../icons/Icon'
-import { BONUS, CARDS, COST, KINDS, OFFERS, RES, RES_NAME, bankLeft, basketLimit, has, left, legal, missing, raccoonSpots, rate, score, total, turn, victims } from './rules.js'
+import { BONUS, CARDS, COST, EDGES, KINDS, OFFERS, RES, RES_NAME, TILES, VERTS, bankLeft, basketLimit, bot, has, left, legal, missing, pips, raccoonSpots, rate, score, total, turn, victims } from './rules.js'
 import { bagText, flights, gained, resColor, ticks } from './moments.js'
-import { screen, setPick } from './pick.js'
+import { screen, setFocus, setPick } from './pick.js'
 import { SYMBOLS } from './icons.js'
 import '../property/hud.css'
 import './hud.css'
@@ -28,6 +28,56 @@ const PLACE_HINT = {
   path: 'Tap a glowing side for your path',
   lodge: 'Tap one of your cottages to grow it into a lodge',
   raccoon: 'Tap a tile to move the raccoon there',
+}
+
+// The "Pick from a list" fallback, for when a tap on the island doesn't land: every open spot in plain words (the tiles
+// it touches), best first, so nobody is stuck while the timer runs.
+const tileName = (v, t) => { const x = v.tiles[t]; return `${x.n ? `${x.n} ` : ''}${KINDS[x.k].name}${t === v.raccoon ? ' (raccoon)' : ''}` }
+const dockAt = (v, corner) => v.docks.find(d => EDGES[d.e].a === corner || EDGES[d.e].b === corner)
+const cornerValue = (v, c) => VERTS[c].t.reduce((a, t) => a + (t === v.raccoon ? 0 : pips(v.tiles[t].n)), 0) + new Set(VERTS[c].t.map(t => v.tiles[t].k)).size * 0.5 + (dockAt(v, c) ? 0.5 : 0)
+function spotText(v, kind, id) {
+  if (kind === 'raccoon') return tileName(v, id)
+  if (kind === 'path') return `Between ${EDGES[id].t.map(t => tileName(v, t)).join(' and ')}${EDGES[id].t.length === 1 ? ' (coast)' : ''}`
+  const d = dockAt(v, id)
+  return `${VERTS[id].t.map(t => tileName(v, t)).join(' · ')}${d ? ` · dock ${d.k === 'any' ? '3:1' : `2:1 ${RES_NAME[d.k]}`}` : ''}`
+}
+function spotScore(v, me, kind, id) {
+  if (kind === 'raccoon') return victims(v, me, id).length * 10 + TILES[id].v.filter(c => v.homes[c] && v.homes[c].p !== me).length * pips(v.tiles[id].n) - TILES[id].v.filter(c => v.homes[c]?.p === me).length * 20
+  if (kind === 'path') return Math.max(...[EDGES[id].a, EDGES[id].b].filter(c => !v.homes[c]).map(c => cornerValue(v, c)), 0)
+  return cornerValue(v, id)
+}
+// The rules' own pick when it has one (the setup cottage and path, the raccoon), else the best-scoring open spot.
+function bestFor(v, me, tap, ranked) {
+  const m = v.phase === 'place' || v.phase === 'raccoon' ? bot(v, me, 'hard', () => 0) : null
+  const id = m && (m.type === 'cottage' ? m.v : m.type === 'path' ? m.e : m.type === 'raccoon' ? m.tile : null)
+  return tap.spots.includes(id) ? id : ranked[0]
+}
+
+function SpotList({ v, me, tap, off, pick, close }) {
+  const ranked = useMemo(() => [...tap.spots].sort((a, b) => spotScore(v, me, tap.kind, b) - spotScore(v, me, tap.kind, a)), [v, me, tap])
+  const [sel, setSel] = useState(null)
+  useEffect(() => { setFocus(sel) }, [sel])
+  useEffect(() => () => setFocus(null), [])
+  const what = tap.kind === 'raccoon' ? 'tile' : tap.kind === 'path' ? 'side' : 'corner'
+  return (
+    <div className="tt-trade tt-tray ci-spots" role="dialog" aria-label="Pick a spot">
+      <div className="tt-in">
+        <div className="tt-atop"><h4><I n={tap.kind === 'path' ? 'path' : tap.kind === 'raccoon' ? 'raccoon' : 'house'} className="tt-sage" />Pick a {what}</h4>
+          <button type="button" className="tt-x" onClick={close} aria-label="Close the list"><Icon name="close" size={18} /></button></div>
+        <p className="tt-hint ci-left">Best first. Tap one to see it glow on the island, then place it.</p>
+        <ol className="ci-spotlist">
+          {ranked.map((id, i) => (
+            <li key={id}><button type="button" className={sel === id ? 'on' : ''} aria-pressed={sel === id} onClick={() => setSel(id)}>
+              <b>{i + 1}</b><span>{spotText(v, tap.kind, id)}</span></button></li>
+          ))}
+        </ol>
+        <div className="tt-yn">
+          <button type="button" className="y" disabled={off || sel == null} onClick={() => pick(sel)}><I n="check" />{sel == null ? 'Pick one above' : `Place at ${ranked.indexOf(sel) + 1}`}</button>
+          <button type="button" className="c" disabled={off} onClick={() => pick(bestFor(v, me, tap, ranked))}>Place for me</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, version, canPlay, tools }) {
@@ -71,7 +121,10 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
       if (!(tap.kind === 'path' && v.free > 1)) setBuilding(null)
     }
   }
-  const tapKey = tap && !off ? `${tap.kind}:${tap.spots.join(',')}` : ''
+  const tapKeyAll = tap ? `${tap.kind}:${tap.spots.join(',')}` : ''
+  const tapKey = tap && !off ? tapKeyAll : ''
+  const [list, setList] = useState(false) // the "Pick from a list" fallback
+  useEffect(() => setList(false), [tapKeyAll])
   useEffect(() => { setPick(tapKey ? { ...tap, onPick: id => pickRef.current(id) } : null) }, [tapKey]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => setPick(null), [])
 
@@ -172,12 +225,15 @@ export function Hud({ v, me, nm, act, busy, pending, people, turnPid, deadline, 
       )}
       {panel === 'cards' && canPlay && <CardsPanel v={v} me={me} nm={nm} off={off} can={myTurn && t === me && (ph === 'roll' || ph === 'main')} mv={m => { setPanel(null); mv(m) }} close={() => setPanel(null)} />}
 
+      {list && tap?.spots.length > 0 && <SpotList key={tapKeyAll} v={v} me={me} tap={tap} off={off} pick={id => pickRef.current(id)} close={() => setList(false)} />}
       {canPlay && (
         <div className="ci-bottom">
-          {tap && !off && (
+          {/* stays up until the spot is placed (says "Placing…" while the move is on its way), with a list fallback */}
+          {tap && (
             <div className="ci-hint" role="status">
               <I n={tap.kind === 'raccoon' ? 'raccoon' : tap.kind === 'path' ? 'path' : tap.kind === 'lodge' ? 'lodge' : 'house'} />
-              <span>{tap.spots.length ? PLACE_HINT[tap.kind] : 'Nowhere to put that right now'}{v.free > 0 && tap.kind === 'path' ? ` · ${v.free} free` : ''}{tap.kind === 'raccoon' && v.opts?.friendly ? ' (it leaves anyone under 3 points alone)' : ''}</span>
+              <span>{off ? 'Placing…' : tap.spots.length ? PLACE_HINT[tap.kind] : 'Nowhere to put that right now'}{!off && v.free > 0 && tap.kind === 'path' ? ` · ${v.free} free` : ''}{!off && tap.kind === 'raccoon' && v.opts?.friendly ? ' (it leaves anyone under 3 points alone)' : ''}</span>
+              {tap.spots.length > 0 && <button type="button" disabled={off} onClick={() => setList(l => !l)} aria-expanded={list}>{list ? 'Hide list' : 'Pick from a list'}</button>}
               {building && <button type="button" onClick={() => setBuilding(null)}>Cancel</button>}
             </div>
           )}

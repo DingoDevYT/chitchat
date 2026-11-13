@@ -248,9 +248,9 @@ export default function Sidebar({ ctx, channels, current, isUnread, voice, vstat
       {voice && (
         <div className="voice-panel pop">
           {voice.kind === 'dm'
-            ? <div><b className="ok">● In a call</b><button className="muted small call-with" onClick={() => go(null, voice.id)} title="Open this call">
+            ? <div className="voice-info"><b className="ok">● In a call</b><button className="muted small call-with" onClick={() => go(null, voice.id)} title="Open this call">
               Call with {dmTitle(voice, userId, profiles.get())}</button><Ptt /></div>
-            : <div><b className="ok">● Stadium connected</b><div className="muted small">{voice.name}</div><Ptt /><RadioMini cid={voice.id} /></div>}
+            : <div className="voice-info"><b className="ok">● Stadium connected</b><div className="muted small">{voice.name}</div><Ptt /><RadioMini cid={voice.id} /></div>}
           <div className="row">
             {canShare && <button className={`icon-btn${vstate.live ? ' on' : ''}`} onClick={() => setVstate(v => ({ ...v, live: !v.live }))}
               title={vstate.live ? 'Stop sharing' : 'Go live'} aria-label={vstate.live ? 'Stop sharing' : 'Go live'}><Icon name={vstate.live ? 'stop' : 'screen'} /></button>}

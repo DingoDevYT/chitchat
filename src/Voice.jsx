@@ -706,7 +706,8 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
             </div>
           )}
         </div>
-        <RadioCard channel={channel} meId={meId} joined={joined} deafened={!!vstate?.deafened} listeners={ids ? ids.split(',').length : 0} below={!!main && !g} />
+        {/* with a game on screen the card docks in the call-controls row below instead, so it never covers game UI */}
+        {!g && <RadioCard channel={channel} meId={meId} joined={joined} deafened={!!vstate?.deafened} listeners={ids ? ids.split(',').length : 0} />}
         {view === 'list' ? (
           <div className="stage-crowd list">
             {list.length === 0 && <p className="muted">Nobody's here yet.</p>}
@@ -724,7 +725,8 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
           </div>
         )}
       </div>
-      <div className="stage-actions">
+      <div className={`stage-actions${g ? ' with-game' : ''}`}>
+        {g && <RadioCard channel={channel} meId={meId} joined={joined} deafened={!!vstate?.deafened} listeners={ids ? ids.split(',').length : 0} docked />}
         {!joined && <button className="btn primary big join-voice" onClick={onJoin}>Join stadium</button>}
         {joined && hidden.length > 0 && <button className="btn ghost" onClick={() => setHidden([])}><Icon name="eye" size={18} /> Show {hidden.length} hidden</button>}
         {/* your call controls, always here while you're in (the sidebar's copy is tucked away on phones) */}

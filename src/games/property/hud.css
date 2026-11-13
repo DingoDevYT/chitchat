@@ -33,7 +33,7 @@ body .tt-steep > span::after { content: ""; position: absolute; inset: 0; backgr
 body .tt-steep b { position: absolute; right: 10px; top: 0; bottom: 0; display: flex; align-items: center; gap: 4px; font: 700 16px Fredoka, Nunito, sans-serif; color: #fff; font-variant-numeric: tabular-nums; }
 body .tt-steep.low { box-shadow: inset 0 3px 0 rgba(0, 0, 0, .25), 0 0 0 3px var(--berry); }
 body .tt-steep.low > span { background: linear-gradient(90deg, #f4a7a0, var(--berry)); }
-body .tt-tools { position: absolute; right: 16px; top: 18px; pointer-events: auto; }
+body .tt-tools { position: absolute; right: 16px; top: 18px; pointer-events: auto; z-index: 50; } /* above the album, trade and draw layers (games.css layer contract) */
 body .tt-tools .gs-tools { display: inline-flex; gap: 8px; }
 body .tt-tools .gs-btn { width: 38px; height: 38px; border-radius: 12px; background: #4a3020e6; color: #fff; }
 

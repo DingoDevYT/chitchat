@@ -16,7 +16,7 @@ export default function StadiumChat({ channel, ctx, children }) {
   return (
     <div className={`stadium-split${open ? ' chat-open' : ''}`}>
       {children}
-      {!open && <button className="btn primary small stadium-chat-btn pop" onClick={() => setOpen(true)}><Icon name="chat" size={16} /> Chat</button>}
+      {!open && <button className="btn primary small stadium-chat-btn pop" onClick={() => setOpen(true)} aria-label="Open chat" title="Chat"><Icon name="chat" size={16} /><span className="sc-btn-label"> Chat</span></button>}
       <aside className="stadium-chat" aria-label={`${channel.name} chat`} hidden={!open}>
         {/* phones: a grab-tab on the sheet's top edge (the header's close is small and easy to miss there) */}
         <button type="button" className="stadium-chat-close" onClick={() => setOpen(false)} aria-label="Close chat"><Icon name="chevron-down" size={18} /> Close</button>

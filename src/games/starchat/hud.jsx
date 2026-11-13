@@ -76,7 +76,7 @@ export function Hud({ v, me, nm, act, busy, pending, people, deadline, version, 
         <Lanterns v={v} />
         {deadline && !v.winners && <Timer deadline={deadline} version={version} />}
       </div>
-      <div className="sc-tools">{tools}</div>
+      <ToolsMount>{tools}</ToolsMount>
 
       <div className="sc-cards" style={{ '--n': v.order.length }}>
         {v.order.map((pid, i) => {
@@ -131,6 +131,13 @@ function StageMount(props) {
   const at = useRef(null), [host, setHost] = useState(null)
   useEffect(() => setHost(at.current?.closest('.gs') || null), [])
   return <span ref={at} hidden>{host && createPortal(<MiniStage {...props} />, host)}</span>
+}
+// The shared tools (Fullscreen, Leave, Close), portalled into .gs beside the minigame Stage and above it (games.css
+// layer contract): inside .sc they sat under the minigames and the ceremony and couldn't be clicked.
+function ToolsMount({ children }) {
+  const at = useRef(null), [host, setHost] = useState(null)
+  useEffect(() => setHost(at.current?.closest('.gs') || null), [])
+  return <span ref={at} hidden>{host && createPortal(<div className="sc-tools">{children}</div>, host)}</span>
 }
 // The final round's minigame results show first; the ceremony starts once they've had their moment.
 function AfterResults({ v, children }) {
@@ -253,18 +260,18 @@ function StarOffer({ v, me, off, mv }) {
   const moves = legal(v, me), price = starPrice(v), coins = v.coins[me]
   const two = moves.find(m => m.type === 'star' && m.n === 2)
   return (
-    <div className="sc-offer sc-tray" role="dialog" aria-label="Catch the star?">
+    <div className="sc-offer sc-tray" role="dialog" aria-label="Buy the star?">
       <div className="sc-in">
         <span className="sc-jar"><Ic n="star" /></span>
         <div className="sc-otext">
           <span className="sc-k">{HOSTS.star}: a wish just drifted down</span>
-          <h3>Catch the star?</h3>
-          <p>Once it's caught, the star drifts off to another Wishing Post somewhere else in the hollow.</p>
+          <h3>Buy the star?</h3>
+          <p>Once it's bought, the star drifts off to another Wishing Post somewhere else in the hollow.</p>
           <div className="sc-math"><Ic n="coin" />{coins}<Ic n="arrow" className="sc-arr" /><b>{coins - price}</b><em>price {price}</em><em>you'd have {v.stars[me] + 1} {v.stars[me] ? 'stars' : 'star'}</em></div>
         </div>
         <div className="sc-obtn">
-          <button type="button" className="go" disabled={off || !moves.some(m => m.type === 'star' && m.n === 1)} onClick={() => mv({ type: 'star', n: 1 })}><Ic n="star" />Catch it</button>
-          {two && <button type="button" className="go two" disabled={off} onClick={() => mv(two)}><Ic n="star" />Catch two</button>}
+          <button type="button" className="go" disabled={off || !moves.some(m => m.type === 'star' && m.n === 1)} onClick={() => mv({ type: 'star', n: 1 })}><Ic n="star" />Buy the star ({price} coins)</button>
+          {two && <button type="button" className="go two" disabled={off} onClick={() => mv(two)}><Ic n="star" />Buy two stars</button>}
           <button type="button" disabled={off} onClick={() => mv({ type: 'pass' })}>Keep walking</button>
         </div>
       </div>

@@ -5,6 +5,14 @@
 .stadium-chat[hidden] { display: none; }
 .stadium-chat > .chat { flex: 1; }
 .stadium-chat-btn { position: absolute; top: 12px; right: 16px; z-index: 6; }
+/* A game on screen (or in full view, where there's no room header): the button docks at the right end of the
+   call-controls row under the game (Voice.jsx keeps that end free), so it never covers the game's tools. Phones:
+   just the icon. */
+.stadium-split:has(.stage-screen.game) > .stadium-chat-btn { top: auto; bottom: calc(26px + env(safe-area-inset-bottom)); right: calc(16px + env(safe-area-inset-right)); }
+@media (max-width: 720px) {
+  .stadium-split:has(.stage-screen.game) > .stadium-chat-btn { width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 50%; display: inline-flex; align-items: center; bottom: calc(22px + env(safe-area-inset-bottom)); }
+  .stadium-split:has(.stage-screen.game) > .stadium-chat-btn .sc-btn-label { display: none; }
+}
 @keyframes sc-in { from { transform: translateX(24px); opacity: 0; } }
 @keyframes sc-up { from { transform: translateY(48px); opacity: 0; } }
 @media (max-width: 1100px) { .stadium-chat { width: 300px; } }

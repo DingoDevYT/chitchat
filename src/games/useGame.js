@@ -69,15 +69,28 @@ export function useTable(channelId, meId, on = GAMES_ON) {
   }, [game?.id, game?.version, game?.game, refresh])
 
   // Timers without a cron job: after the deadline someone asks the referee to play the timeout (or a Chitbot's turn).
-  // Seated people go first, staggered by seat, so usually only one call is made; watchers back them up later.
+  // Seated people go first, staggered by seat, so usually only one call is made; watchers back them up later, with
+  // jitter. A backup first re-reads the table and only ticks if its version hasn't moved since this deadline was set
+  // (otherwise someone already did it and the referee would answer 409, or 404 once the game is gone).
+  const ver = useRef(game?.version)
+  ver.current = game?.version
   useEffect(() => {
     if (game?.status !== 'playing' || !game.deadline) return
     const humans = seats.filter(s => s.user_id)
     const rank = humans.findIndex(s => s.user_id === meId)
-    const wait = Date.parse(game.deadline) - Date.now() + (rank < 0 ? 2500 + Math.random() * 1500 : 150 + rank * 400)
-    const tm = setTimeout(() => act('tick'), Math.max(0, wait))
-    return () => clearTimeout(tm)
-  }, [game?.status, game?.deadline, game?.version, seats, meId, act])
+    const v0 = game.version, id = game.id
+    const wait = Date.parse(game.deadline) - Date.now() + (rank < 0 ? 2500 + Math.random() * 3000 : 150 + rank * (400 + Math.random() * 200))
+    let off = false
+    const tm = setTimeout(async () => {
+      if (rank !== 0) {
+        if (ver.current !== v0) return
+        const { data } = await supabase.from('games').select('version, status, deadline').eq('id', id).maybeSingle()
+        if (off || ver.current !== v0 || !data || data.version !== v0 || data.status !== 'playing' || !data.deadline || Date.parse(data.deadline) > Date.now()) return
+      }
+      act('tick')
+    }, Math.max(0, wait))
+    return () => { off = true; clearTimeout(tm) }
+  }, [game?.status, game?.deadline, game?.version, seats, meId, act]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { ...t, act, refresh }
 }

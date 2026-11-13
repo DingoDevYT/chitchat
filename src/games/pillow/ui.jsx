@@ -18,7 +18,7 @@ export const banner = (v, nm, me) => {
 export const lastText = (v, nm) => {
   const l = v.last
   if (l?.type !== 'bout' || v.phase !== 'battle' || v.stage !== 'win') return ''
-  return `${champName(v.champs[l.w], nm)} wins the pillow fight, ${[l.va, l.vb, l.vc].filter(x => x != null).sort((x, y) => y - x).join(' to ')}.`
+  return `${champName(v.champs[l.w], nm)} wins the battle, ${[l.va, l.vb, l.vc].filter(x => x != null).sort((x, y) => y - x).join(' to ')}.`
 }
 export const seatCards = () => []
 export const info = (v, pid) => `${(v.scores[pid] || 0).toLocaleString()} pts`

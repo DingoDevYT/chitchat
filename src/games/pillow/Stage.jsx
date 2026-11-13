@@ -122,7 +122,7 @@ function Lobby({ people, me, nm, buttons, title, again }) {
       <ol className="pcf-steps">
         <li><b>Draw</b><small>You and a rival get the same silly title. Draw your champion for it.</small></li>
         <li><b>Voice it</b><small>Record a battle cry and run it through up to three silly filters.</small></li>
-        <li><b>Pillow fight</b><small>Everyone else votes live. Winners defend their title next round.</small></li>
+        <li><b>Battle</b><small>Everyone else votes live. Winners defend their title next round.</small></li>
       </ol>
       <div className="pcf-roster">
         {people.map(p => <span key={p.pid} className={`pcf-seat${p.pid === me ? ' me' : ''}`}><Face p={p} size={52} /><small>{nm(p.pid)}{p.bot ? ' · bot' : ''}</small></span>)}
@@ -141,8 +141,8 @@ function Waiting({ v, me, nm, roster, mine, isPlayer }) {
   const champ = holder ? v.champs[holdKey(holder)] : inMakers ? v.champs[champOf(v, me)] : null
   const art = champ?.art || (mine?.round === v.round ? mine.art : null)
   const ready = m => (v.phase === 'draw' ? !!v.drawn[m] : !!v.champs[champOf(v, m)]?.cry)
-  const head = holder ? 'Your champion is resting' : inMakers ? (v.phase === 'draw' ? 'In the locker room!' : 'Battle cry is in!') : v.phase === 'draw' ? 'The artists are drawing' : 'Battle cries are being recorded'
-  const sub = holder ? `It defends its title next against a new challenger: "${holder.prompt}"` : inMakers ? 'Waiting for the others to finish.' : 'Grab a cushion. The pillow fights start soon.'
+  const head = holder ? 'Your champion is resting' : inMakers ? (v.phase === 'draw' ? 'Drawing is in!' : 'Battle cry is in!') : v.phase === 'draw' ? 'The artists are drawing' : 'Battle cries are being recorded'
+  const sub = holder ? `It defends its title next against a new challenger: "${holder.prompt}"` : inMakers ? 'Waiting for the others to finish.' : 'The battles start soon.'
   return (
     <div className="pcf-wait">
       {art && <div className="pcf-wait-card"><Doodle art={art} label={champ?.name || mine?.name || 'Your champion'} /><b>{champ?.name || mine?.name || 'Your champion'}</b>{holder && <span className="pcf-belt"><Icon name="crown" size={14} /> {champ.streak} {champ.streak === 1 ? 'win' : 'wins'}</span>}</div>}

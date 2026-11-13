@@ -255,6 +255,12 @@ label.btn { flex-direction: row; color: var(--text); font-size: 14px; cursor: po
 .voice-panel { margin: 0 8px 8px; padding: 10px; background: var(--bg-3); border-radius: var(--r); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; }
 .voice-panel .row { gap: 2px; flex-wrap: nowrap; }
 .voice-panel .icon-btn { width: 30px; }
+/* the status lines take the panel's full width and never grow past it: a long song title (RadioMini) ellipsizes
+   inside instead of pushing the panel out of the sidebar and over the stage */
+.voice-panel { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.voice-info { flex: 1 1 100%; min-width: 0; max-width: 100%; overflow: hidden; }
+.voice-info > .muted, .voice-info .call-with { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voice-info .radio-mini { width: 100%; box-sizing: border-box; }
 .ptt { color: var(--muted); margin-top: 2px; }
 .ptt.on { color: var(--mint); font-weight: 800; }
 .me-panel { display: flex; align-items: center; gap: 10px; padding: 10px; background: color-mix(in srgb, var(--bg) 35%, var(--bg-2)); border-top: 2px dashed var(--stitch); border-radius: 0 0 var(--panel-r, 0) var(--panel-r, 0); }
@@ -522,7 +528,10 @@ button.reply-ref::before { left: 34px; }
 .stage-seat:has(.talking) { z-index: 1; } /* no hop: the avatar squashes and stretches in place with its voice (--vol) */
 .stage-seat .live-badge { position: absolute; top: -4px; z-index: 1; }
 .stage-seat .name { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; padding: 1px 10px; border-radius: 999px; background: var(--bg-2); }
-.stage-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 8px 16px 20px; flex: none; }
+.stage-actions { position: relative; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding: 8px 16px 20px; flex: none; }
+/* a game on screen: the docked radio record (left) and the Chat button (right) share this row, never the game */
+.stage-actions.with-game { padding-inline: 76px; min-height: 76px; }
+@container (min-width: 561px) { .stage-actions.with-game { padding-inline: 120px; } }
 .join-voice { margin: 0; }
 .stage { container-type: inline-size; }
 @container (max-width: 560px) {

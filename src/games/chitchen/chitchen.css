@@ -70,7 +70,7 @@
 .cc-tasks-nib { color: #ff8c8c; font-size: 12.5px; line-height: 1.4; margin-bottom: 6px; }
 .cc-tasks-nib b { color: #ff5a5a; }
 .cc-tasks-ghost { color: #5b6aa0; font-size: 12.5px; margin-bottom: 4px; }
-.cc-hud-right { position: absolute; right: 12px; top: 12px; display: flex; gap: 8px; align-items: flex-start; z-index: 3; }
+.cc-hud-right { position: absolute; right: 12px; top: 12px; display: flex; gap: 8px; align-items: flex-start; z-index: 20; } /* above every screen (6), splash (8) and how-to (9): Leave and Close stay clickable (games.css layer contract) */
 .cc-round { width: 40px; height: 40px; border-radius: 50%; border: 0; background: #fff6e8; font: inherit; font-weight: 900; font-size: 18px; box-shadow: 0 3px 0 #0003; cursor: pointer; color: #3a2a2f; }
 .cc-sun { background: #1c1828e6; color: #ffd98a; border-radius: 20px; padding: 9px 12px; font-size: 13px; font-weight: 800; }
 .cc-tools { display: flex; align-items: flex-start; }
@@ -206,6 +206,12 @@
 
 .cc-screen.end { background: radial-gradient(ellipse at 50% 35%, #1c3a5ccc 0%, #05060cf0 70%); justify-content: flex-start; padding-top: 7vh; }
 .cc-screen.end.nib { background: radial-gradient(ellipse at 50% 35%, #5a1420cc 0%, #0c0306f0 70%); }
+/* the shared results panel (Again?, bots, house rules) sits along the bottom: the end screen keeps to the top half,
+   and the panel drops its own winner line and blurb (this screen already says both) so it never covers them */
+.gs.g-chitchen:has(.gs-results) .cc-screen.end { padding-top: 3vh; }
+.gs.g-chitchen:has(.gs-results) .cc-end-title { font-size: clamp(44px, 8vw, 92px); }
+.gs.g-chitchen .gs-results > h2, .gs.g-chitchen .gs-results > p { display: none; }
+.gs.g-chitchen .gs-results { max-height: 44%; padding-top: 12px; }
 .cc-end-title { margin: 0; font-size: clamp(54px, 12vw, 120px); font-weight: 900; letter-spacing: .04em; animation: cc-slam .5s cubic-bezier(.2, 1.6, .4, 1); }
 .cc-end-title.win { color: #8fd3ff; text-shadow: 0 0 40px #4af8, 0 6px 0 #0a2440; }
 .cc-end-title.lose { color: #ff3b3b; text-shadow: 0 0 40px #f008, 0 6px 0 #4a0008; }

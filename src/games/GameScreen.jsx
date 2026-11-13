@@ -168,7 +168,7 @@ export default function GameScreen({ table, meId, joined, full, onFull, onHide, 
   const quit = async () => {
     const what = lastOne ? ' You are the last person at the table, so it closes.'
       : `${playing ? (R.meta.noBots ? " You can't rejoin this round." : ' A Chitbot plays your seat for the rest of this round.') : ' You give up your seat.'}${host ? ' Someone else at the table becomes the host.' : ''}`
-    if (!(await ask({ text: `Leave ${title}?${what} You can sit down again next round.`, confirm: 'Leave game', danger: true }))) return
+    if (!(await ask({ text: `Leave ${title}?${what}${lastOne ? '' : ' You can sit down again next round.'}`, confirm: 'Leave game', danger: true }))) return
     if (await run('quit')) onHide?.()
   }
   const tools = (

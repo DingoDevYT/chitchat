@@ -68,7 +68,8 @@ export function Play({ state, act, startAt, phase, canPlay, busy }) {
   const lit = phase === 'play' && watching ? state.blinks.filter(b => el >= b.t && el < b.t + BLINK_MS) : []
   return (
     <div className="mf">
-      <div className="mf-head ms-title"><b>Firefly Count</b><small>{phase !== 'play' ? 'Watch the jar closely' : watching ? `Counting… ${Math.ceil((state.showMs - el) / 1000)}` : 'How many were there?'}</small></div>
+      {/* after the pick timer the referee needs a few seconds to settle it: say so instead of sitting on "0s left" */}
+      <div className="mf-head ms-title"><b>Firefly Count</b><small>{phase !== 'play' ? 'Watch the jar closely' : watching ? `Watch and count… ${Math.ceil((state.showMs - el) / 1000)}` : pickLeft ? 'How many were there?' : 'Time is up. Counting the guesses…'}</small></div>
       <div className="mf-stage">
         <JarArt>
           {lit.map((b, i) => {
@@ -79,17 +80,19 @@ export function Play({ state, act, startAt, phase, canPlay, busy }) {
       </div>
       {phase === 'play' && !watching && (
         <div className="mf-pick">
-          {canPlay && !sent ? (
+          {canPlay || sent ? (
             <>
               <div className="mf-dial">
-                <button className="ms-btn plain round" aria-label="One fewer" disabled={!pickable || g <= state.lo} onClick={() => setG(x => Math.max(state.lo, x - 1))}>-</button>
+                <button className="ms-btn plain round" aria-label="One fewer" disabled={!pickable || !pickLeft || g <= state.lo} onClick={() => setG(x => Math.max(state.lo, x - 1))}>-</button>
                 <output className="mf-num" aria-live="polite">{g}</output>
-                <button className="ms-btn plain round" aria-label="One more" disabled={!pickable || g >= state.hi} onClick={() => setG(x => Math.min(state.hi, x + 1))}>+</button>
+                <button className="ms-btn plain round" aria-label="One more" disabled={!pickable || !pickLeft || g >= state.hi} onClick={() => setG(x => Math.min(state.hi, x + 1))}>+</button>
               </div>
-              <input className="mf-slide" type="range" min={state.lo} max={state.hi} value={g} disabled={!pickable} onChange={e => setG(+e.target.value)} aria-label="Your guess" />
-              <button className="ms-btn honey" disabled={!pickable} onClick={lock} autoFocus>Lock it in<small>{pickLeft}s left</small></button>
+              {!sent && <input className="mf-slide" type="range" min={state.lo} max={state.hi} value={g} disabled={!pickable || !pickLeft} onChange={e => setG(+e.target.value)} aria-label="Your guess" />}
+              {sent
+                ? <button className="ms-btn honey locked" disabled aria-pressed="true">Locked in: {g}<small>{pickLeft ? 'waiting for the others' : 'counting…'}</small></button>
+                : <button className="ms-btn honey" disabled={!pickable || !pickLeft} onClick={lock} autoFocus>{pickLeft ? 'Lock it in' : "Time's up"}<small>{pickLeft ? `${pickLeft}s left` : 'counting…'}</small></button>}
             </>
-          ) : <p className="mb-say">{sent ? `Locked in ${g}.` : 'Watching the jar.'}</p>}
+          ) : <p className="mb-say">Watching the jar.</p>}
         </div>
       )}
     </div>

@@ -1,7 +1,7 @@
 /* Jetpack Dash: line-up, run HUD and cake podium. Cozy burrow palette: cream, toffee, rose, mint. */
 body .fly { position: absolute; inset: 0; color: #4a3324; font-family: Nunito, ui-rounded, system-ui, sans-serif; user-select: none; -webkit-user-select: none; }
 body .fly h2, body .fly h3, body .fly b { font-family: Fredoka, Nunito, sans-serif; }
-body .fly-tools { position: absolute; top: 10px; right: 10px; z-index: 5; }
+body .fly-tools { position: absolute; top: 10px; right: 10px; z-index: 20; } /* above the run, podium and rotate hint (games.css layer contract) */
 body .fly-tools .gs-tools { display: inline-flex; gap: 6px; }
 
 /* ── line-up ── */

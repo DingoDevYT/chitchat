@@ -80,7 +80,7 @@ export function Stage({ v, game, seats, people, me, nm, act, refresh, buttons, t
   const phase = lobby || !v ? 'lineup' : now < startAt ? 'countdown' : game.status === 'done' && (now >= flyingUntil || skip === game.version) ? 'podium' : 'run'
   const count = phase === 'countdown' ? Math.ceil((startAt - now) / 1000) : null
 
-  // Sound cues outside the run: countdown ticks, the "Boil!" go and the podium fanfare.
+  // Sound cues outside the run: countdown ticks, the "Go!" and the podium fanfare.
   const cue = useRef({ count: null, phase })
   useEffect(() => {
     const a = flyerAudio(), was = cue.current
@@ -117,15 +117,15 @@ function LineUp({ roster, me, nm, buttons, lobby, title, count, whistle, flock }
       <div className="fly-badge">{title}</div>
       <SoundControl className="lineup" />
       <div className="fly-sign">
-        <b>{count != null ? (count > 0 ? count : 'Boil!') : 'Perch up, flyers!'}</b>
-        <small>{count != null ? 'Hold anywhere to thrust, let go to fall' : `${roster.length} perched · the host boils the kettles`}</small>
+        <b>{count != null ? (count > 0 ? `Starting in ${count}…` : 'Go!') : 'Waiting to start'}</b>
+        <small>{count != null ? 'Hold anywhere to thrust, let go to fall' : `${roster.length} ready · the host presses Start`}</small>
       </div>
       <div className="fly-perches">
         {roster.map(p => (
           <div key={p.pid} className={`fly-perch${p.pid === me ? ' me' : ''}`} style={{ '--seat': p.color }}>
             <div className="fly-perch-face"><Face p={p} size={96} /><span className="fly-perch-kettle" /></div>
             <div className="fly-pot" />
-            <div className="fly-plate"><b>{nm(p.pid)}{p.pid === me ? ' (you)' : ''}</b><small>{p.bot ? `Chitbot` : count != null ? 'Ready' : 'Perched'}</small></div>
+            <div className="fly-plate"><b>{nm(p.pid)}{p.pid === me ? ' (you)' : ''}</b><small>{p.bot ? `Chitbot` : count != null ? 'Ready' : 'Waiting'}</small></div>
           </div>
         ))}
       </div>
@@ -157,7 +157,7 @@ function Podium({ v, roster, me, nm, buttons }) {
   const won = rk[0] === me
   return (
     <div className="fly-podium">
-      <div className="fly-results-head"><h2>{won ? 'You flew farthest!' : 'What a flight!'}</h2><small>Free Flight · the Long Burrow · {rk.length} {rk.length === 1 ? 'flyer' : 'flyers'} · {fmtTime(longest)} in the air</small></div>
+      <div className="fly-results-head"><h2>{won ? 'You flew farthest!' : 'What a flight!'}</h2><small>Results · {rk.length} {rk.length === 1 ? 'flyer' : 'flyers'} · {fmtTime(longest)} in the air</small></div>
       <div className="fly-cakes">
         {top.map(pid => {
           const place = rk.indexOf(pid) + 1

@@ -818,8 +818,25 @@ function IsleScene({ v, seats }) {
   const vpos = i => iw(ISLE_VERTS[i].x, ISLE_VERTS[i].y)
   const can = id => pick.onPick && pick.spots.includes(id)
   const rt = ISLE_TILES[v.raccoon]
+  // A tap that misses the glowing spots (they're small on a phone) still counts: the nearest open spot within reach.
+  const grp = useRef(null)
+  const spotXZ = id => {
+    if (pick.kind === 'path') { const ed = ISLE_EDGES[id], [ax, az] = vpos(ed.a), [bx, bz] = vpos(ed.b); return [(ax + bx) / 2, (az + bz) / 2] }
+    return vpos(id)
+  }
+  const near = e => {
+    if (!grp.current || !pick.onPick || !pick.spots.length) return
+    const p = grp.current.worldToLocal(e.point.clone())
+    let best = null, bd = IK * 0.42
+    for (const id of pick.spots) { const [x, z] = spotXZ(id), d = Math.hypot(x - p.x, z - p.z); if (d < bd) { bd = d; best = id } }
+    if (best != null) { e.stopPropagation(); hover(false); pick.onPick(best) }
+  }
+  const catchAll = pick.kind === 'path' || pick.kind === 'cottage' || pick.kind === 'lodge'
+  const fx = pick.focus != null && pick.spots.includes(pick.focus) && catchAll ? spotXZ(pick.focus) : null
   return (
-    <group scale={sc}>
+    <group scale={sc} ref={grp}>
+      {catchAll && <mesh position={[0, ITH + 0.02, 0]} rotation-x={-Math.PI / 2} material={hitMat} onClick={near}><planeGeometry args={[IK * 12, IK * 12]} /></mesh>}
+      {fx && <mesh position={[fx[0], ITH + 0.05, fx[1]]} rotation-x={-Math.PI / 2} material={glowMat}><ringGeometry args={[IK * 0.22, IK * 0.32, 24]} /></mesh>}
       {ISLE_TILES.map((t, i) => {
         const [x, z] = iw(t.x, t.y), k = v.tiles[i].k
         const tap = pick.kind === 'raccoon' && can(i)
@@ -866,7 +883,7 @@ function IsleScene({ v, seats }) {
       {(pick.kind === 'cottage' || pick.kind === 'lodge') && pick.spots.map(i => { const [x, z] = vpos(i); return (
         <Glow key={'g' + i} onPick={() => pick.onPick(i)}>
           <mesh geometry={ISLE.ball} material={glowMat} position={[x, ITH + 0.08, z]} scale={0.065} />
-          <mesh geometry={ISLE.ball} material={hitMat} position={[x, ITH + 0.08, z]} scale={0.16} />
+          <mesh geometry={ISLE.ball} material={hitMat} position={[x, ITH + 0.08, z]} scale={0.22} />
         </Glow>
       ) })}
       {pick.kind === 'path' && pick.spots.map(e => {
@@ -875,7 +892,7 @@ function IsleScene({ v, seats }) {
           <Glow key={'gp' + e} onPick={() => pick.onPick(e)}>
             <group position={[(ax + bx) / 2, ITH + 0.045, (az + bz) / 2]} rotation-y={-Math.atan2(bz - az, bx - ax)}>
               <mesh geometry={ISLE.box} material={glowMat} scale={[IK * 0.5, 0.035, 0.06]} />
-              <mesh geometry={ISLE.box} material={hitMat} scale={[IK * 0.6, 0.14, 0.24]} />
+              <mesh geometry={ISLE.box} material={hitMat} scale={[IK * 0.6, 0.2, 0.34]} />
             </group>
           </Glow>
         )
@@ -1531,7 +1548,9 @@ export default function Table3D({ game, v, people, meIdx, me, turnPid, info, win
   const Scene = SCENES[game]
   return (
     <div className="g3d">
-      <Canvas shadows dpr={[1, 1.5]} frameloop={hidden ? 'never' : 'always'} camera={{ fov: 42, near: 0.1, far: 60, position: layout.cam }}
+      {/* "percentage" = PCFShadowMap. Plain `shadows` asks for PCFSoftShadowMap, which three r18x has removed: it warns and
+          falls back on every frame R3F re-applies it, flooding the console. */}
+      <Canvas shadows="percentage" dpr={[1, 1.5]} frameloop={hidden ? 'never' : 'always'} camera={{ fov: 42, near: 0.1, far: 60, position: layout.cam }}
         gl={{ antialias: true, powerPreference: 'low-power' }} onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.05 }}>
         <color attach="background" args={[layout.bg || '#2a1f2b']} />
         <fog attach="fog" args={[layout.bg || '#2a1f2b', 18, 40]} />

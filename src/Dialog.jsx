@@ -46,7 +46,7 @@ function Bubble({ d }) {
     return () => removeEventListener('keydown', onKey, true)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const title = d.title || 'Chit'
+  const title = d.title || 'Chitchat'
   return (
     // stopPropagation: clicks in the bubble don't count as "outside" for the popover (profile card…) that asked
     <div className="backdrop dialog-backdrop" onMouseDown={e => { e.stopPropagation(); if (e.target === e.currentTarget) cancel() }}>

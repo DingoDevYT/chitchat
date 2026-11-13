@@ -1,7 +1,14 @@
 /* Stadium games: the table in the stage screen (or full view), lobby, HUD, your hand. `body` prefix: styles.css loads later.
    The stage screen stays dark in both looks (like a real screen); panels and the hand use theme colours. */
 body .stage-screen.game { display: block; }
-body .gs { position: absolute; inset: 6px; border-radius: calc(var(--r-lg) - 6px); overflow: hidden; background: #2a1f2b; color: #f6eee6; isolation: isolate; }
+/* Layer contract inside .gs (it isolates, so nothing here leaks out): the scene 0 · a game's own HUD root 300 · the
+   shared hand/dock 350 · your corner avatar 360 · lobby/results panels and Star Party's minigames 400 · the shared
+   tools (Fullscreen, Leave game, Close game) --gz-tools, above everything a game draws, so they always stay clickable.
+   A game with its own HUD puts {tools} in a slot; that slot must win inside its HUD root (z above the game's own
+   screens) and the root must not sit under a sibling overlay. Star Party's minigames are portalled into .gs, so its
+   slot is portalled there too (starchat/hud.jsx). */
+body .gs { position: absolute; inset: 6px; border-radius: calc(var(--r-lg) - 6px); overflow: hidden; background: #2a1f2b; color: #f6eee6; isolation: isolate; --gz-tools: 1000; }
+body .gs-tools { position: relative; z-index: var(--gz-tools, 1000); pointer-events: auto; }
 body .gs .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body .gs-loading { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 800; color: #e8d9c4; }
 
@@ -54,7 +61,7 @@ body .gp-bot.lv-hard .gp-bot-tag { background: #c8414f; color: #fff; }
 body .gp-bot.lv-easy .gp-bot-tag { background: #6fb06a; color: #1b1420; }
 
 /* ── HUD: one bar along the top (game · whose turn + timer · tools), the last move under the title, your dock along the bottom ── */
-body .gs-top { position: absolute; top: 0; left: 0; right: 0; z-index: 300; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 8px 10px 22px;
+body .gs-top { position: absolute; top: 0; left: 0; right: 0; z-index: var(--gz-tools, 1000); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 8px 10px 22px;
   background: linear-gradient(#140f18d9, #140f1866 60%, transparent); pointer-events: none; }
 body .gs-top > * { pointer-events: auto; }
 body .gs-title { justify-self: start; display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 14px; color: #f6eee6cc; }
@@ -188,4 +195,7 @@ body .gs-banner.mine { animation: gs-pop .45s var(--spring); }
 /* you, in the bottom-left corner of the table view */
 body .g-me { position: absolute; left: 10px; bottom: 8px; z-index: 360; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
 body .g-me .avatar { filter: drop-shadow(0 8px 10px #0007); }
+/* ...so the shared hand keeps clear of it (Card Rush, High Card): side padding both ways keeps the cards centred */
+body .gs:is(.g-snack, .g-highcard):has(.g-me) .gs-hand { padding-left: 132px; padding-right: 132px; }
+@container (max-width: 560px) { body .gs:is(.g-snack, .g-highcard):has(.g-me) .gs-hand { padding-left: 78px; padding-right: 78px; } }
 body .g-me-info { padding: 1px 9px; border-radius: 999px; background: #1b1420d9; color: #f6eee6; font-weight: 800; font-size: 12px; white-space: nowrap; }

@@ -1,4 +1,4 @@
-// The Chitbots: Chit and friends, an original cast of round critters. Each difficulty has its own three, so a table
+// The Chitbots: Nutmeg and friends, an original cast of round critters. Each difficulty has its own three, so a table
 // shows "Biscuit" or "Saffron", never "Chitbot (Hard)". The character comes from the seat, so nothing new is stored.
 export const CAST = {
   easy: [
@@ -7,7 +7,9 @@ export const CAST = {
     { id: 'puddle', name: 'Puddle', color: '#9fd0ea', ears: 'round', extra: 'raincap', blurb: 'Splashes in, forgets the rules, has a lovely time.' },
   ],
   normal: [
-    { id: 'chit', name: 'Chit', color: '#ff9f6b', ears: 'round', extra: 'none', blurb: 'The mascot. Plays fair, plays steady.' },
+    // Was "Chit" (the app's mascot name), which made "Chit wins!" read like the app talking. Not "Pip" either: that's
+    // the owner's test account.
+    { id: 'nutmeg', name: 'Nutmeg', color: '#ff9f6b', ears: 'round', extra: 'none', blurb: 'Plays fair, plays steady.' },
     { id: 'juniper', name: 'Juniper', color: '#8fd1b0', ears: 'pointy', extra: 'scarf', blurb: 'Thinks it over with a cup of tea.' },
     { id: 'marzipan', name: 'Marzipan', color: '#f2a7c3', ears: 'leaf', extra: 'glasses', blurb: 'Keeps tidy notes on everyone.' },
   ],

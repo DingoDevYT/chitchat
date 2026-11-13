@@ -705,12 +705,26 @@ function LoopButton({ cid, loop, can, wide }) {
 
 // The now-playing card, at the stage's bottom-left. Everyone who can see the stadium sees it; only people who joined
 // hear it. When a mod has turned the radio off, mods get a small chip to turn it back on and everyone else sees nothing.
-export function RadioCard({ channel, meId: me, joined, deafened, listeners }) {
+// docked: a game is on screen. The card must never cover game UI, so it lives in the call-controls row under the game
+// (Voice.jsx), tucked into the little record; tapping the record opens it above the row until you tuck it again or
+// tap anywhere else. The radioMin preference is left alone, so the card comes back as it was after the game.
+export function RadioCard({ channel, meId: me, joined, deafened, listeners, docked = false }) {
   const cid = channel.id
   useRadioRow(cid)
   const row = radio.use(s => s[cid])
   const st = row?.state || {}, track = st.track
-  const min = prefs.use(s => !!s.radioMin)
+  const prefMin = prefs.use(s => !!s.radioMin)
+  const [open, setOpen] = useState(false)
+  useEffect(() => { if (!docked) setOpen(false) }, [docked])
+  const card = useRef(null)
+  useEffect(() => {
+    if (!docked || !open) return
+    const away = e => { if (!card.current?.contains(e.target) && !e.target.closest?.('.radio-drawer, .radio-volpop, .ctx-menu')) setOpen(false) }
+    addEventListener('pointerdown', away, true)
+    return () => removeEventListener('pointerdown', away, true)
+  }, [docked, open])
+  const min = docked ? !open : prefMin
+  const setMin = m => (docked ? setOpen(!m) : setPref('radioMin', m))
   const blocked = radioPlay.use(s => s.blocked)
   const starting = radioPlay.use(s => s.starting)
   const pending = radioPending.use(s => s[cid])
@@ -721,9 +735,9 @@ export function RadioCard({ channel, meId: me, joined, deafened, listeners }) {
   if (mode === 'none') return null
   if (mode === 'off') {
     return (
-      <div className="radio-card radio-off">
-        <button className="btn small ghost" onClick={() => act(cid, 'enable')} title="Turn Chit Radio back on in this stadium">
-          <Icon name="music" size={15} /> Radio off · Turn on
+      <div className={`radio-card radio-off${docked ? ' docked' : ''}`}>
+        <button className="btn small ghost" onClick={() => act(cid, 'enable')} title="Turn Chit Radio back on in this stadium" aria-label="Radio off. Turn it on">
+          <Icon name="music" size={15} />{docked ? ' On' : ' Radio off · Turn on'}
         </button>
       </div>
     )
@@ -739,18 +753,18 @@ export function RadioCard({ channel, meId: me, joined, deafened, listeners }) {
     dispatchEvent(new Event('radio-tap')) // synchronous, so the player's play() runs inside this tap
   }
   const openQueue = () => radioUi.set({ open: cid })
-  const cls = `radio-card${min ? ' min' : ''}${min && track && !isPaused(st) ? ' spinning' : ''}`
+  const cls = `radio-card${min ? ' min' : ''}${docked ? ' docked' : ''}${min && track && !isPaused(st) ? ' spinning' : ''}`
   // "starting…": a song just went in (title on its way), or the player hasn't made a sound yet
   const shown = track || pending
   const isStarting = (!track && !!pending) || (plays && starting && !isPaused(st) && !blocked)
   const menu = e => openMenu(e, () => radioItems(cid, { openQueue, loop, canLoop: (!!track && owner) || mod, mod }))
 
   return (
-    <section className={cls} aria-label="Chit Radio" onContextMenu={menu}>
+    <section className={cls} aria-label="Chit Radio" onContextMenu={menu} ref={card}>
       <div className="radio-top">
         <span className="radio-art">
           <Art track={shown} />
-          {min && <button className="radio-disc" onClick={() => setPref('radioMin', false)} title={track ? `Chit Radio: ${track.title}` : 'Chit Radio'} aria-label="Show Chit Radio" />}
+          {min && <button className="radio-disc" onClick={() => setMin(false)} title={track ? `Chit Radio: ${track.title}` : 'Chit Radio'} aria-label="Show Chit Radio" />}
         </span>
         {!min && <>
           <div className="radio-meta">
@@ -763,7 +777,7 @@ export function RadioCard({ channel, meId: me, joined, deafened, listeners }) {
               <span className="radio-by"><Avatar id={track.by} size={16} /> <Name id={track.by} /></span>
             </> : <span className="radio-title idle">Nothing playing yet</span>}
           </div>
-          <button className="icon-btn radio-hide" onClick={() => setPref('radioMin', true)} title="Tuck away" aria-label="Tuck Chit Radio away"><Icon name="chevron-down" size={18} /></button>
+          <button className="icon-btn radio-hide" onClick={() => setMin(true)} title="Tuck away" aria-label="Tuck Chit Radio away"><Icon name="chevron-down" size={18} /></button>
         </>}
       </div>
       {!min && track && (
@@ -796,7 +810,7 @@ export function RadioCard({ channel, meId: me, joined, deafened, listeners }) {
       )}
       {!min && !joined && track && <p className="radio-note">Join the stadium to listen along.</p>}
       {blocked && plays && (min
-        ? <button className="btn primary small radio-tap pop" onClick={tap}><Icon name="play" size={14} /> Tap to listen</button>
+        ? <button className="btn primary small radio-tap pop" onClick={tap} aria-label="Tap to listen" title="Tap to listen"><Icon name="play" size={14} />{docked ? '' : ' Tap to listen'}</button>
         : <button className="radio-tap-cover" onClick={tap}><span className="btn primary"><Icon name="play" size={16} /> Tap to listen</span></button>)}
     </section>
   )

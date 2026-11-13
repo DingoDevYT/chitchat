@@ -5,9 +5,11 @@ import { VoiceStage } from './Voice'
 import { RadioPlayer, radio, radioApi, radioUi } from './Radio'
 import ContextMenuHost from './ContextMenu'
 import DialogHost from './Dialog'
+import './styles/stadium-chat.css'
 
 // Dev-only review sheet at #/radio: a stadium with Chit Radio on a mock state (no database, silent players).
 //   #/radio?drawer  queue drawer open · ?idle  nothing playing · ?out  not joined · ?min  card tucked away · ?member  not a mod
+//   ?game  games on (a test script serves the table) with the Chat button, to check the docked card; no player at all
 const q = new URLSearchParams(location.hash.split('?')[1] || '')
 const CID = 'lab-stadium'
 const PEOPLE = [['lab-me', 'You', '#ffd166'], ['lab-1', 'Juniper', '#ff9f6b'], ['lab-2', 'Doodle', '#7cc4b0'], ['lab-3', 'Saffron', '#e58fb4'], ['lab-4', 'Pip', '#8fb3e8']]
@@ -54,14 +56,16 @@ radioApi.act = async (cid, action, arg) => {
 
 export default function RadioLab() {
   const [vstate, setVstate] = useState({ muted: false, deafened: false, live: false, cam: false })
-  const channel = { id: CID, name: 'The Bandstand', kind: 'voice', games_enabled: false }
+  const game = q.has('game')
+  const channel = { id: CID, name: 'The Bandstand', kind: 'voice', games_enabled: game }
+  const stage = <VoiceStage channel={channel} meId="lab-me" joined={!q.has('out')} onJoin={() => {}} vstate={vstate} setVstate={setVstate}
+    onLive={() => {}} onCam={() => {}} onMenu={() => {}} onLeave={() => {}} />
   return (
     <div style={{ height: '100vh', display: 'flex' }}>
       <main className="main" style={{ flex: 1, minWidth: 0, display: 'flex' }}>
-        <VoiceStage channel={channel} meId="lab-me" joined={!q.has('out')} onJoin={() => {}} vstate={vstate} setVstate={setVstate}
-          onLive={() => {}} onCam={() => {}} onMenu={() => {}} onLeave={() => {}} />
+        {game ? <div className="stadium-split" style={{ flex: 1, minWidth: 0 }}>{stage}<button className="btn primary small stadium-chat-btn"><span className="sc-btn-label">Chat</span></button></div> : stage}
       </main>
-      {!q.has('out') && <RadioPlayer cid={CID} deafened={vstate.deafened} />}
+      {!q.has('out') && !game && <RadioPlayer cid={CID} deafened={vstate.deafened} />}
       <ContextMenuHost />
       <DialogHost />
     </div>
