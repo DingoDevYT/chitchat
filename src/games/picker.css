@@ -10,4 +10,6 @@ body .gpk-body { display: flex; flex-direction: column; gap: 3px; padding: 10px 
 body .gpk-body b { font: 700 18px Fredoka, Nunito, sans-serif; }
 body .gpk-meta { color: var(--muted); font-weight: 700; font-size: 12px; }
 body .gpk-blurb { font-size: 13px; line-height: 1.35; color: var(--text); opacity: .9; }
+body .gpk-tabs { max-width: 360px; }
+@media (max-width: 560px) { body .gpk-tabs { max-width: none; } }
 @media (prefers-reduced-motion: reduce) { body .gpk-card, body .gpk-banner img { transition: none; } }

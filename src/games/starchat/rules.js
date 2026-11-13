@@ -445,3 +445,6 @@ export function bot(v, me, level, rand = Math.random) {
   }
   return { type: 'roll' }
 }
+
+// Leaderboard stats for a finished game (src/games/results.js).
+export const stats = (s, pid) => ({ stars: s.pub.stars?.[pid] ?? 0, coins: s.pub.coins?.[pid] ?? 0 })

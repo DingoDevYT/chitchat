@@ -15,6 +15,7 @@
 // The rules are the same files the browser uses (src/games/*), bundled at deploy time: see src/games/README.md.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { awayOf, quitPlan, settleAway, standIns, withoutAway } from '../../../src/games/away.js'
+import { recordResults } from './record.ts'
 
 // The games this function referees, by id (set once by serveReferee).
 let GAMES: Record<string, any> = {}
@@ -91,7 +92,12 @@ async function handle(req: Request, body: any) {
   const away = awayOf(g.opts), auto = standIns(R.meta, g.opts)
   const save = (p: Record<string, unknown>) => {
     if (p.status === 'done' && away.length) { const s = settleAway(seats, g.opts); p = { ...p, seats: plain(s.seats), opts: s.opts } }
-    return saveRaw(p)
+    return saveRaw(p).then(r => recordIfDone(p, r))
+  }
+  // Leaderboards (043, _shared/record.ts): once a round's `done` save lands, one game_results row per person.
+  const recordIfDone = async (p: Record<string, unknown>, r: { version: number }) => {
+    if (p.status === 'done') await recordResults(db, R, g, row, p, r.version)
+    return r
   }
   const saveRaw = (p: Record<string, unknown>) => db.rpc('game_save', { gid: g.id, ver: g.version, p }).then(({ data, error }) => {
     if (error) throw new Nope(error.hint === 'conflict' ? 'The table moved on. Try again.' : error.message, error.hint === 'conflict' ? 409 : 400)

@@ -655,3 +655,6 @@ export function bot(v, me, level, rand = Math.random) {
   }
   return { type: 'end' }
 }
+
+// Leaderboard stats for a finished game (src/games/results.js): points, kept cards included.
+export const stats = (s, pid) => ({ points: points(s, pid) })

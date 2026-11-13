@@ -160,3 +160,9 @@ export function bot(v, who, level) {
   const { st, log } = botRun(v.seed, seatOf(who), level, v.opts)
   return { type: 'run', ticks: st.n, m: metres(st), spr: st.spr, log, talk: 0, level }
 }
+
+// Leaderboard stats for a finished round (src/games/results.js): the replayed distance and sprinkles.
+export function stats(s, pid) {
+  const r = s.pub.results?.[pid]
+  return r ? { distance: r.m || 0, sprinkles: r.spr || 0 } : {}
+}

@@ -549,3 +549,6 @@ export function bot(v, me, level, rand = Math.random) {
   }
   return { type: 'end' }
 }
+
+// Leaderboard stats for a finished game (src/games/results.js): net worth (0 once bankrupt).
+export const stats = (s, pid) => ({ worth: s.pub.broke?.[pid] ? 0 : Math.max(0, worth(s.pub, pid)) })
