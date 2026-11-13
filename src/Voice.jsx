@@ -640,12 +640,16 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   const awayIds = awayOf(table.game?.opts) // left mid-round: back in the crowd while a Chitbot plays their seat
   const atTable = new Set(g ? table.seats.filter(s => !awayIds.includes(s.user_id)).map(s => s.user_id) : []) // seated players walk from the crowd to the table
   const others = list.filter(id => id !== meId && !atTable.has(id))
-  const crowd = view !== 'list' && box.w ? fitCrowd(others.length, box.w, box.h * 0.5, list.includes(meId) && !atTable.has(meId)) : null
+  const gameFull = prefs.use(s => !!g && s.gameView?.[g.game] === 'full')
+  // Phone with a game open: the crowd shrinks to one row of small faces under the game, so nothing covers its bottom
+  // (hands, docks). Wider screens keep the stadium crowd; full view hides it.
+  const strip = !!g && !gameFull && view !== 'list' && box.w > 0 && box.w < 560
+  const audience = strip ? list.filter(id => !atTable.has(id)) : []
+  const crowd = view !== 'list' && !strip && box.w ? fitCrowd(others.length, box.w, box.h * 0.5, list.includes(meId) && !atTable.has(meId)) : null
   const seat = id => ({ id, fx: fx[id], live: lives.includes(id), face: joined && faces[id], pin: joined && faces[id] && camItem(id) })
   const theme = useRoomTheme(channel, app.ctx?.server)
   // Full view: the stadium (game, call controls, chat) covers the whole app window inside the page (games.css), not the
   // browser's fullscreen. Remembered per person per game; the same button or Esc goes back.
-  const gameFull = prefs.use(s => !!g && s.gameView?.[g.game] === 'full')
   const toggleFull = () => setPref('gameView', { ...prefs.get().gameView, [g.game]: gameFull ? 'screen' : 'full' })
   useEffect(() => {
     if (!gameFull) return
@@ -665,7 +669,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
   const openHall = () => { setPicking(false); setHall(true) }
 
   return (
-    <div className={`stage view-${view === 'list' ? 'list' : 'crowd'}${gameFull ? ' game-full' : ''}`} onContextMenu={e => openMenu(e, viewItems)}>
+    <div className={`stage view-${view === 'list' ? 'list' : strip ? 'strip' : 'crowd'}${gameFull ? ' game-full' : ''}`} onContextMenu={e => openMenu(e, viewItems)}>
       <ThemeBackdrop theme={theme} variant="stadium" />
       <header className="chat-head room-head" style={roomVars(channel, app.ctx?.server)}>
         <button className="icon-btn menu-btn" onClick={onMenu} aria-label="Open menu"><Icon name="menu" /></button>
@@ -719,6 +723,11 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
           <div className="stage-crowd list">
             {list.length === 0 && <p className="muted">Nobody's here yet.</p>}
             {list.map(id => <Seat key={id} {...seat(id)} me={id === meId} size={64} tile />)}
+          </div>
+        ) : strip ? (
+          <div className="stage-crowd strip" role="group" aria-label={`Audience (${audience.length})`}>
+            {audience.map(id => <Seat key={id} {...seat(id)} me={id === meId} size={34} />)}
+            {audience.length === 0 && <span className="muted small">Everyone's at the table</span>}
           </div>
         ) : (
           <div className="stage-crowd crowd" style={{ height: crowd?.height }}>
