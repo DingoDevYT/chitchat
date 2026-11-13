@@ -62,8 +62,10 @@ export function useTable(channelId, meId, on = GAMES_ON) {
   }, [on, channelId, refresh])
 
   const { game, seats } = t
-  const act = useCallback(async (action, extra = {}) => {
-    const r = await callGame({ action, gameId: game?.id, version: game?.version, ...extra }, action === 'tick', game?.game)
+  // Always the function of the game on the table now: after a game night switches games, the next refresh brings the
+  // new `game.game` and calls go to `game-<new id>`.
+  const act = useCallback(async (action, extra = {}, quiet = action === 'tick') => {
+    const r = await callGame({ action, gameId: game?.id, version: game?.version, ...extra }, quiet, game?.game)
     if (r) refresh()
     return r
   }, [game?.id, game?.version, game?.game, refresh])

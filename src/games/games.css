@@ -189,3 +189,45 @@ body .gs-banner.mine { animation: gs-pop .45s var(--spring); }
 body .g-me { position: absolute; left: 10px; bottom: 8px; z-index: 360; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
 body .g-me .avatar { filter: drop-shadow(0 8px 10px #0007); }
 body .g-me-info { padding: 1px 9px; border-radius: 999px; background: #1b1420d9; color: #f6eee6; font-weight: 800; font-size: 12px; white-space: nowrap; }
+
+/* ── between rounds: seats filling, ready-up countdown, Join next round, game night (Between.jsx) ── */
+body .gn-seats { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 6px; }
+body .gn-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+body .gn-dots i { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--line); background: transparent; transition: background .3s var(--ease), transform .3s var(--spring); }
+body .gn-dots i.on { background: var(--accent); box-shadow: none; transform: scale(1.1); }
+body .gn-dots i.bot { background: var(--bg-3); box-shadow: inset 0 0 0 2px var(--accent); }
+body .gn-count { position: relative; display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 6px 14px 9px; border-radius: 999px; background: var(--bg-3); font-weight: 700; font-variant-numeric: tabular-nums; }
+body .gn-count b { font-size: 18px; }
+body .gn-count-bar { position: absolute; left: 14px; right: 14px; bottom: 3px; height: 3px; border-radius: 9px; background: #ffffff1f; overflow: hidden; }
+body .gn-count-bar i { position: absolute; inset: 0; background: var(--accent); transform-origin: 0 50%; transform: scaleX(var(--p)); transition: transform .25s linear; }
+body .gn-join, body .gn-again { font-size: 17px; padding: 12px 22px; min-height: 48px; display: inline-flex; align-items: center; gap: 8px; }
+body .gn-join-mini { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+body .gn-night { margin-top: 12px; padding-top: 10px; border-top: 2px solid var(--line); max-height: 46vh; overflow: auto; }
+body .gn-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+body .gn-step { padding: 3px 10px; border-radius: 999px; background: var(--bg-3); font-size: 12.5px; font-weight: 700; }
+body .gn-step.past { opacity: .5; text-decoration: line-through; }
+body .gn-step.now { background: var(--accent); color: var(--accent-ink, #1b1420); }
+body .gn-up { margin: 10px 0 0 !important; font-size: 16px; }
+body .gn-choice { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+body .gn-n { font-style: normal; font-size: 12px; padding: 0 7px; border-radius: 999px; background: #0000002e; }
+body .gn-host { margin-top: 4px; }
+body .gn-board { margin-top: 10px; }
+body .gn-board h3 { margin: 0 0 6px; font-size: 15px; display: inline-flex; align-items: center; gap: 6px; }
+body .gn-board.final h3 { font-size: 19px; }
+body .gn-board ol { list-style: none; margin: 0 auto; padding: 0; max-width: 300px; text-align: left; }
+body .gn-board li { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 10px; }
+body .gn-board li.me { background: var(--bg-3); }
+body .gn-board li b { margin-left: auto; font-variant-numeric: tabular-nums; }
+body .gn-place { width: 22px; height: 22px; display: inline-grid; place-items: center; border-radius: 50%; background: var(--bg-3); font-size: 12px; font-weight: 800; flex: none; }
+body .gn-board li.p1 .gn-place { background: #f2c14e; color: #1b1420; }
+body .gn-board li.p2 .gn-place { background: #cfd6e0; color: #1b1420; }
+body .gn-board li.p3 .gn-place { background: #d9a066; color: #1b1420; }
+body .gn-who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .gn-plan { margin-top: 10px; padding: 10px; border-radius: 14px; background: var(--bg-3); }
+body .gn-add { border-radius: 999px; padding: 5px 10px; background: var(--bg-2); color: var(--text); border: 2px solid var(--line); font: inherit; font-weight: 700; }
+@container (max-width: 560px) {
+  body .gn-join-mini { padding: 6px 9px; font-size: 12px; }
+  body .gn-night { max-height: 38vh; }
+  body .gn-join, body .gn-again { width: 100%; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { body .gn-dots i, body .gn-count-bar i { transition: none; } }

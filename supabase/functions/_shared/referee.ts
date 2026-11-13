@@ -12,9 +12,19 @@
 //   { action: 'quit', gameId }                        leave the game, any state: mid-round a Normal Chitbot plays your seat out
 //                                                      (src/games/away.js); between rounds it's `stand`
 //   { action: 'leave', gameId }                       host or a server admin/mod: close the table, any state (anyone, once it's been idle 10 minutes)
+// Play again and game nights (src/games/night.js):
+//   'sit' / 'stand' mid-round join / leave the "Join next round" queue (games.opts.queue); seated when the round ends
+//   { action: 'ready', gameId, cancel? }              host, between rounds: start (or stop) the 20 s ready-up countdown;
+//                                                      once games.deadline passes, any seated person may 'start'
+//   { action: 'night', gameId, rest | stop }          host: the games queued after this one (games.night, migration 046)
+//   { action: 'vote', gameId, choice }                seated, after a game of the night: 'next' | 'again' | 'skip'; a majority applies it
+//   { action: 'next', gameId, choice }                host, between rounds: apply a choice now (overrides the vote)
+//                                                      Switching game sets games.game; the client then calls game-<new id>.
 // The rules are the same files the browser uses (src/games/*), bundled at deploy time: see src/games/README.md.
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { awayOf, quitPlan, settleAway, standIns, withoutAway } from '../../../src/games/away.js'
+import { awayOf, quitPlan, standIns, withoutAway } from '../../../src/games/away.js'
+import { META } from '../../../src/games/meta.js'
+import { CHOICES, READY_MS, joinQueue, leaveQueue, planNext, queueOf, scoreGame, seatsFor, setRest, settleRound, tally, votersOf } from '../../../src/games/night.js'
 
 // The games this function referees, by id (set once by serveReferee).
 let GAMES: Record<string, any> = {}
@@ -89,9 +99,32 @@ async function handle(req: Request, body: any) {
   const between = g.status !== 'playing'
   // Away people (left mid-round, src/games/away.js): their seats stay until the round ends; `auto` are the ones a Chitbot plays.
   const away = awayOf(g.opts), auto = standIns(R.meta, g.opts)
+  // A game night (games.night; absent until migration 046 is applied, so its actions refuse until then).
+  const night = g.night?.list ? g.night : null
   const save = (p: Record<string, unknown>) => {
-    if (p.status === 'done' && away.length) { const s = settleAway(seats, g.opts); p = { ...p, seats: plain(s.seats), opts: s.opts } }
+    if (p.status === 'done') {
+      // A game of the night just ended: its places earn night points (before seats change, so Chitbots keep their names).
+      if (night && !night.ended) p = { ...p, night: scoreGame(night, g.game, p.pub, R.over({ pub: p.pub }), R, seats) }
+      // Away seats are freed and "Join next round" watchers sit down.
+      if (away.length || queueOf(g.opts).length) { const s = settleRound(seats, g.opts, R.meta.max); p = { ...p, seats: s.seats, opts: s.opts } }
+    }
     return saveRaw(p)
+  }
+  const readyAt = () => new Date(Date.now() + READY_MS).toISOString()
+  // Next game, play this one again, or skip one (night.js planNext). A switch changes games.game in place: same table,
+  // same people, a fresh lobby with the ready-up countdown running, Chitbots kept only where the next game has them.
+  const applyChoice = async (n: any, choice: string) => {
+    const plan = planNext(n, choice)
+    if (plan.kind === 'again') return saveRaw({ night: { ...n, votes: {} }, deadline: readyAt() })
+    if (plan.kind === 'end') return saveRaw({ night: { ...n, votes: {}, ended: true }, deadline: null })
+    const M = (META as Record<string, any>)[plan.game]
+    if (!M) throw new Nope('Unknown game.')
+    if (g.game === 'pillow') await tidyCries(dropCries(g.id))
+    const r = await saveRaw({
+      game: plan.game, status: 'lobby', pub: null, privs_reset: true, secret: {}, opts: {},
+      seats: seatsFor(seats, M).seats, night: { ...n, at: plan.at, votes: {} }, deadline: readyAt(),
+    })
+    return { ...r, game: plan.game }
   }
   const saveRaw = (p: Record<string, unknown>) => db.rpc('game_save', { gid: g.id, ver: g.version, p }).then(({ data, error }) => {
     if (error) throw new Nope(error.hint === 'conflict' ? 'The table moved on. Try again.' : error.message, error.hint === 'conflict' ? 409 : 400)
@@ -108,13 +141,19 @@ async function handle(req: Request, body: any) {
 
   switch (action) {
     case 'sit': {
-      if (!between) throw new Nope('Wait for this round to finish.')
+      // Mid-round: "Join next round" queues you (also someone who left this round); you sit down when it ends.
+      if (!between) {
+        if (mine && !away.includes(uid)) return { version: g.version }
+        if (queueOf(g.opts).includes(uid)) return { version: g.version }
+        return saveRaw({ opts: joinQueue(g.opts, uid) })
+      }
       if (mine) return { version: g.version }
       const seat = freeSeat()
       if (seat == null) throw new Nope('The table is full.')
       return save({ seats: plain([...seats, { seat, user_id: uid, bot: null }]) })
     }
     case 'stand': {
+      if (!between && queueOf(g.opts).includes(uid)) return saveRaw({ opts: leaveQueue(g.opts, uid) })
       if (!between) throw new Nope('Wait for this round to finish.')
       if (!mine) return { version: g.version }
       return save({ seats: plain(seats.filter(s => s !== mine)) })
@@ -140,15 +179,43 @@ async function handle(req: Request, body: any) {
       return save({ opts: Object.fromEntries(Object.entries(o).filter(([k, v]) => /^[a-z]{1,16}$/i.test(k) && typeof v === 'boolean').slice(0, 8)) })
     }
     case 'start': {
-      if (g.host_id !== uid) throw new Nope('Only the host can start.', 403)
       if (!between) throw new Nope('Already playing.')
+      // The host any time; anyone seated once the ready-up countdown has run out.
+      const countedDown = !!g.deadline && Date.now() >= Date.parse(g.deadline) && !!mine
+      if (g.host_id !== uid && !countedDown) throw new Nope('Only the host can start.', 403)
       const players = seats.map(seatIdOf)
       if (players.length < R.meta.min) throw new Nope(`${R.meta.name} needs at least ${R.meta.min} players.`)
       // Real-time games (meta.realtime: Midnight Chitchen) keep a game clock that follows the server's.
       const opts = withoutAway(g.opts)
       const next = R.setup(players, seed(), R.meta.realtime ? { ...opts, now: Date.now() } : opts)
       if (g.game === 'pillow') await tidyCries(dropCries(g.id))
-      return save({ ...payload(R, null, next, seats), privs_reset: true, opts })
+      return save({ ...payload(R, null, next, seats), privs_reset: true, opts, ...(night ? { night: { ...night, votes: {} } } : {}) })
+    }
+    case 'ready': {
+      if (g.host_id !== uid) throw new Nope('Only the host can do that.', 403)
+      if (!between) throw new Nope('Already playing.')
+      return saveRaw({ deadline: body.cancel ? null : readyAt() })
+    }
+    case 'night': {
+      if (g.host_id !== uid) throw new Nope('Only the host plans the night.', 403)
+      if (!('night' in g)) throw new Nope('Game nights need the latest update. Try again later.')
+      return saveRaw({ night: body.stop ? null : setRest(night, g.game, body.rest) })
+    }
+    case 'vote': {
+      if (g.status !== 'done' || !night || night.ended) throw new Nope('Nothing to vote on.')
+      if (!CHOICES.includes(body.choice)) throw new Nope('Next game, again or skip?')
+      const voters = votersOf(seats, g.opts)
+      if (!voters.includes(uid)) throw new Nope('Only the players vote.', 403)
+      const n = { ...night, votes: { ...(night.votes || {}), [uid]: body.choice } }
+      const { win } = tally(n.votes, voters)
+      return win ? applyChoice(n, win) : saveRaw({ night: n })
+    }
+    case 'next': {
+      if (g.host_id !== uid) throw new Nope('Only the host can do that.', 403)
+      if (!between) throw new Nope('Wait for this round to finish.')
+      if (!night) throw new Nope('No game night is planned.')
+      if (!CHOICES.includes(body.choice)) throw new Nope('Next game, again or skip?')
+      return applyChoice(night, body.choice)
     }
     case 'move': {
       if (g.status !== 'playing') throw new Nope('No round is running.')
