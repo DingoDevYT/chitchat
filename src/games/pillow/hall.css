@@ -1,0 +1,52 @@
+/* Drawing Duel Hall of Fame: champions on little paper cards (crayon ink on cream, in the day and night looks alike). */
+body .dh {
+  --card: #fffdf8; --ink: #4a3b32; --ink2: #7a6658; --line: #e3d2b4; --butter: #f6d37a; --berry: #e2697b;
+  --pop: 0 3px 0 rgba(74, 59, 50, .14), 0 8px 18px rgba(74, 59, 50, .14);
+  display: flex; flex-direction: column; gap: 12px; min-height: 240px;
+}
+body .dh-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; }
+body .dh-sort { margin: 0; flex: 0 1 260px; }
+body .dh-opt { font-size: 14px; }
+body .dh-empty { text-align: center; padding: 32px 12px; display: grid; justify-items: center; gap: 8px; color: var(--muted); }
+body .dh-grid { list-style: none; margin: 0; padding: 4px 2px 8px; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+@media (max-width: 420px) { body .dh-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } }
+
+body .dh-card {
+  position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; gap: 2px; padding: 8px 8px 10px; text-align: left;
+  background: var(--card); color: var(--ink); border: 3px solid var(--ink); border-radius: 18px; box-shadow: var(--pop); cursor: pointer;
+  font: inherit; transition: transform .25s var(--spring, ease), box-shadow .2s;
+}
+body .dh-card:nth-child(odd) { transform: rotate(-.6deg); }
+body .dh-grid li:nth-child(3n) .dh-card { transform: rotate(.7deg); }
+body .dh-card:hover, body .dh-card:focus-visible { transform: translateY(-3px) rotate(0); }
+body .dh-art { display: block; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: #fffdf8; border: 2px solid var(--line); margin-bottom: 4px; }
+body .dh-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+body .dh-belt { position: absolute; top: 4px; right: 4px; border: 2px solid var(--ink); }
+body .dh-name { font-family: var(--font-head); font-weight: 600; font-size: 15px; line-height: 1.15; overflow-wrap: anywhere; }
+body .dh-by { font-weight: 800; color: var(--ink2); }
+body .dh-prompt { color: var(--ink); font-style: italic; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+body .dh-rec { color: var(--ink2); font-size: 12px; margin-top: auto; padding-top: 2px; }
+
+body .dh-detail { display: flex; flex-direction: column; gap: 10px; }
+body .dh-back { align-self: flex-start; }
+body .dh-stage { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 640px) { body .dh-stage { grid-template-columns: minmax(0, 1fr); } }
+body .dh-big {
+  --amp: 0; position: relative; width: 100%; max-width: 300px; justify-self: center; aspect-ratio: 1; padding: 10px; background: var(--card);
+  border: 3px solid var(--ink); border-radius: 22px; box-shadow: var(--pop); cursor: pointer; transform-origin: 50% 100%;
+  transform: scale(calc(1 + var(--amp) * .08), calc(1 - var(--amp) * .06)); transition: transform .05s linear;
+}
+body .dh-big .pcf-doodle { width: 100%; height: 100%; display: block; }
+body .dh-big .pcf-doodle .rp { stroke-dasharray: 1 2; stroke-dashoffset: 1; animation: pcf-ink var(--l) linear var(--d) forwards; }
+body .dh-words { position: absolute; left: 50%; bottom: calc(100% - 18px); transform: translateX(-50%); width: max-content; max-width: min(260px, 80vw);
+  padding: 6px 12px; background: var(--card); color: var(--ink); border: 3px solid var(--ink); border-radius: 18px; font-weight: 800; font-size: 13px; }
+body .dh-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+body .dh-info h3 { margin: 0; font-family: var(--font-head); font-size: 22px; overflow-wrap: anywhere; }
+body .dh-prompt-big { margin: 0; font-size: 17px; font-style: italic; }
+body .dh-info .small { margin: 0; color: var(--muted); }
+body .dh-stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0; }
+body .dh-stats span { background: color-mix(in srgb, var(--accent) 16%, transparent); border-radius: 999px; padding: 3px 12px; font-size: 14px; }
+body .dh-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+body .dh-share { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; border: 2px dashed var(--stitch); border-radius: var(--r); padding: 6px; }
+body .dh-share .fwd-item { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; text-align: left; padding: 8px 10px; border-radius: 10px; }
+body .dh-share .fwd-item:hover { background: color-mix(in srgb, var(--text) 7%, transparent); }

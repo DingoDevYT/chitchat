@@ -1,9 +1,10 @@
 import Modal from '../Modal'
 import { GAME_INFO } from './useGame'
+import Icon from '../icons/Icon'
 import './picker.css'
 
 // The Games panel: a grid of cards, each with a real gameplay banner, the name, what it is, and how many can play.
-export default function GamePicker({ onPick, onClose }) {
+export default function GamePicker({ onPick, onClose, onHall }) {
   return (
     <Modal title="Games" onClose={onClose} wide>
       <div className="gpk-grid" role="list">
@@ -18,6 +19,7 @@ export default function GamePicker({ onPick, onClose }) {
           </button>
         ))}
       </div>
+      {onHall && <div className="gpk-hall"><button type="button" className="btn ghost" onClick={onHall}><Icon name="crown" size={16} /> Drawing Duel Hall of Fame</button></div>}
     </Modal>
   )
 }

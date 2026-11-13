@@ -105,6 +105,14 @@ export async function upload(gameId, owner, round, baked) {
   return !error
 }
 
+// A clip as a Blob: the copy in memory (your own upload) if there is one, else from the bucket. For the Hall of Fame.
+export async function cryBlob(gameId, owner, cry) {
+  const path = cryPath(gameId, owner, cry)
+  if (mem.has(path)) return mem.get(path)
+  const { data, error } = await supabase.storage.from(BUCKET).download(path)
+  return error ? null : data
+}
+
 export function loadCry(gameId, champ) {
   const cry = champ?.cry
   if (!cry?.ext || !champ.owner) return Promise.resolve(null)
@@ -122,14 +130,15 @@ export function loadCry(gameId, champ) {
 
 // Plays a champion's battle cry (or its squeak), calling onAmp(0..1) every frame for the squash and stretch.
 // Returns a stop function.
-export function playCry(gameId, champ, onAmp) {
+// `load` swaps where the clip comes from (the Hall of Fame plays its saved copies).
+export function playCry(gameId, champ, onAmp, load = () => loadCry(gameId, champ)) {
   const a = audio(), g = a.createGain(), an = a.createAnalyser()
   g.gain.value = volume(); an.fftSize = 512
   g.connect(an); an.connect(a.destination)
   let src = null, raf = 0, dead = false, said = null
   const data = new Uint8Array(an.fftSize)
   const loop = () => { an.getByteTimeDomainData(data); let m = 0; for (const x of data) m = Math.max(m, Math.abs(x - 128)); onAmp?.(Math.min(1, m / 50)); raf = requestAnimationFrame(loop) }
-  loadCry(gameId, champ).then(buf => {
+  load().then(buf => {
     if (dead) return
     if (buf) { src = a.createBufferSource(); src.buffer = buf; src.connect(g); src.start(); loop() }
     else if (champ?.cry?.text && (said = speak(champ.cry.text, champ.cry.synth ?? 0, onAmp))) { /* the speech voice has it */ }

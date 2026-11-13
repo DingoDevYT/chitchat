@@ -11,3 +11,5 @@ body .gpk-body b { font: 700 18px Fredoka, Nunito, sans-serif; }
 body .gpk-meta { color: var(--muted); font-weight: 700; font-size: 12px; }
 body .gpk-blurb { font-size: 13px; line-height: 1.35; color: var(--text); opacity: .9; }
 @media (prefers-reduced-motion: reduce) { body .gpk-card, body .gpk-banner img { transition: none; } }
+/* the Drawing Duel Hall of Fame link under the cards */
+.gpk-hall { display: flex; justify-content: center; margin-top: 14px; }
