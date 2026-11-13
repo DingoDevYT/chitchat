@@ -11,6 +11,7 @@ import { RoleChips, useCanKick } from './Roles'
 import { ModButtons, NoteBox, TimeoutBadge } from './Moderation'
 import { block, unblock, useBlocked } from './lib/blocks'
 import Icon from './icons/Icon'
+import ProfileGames from './games/ProfileGames'
 
 export const ROLE_BADGE = { owner: <Icon name="crown" size="1.1em" title="Owner" />, admin: <Icon name="star" size="1.1em" title="Admin" /> }
 
@@ -96,6 +97,7 @@ function Card({ id, role, ctx, onClose }) {
       <CustomStatus id={id} className="profile-cs" />
       {!self && <LastSeen id={id} />}
       {p?.bio && <p className="bio">{p.bio}</p>}
+      {!p?.is_bot && <ProfileGames uid={id} serverId={ctx.server?.id} />}
       {!self && <NoteBox id={id} ctx={ctx} />}
       <div className="col">
         {self && <button className="btn ghost" onClick={() => { ctx.setModal({ type: 'settings' }); onClose() }}>Edit profile</button>}

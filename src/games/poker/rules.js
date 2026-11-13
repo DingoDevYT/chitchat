@@ -233,3 +233,6 @@ export function bot(v, me, level, rand = Math.random) {
   if (eq >= odds + (level === 'easy' ? -0.1 : 0.03)) return owe >= stack ? { type: 'allin' } : { type: 'call' }
   return { type: 'fold' }
 }
+
+// Leaderboard stats for a finished game (src/games/results.js).
+export const stats = (s, pid) => ({ chips: s.pub.stacks?.[pid] ?? 0 })

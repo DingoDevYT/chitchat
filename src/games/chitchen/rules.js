@@ -644,3 +644,10 @@ function suspect(v, me, L, rand) {
   if (!best.length || best[0][1] < L.sure || (best[1] && best[1][1] === best[0][1])) return 'skip'
   return best[0][0]
 }
+
+// Leaderboard stats for a finished night (src/games/results.js): your role and which side won.
+export function stats(s, pid) {
+  const p = s.pub
+  const role = p.roles?.[pid] || s.priv?.[pid]?.role
+  return { ...(role ? { role } : {}), ...(p.winner ? { side: p.winner } : {}) }
+}

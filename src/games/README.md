@@ -17,6 +17,9 @@ Each game has its own edge function, `game-<id>`, whose `index.ts` is just `serv
 - Or with the CLI from the repo root: `supabase functions deploy game-<id> --project-ref nilludyavkfqwastghmw`.
 - `supabase/functions/game/index.ts` is the old all-games function (`serveReferee(GAMES)` with the whole registry). It's a fallback only and is too big to deploy through the MCP; `node scripts/fnfiles.mjs` with no id lists its files.
 
+## Results and leaderboards (`results.js`, migration 043)
+When a round's `done` save lands, the referee's `save` calls `recordResults` (`supabase/functions/_shared/record.ts`) once, which writes one `game_results` row per person (never Chitbots) with the service role. `results.js` (pure, tested in `results.test.js`) builds the rows: placings from `over()` (winners place 1) and the game's own `ranking`/`standings` or its score (`SCORE`: which stats key is the score, and Card Rush's lower-is-better), plus each rules module's optional `stats(state, pid)`. The round's key is the table id plus the version the done save landed on (unique index `game_id, round, user_id`; upsert ignores duplicates). The Games panel's Leaderboards tab (`Leaderboards.jsx`) and the profile card line (`ProfileGames.jsx`) read the RPCs `game_leaderboard`, `game_records` and `game_player_stats`, which run as the caller so RLS decides what counts. Records shown are listed in `RECORDS`. Dev preview with mock data: `#/leaders` (`?card=1` for the profile line).
+
 ## Leaving a game (`quit`, `away.js`)
 Seated players get **Leave game** in the shared tools bar (also in full view), with a confirm. The referee's `quit` works in any state (`away.js` `quitPlan`, tested in `away.test.js`):
 - Lobby or between rounds: same as `stand`.

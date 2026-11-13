@@ -1,0 +1,46 @@
+/* Leaderboards (Games panel tab) and the profile card's game line. `body` prefix: styles.css loads later. */
+body .lb { display: flex; flex-direction: column; gap: 14px; }
+body .lb-filters { display: flex; flex-direction: column; gap: 10px; }
+body .lb-games { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: thin; }
+body .lb-chip { display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 5px 12px 5px 5px; border-radius: 999px; background: var(--bg-3);
+  color: var(--text); font-weight: 700; font-size: 13px; box-shadow: inset 0 0 0 2px var(--line); white-space: nowrap; transition: box-shadow .15s, transform .2s var(--spring); }
+body .lb-chip:first-child { padding-left: 12px; }
+body .lb-chip img { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; }
+body .lb-chip:hover { box-shadow: inset 0 0 0 2px var(--accent); }
+body .lb-chip.on { background: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 0 color-mix(in srgb, var(--accent) 60%, #000); }
+body .lb-chip:active { transform: scale(.95); }
+body .lb-period { align-self: flex-start; min-width: 240px; margin: 0; }
+body .lb-board, body .lb-records { background: var(--bg-3); border-radius: 18px; padding: 12px 14px 14px; box-shadow: inset 0 0 0 2px var(--line); }
+body .lb h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font: 700 17px Fredoka, Nunito, sans-serif; }
+body .lb-empty { margin: 6px 0; }
+body .lb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+body .lb-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 14px; }
+body .lb-row:nth-child(odd) { background: color-mix(in srgb, var(--text) 4%, transparent); }
+body .lb-row.top { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+body .lb-rank { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; font: 700 14px Fredoka, Nunito, sans-serif;
+  color: var(--muted); background: var(--bg); }
+body .lb-row.top1 .lb-rank { background: #f2c14e; color: #4a3200; }
+body .lb-row.top2 .lb-rank { background: #cfd6dd; color: #2f3a44; }
+body .lb-row.top3 .lb-rank { background: #d99a6c; color: #3d2210; }
+body .lb-who { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+body .lb-who .name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body .lb-who small { font-size: 12px; }
+body .lb-wins { flex: none; display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+body .lb-wins b { font: 700 18px Fredoka, Nunito, sans-serif; }
+body .lb-wins small { color: var(--muted); font-size: 11px; font-weight: 700; }
+body .lb-records ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+body .lb-rec { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 14px; background: var(--bg); font-size: 13.5px; line-height: 1.3; }
+body .lb-rec-label { color: var(--muted); font-weight: 700; }
+body .lb-rec .name { font-weight: 700; }
+@media (max-width: 560px) {
+  body .lb-period { align-self: stretch; min-width: 0; }
+  body .lb-board, body .lb-records { padding: 10px; }
+  body .lb-row { gap: 8px; padding: 6px; }
+  body .lb-records ul { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { body .lb-chip { transition: none; } }
+
+/* Profile card: "12 wins in 30 games · loves Jetpack Dash" plus one standout record. */
+body .pc-games { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0 2px; padding: 8px 10px; border-radius: 14px; background: color-mix(in srgb, var(--text) 5%, transparent); font-size: 13px; line-height: 1.35; }
+body .pc-games .icon { flex: none; margin-top: 1px; color: var(--accent); }
+body .pc-games small { display: block; color: var(--muted); }

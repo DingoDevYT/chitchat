@@ -321,3 +321,13 @@ export function bot(v, who, level = 'normal', rand = Math.random) {
   if (!pendingBots(v).some(([k]) => k === who)) return timeout()
   return { type: 'vote', side: pickSide(v, v.bouts[v.bi], level, rand, who) }
 }
+
+// Leaderboard stats for a finished game (src/games/results.js): points, every vote your champions drew, and your
+// longest title streak.
+export function stats(s, pid) {
+  const p = s.pub
+  let votes = 0, streak = 0
+  for (const b of p.log || []) for (const side of ['a', 'b', 'c']) if (b[side] && ownerOf(p, b[side]) === pid) votes += b[`v${side}`] || 0
+  for (const c of Object.values(p.champs || {})) if (c.owner === pid) streak = Math.max(streak, c.best || 0)
+  return { points: p.scores?.[pid] || 0, votes, streak }
+}

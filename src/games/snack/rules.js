@@ -207,3 +207,6 @@ export function bot(v, me, level, rand = Math.random) {
   const flavour = CARDS[pick].f === 4 ? (level === 'easy' ? Math.floor(rand() * 4) : bestFlavour) : undefined
   return { type: 'play', card: pick, ...(flavour !== undefined && { flavour }), ...(bite && { bite: true }) }
 }
+
+// Leaderboard stats for a finished game (src/games/results.js): cards still in hand.
+export const stats = (s, pid) => ({ cards: s.pub.counts?.[pid] ?? 0 })
