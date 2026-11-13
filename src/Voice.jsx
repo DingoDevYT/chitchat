@@ -26,6 +26,7 @@ import { awayOf } from './games/away.js'
 import { Entrance, seatFx, useArrivals } from './Entrances'
 import { RadioCard, RadioDrawer, RadioPlayer } from './Radio'
 import { micHeld, onMicHold } from './lib/micHold'
+import { SfxButton, SfxToasts, attachSfx } from './Soundboard'
 
 const GameScreen = lazy(() => import('./games/GameScreen')) // games (and three.js) load only when a table opens
 
@@ -240,6 +241,8 @@ export function VoiceConnection({ channel, me, vstate, setVstate, onError, onCal
     stops.push(prefs.subscribe(() => { for (const [id, p] of peers) peerGains(id, p) }))
     // Proximity voice while a Impostor game runs (off otherwise: lib/proximity.js).
     stops.push(attachProximity(audioCtx, peers, out.master, id => { const P = prefs.get(); return P.callMuted[id] ? 0 : P.peerVol[id] ?? 1 }))
+    // Soundboard clips fired in this stadium play into the call mix (Soundboard.jsx).
+    if (channel.kind === 'voice') stops.push(attachSfx({ ctx: audioCtx, dest: out.master, cid: channel.id, me: me.id, deafened: () => vstateRef.current.deafened }))
     const onDevices = () => navigator.mediaDevices.enumerateDevices().then(checkDevices, () => {})
     navigator.mediaDevices.addEventListener?.('devicechange', onDevices)
     stops.push(() => navigator.mediaDevices.removeEventListener?.('devicechange', onDevices))
@@ -706,6 +709,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
             </div>
           )}
         </div>
+        {joined && <SfxToasts />}
         <RadioCard channel={channel} meId={meId} joined={joined} deafened={!!vstate?.deafened} listeners={ids ? ids.split(',').length : 0} below={!!main && !g} />
         {view === 'list' ? (
           <div className="stage-crowd list">
@@ -738,6 +742,7 @@ export function VoiceStage({ channel, meId, joined, onJoin, live, onLive, cam, o
               title={cam ? 'Turn camera off' : 'Turn camera on'} aria-label={cam ? 'Turn camera off' : 'Turn camera on'}><Icon name={cam ? 'camera-off' : 'camera'} /></button>}
             {canShare && <button className={`icon-btn${live ? ' on' : ''}`} onClick={onLive} aria-pressed={!!live}
               title={live ? 'Stop sharing' : 'Go live'} aria-label={live ? 'Stop sharing' : 'Go live'}><Icon name={live ? 'stop' : 'screen'} /></button>}
+            <SfxButton channel={channel} />
             <button className="icon-btn danger" onClick={onLeave} title="Leave stadium" aria-label="Leave stadium"><Icon name="phone-off" /></button>
           </div>
         )}

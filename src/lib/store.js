@@ -124,6 +124,8 @@ const defaults = {
   gotShown: {}, // "You got…" pop-ups already shown: 'userId:kind' -> 1
   // Chit Radio (Radio.jsx): your music volume 0..1 and mute, separate from voices; duck = quieter while people talk; radioMin = card tucked away
   musicVol: 0.2, musicMuted: false, musicDuck: true, radioMin: false,
+  // Soundboard (Soundboard.jsx): clip volume 0..1 and mute, separate from voices and music; duck = quieter while people talk
+  sfxVol: 0.3, sfxMuted: false, sfxDuck: true,
 }
 function loadPrefs() {
   try { return { ...defaults, ...JSON.parse(localStorage.getItem(PREFS_KEY)) } } catch { return defaults }
